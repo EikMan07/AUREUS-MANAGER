@@ -1,0 +1,581 @@
+// =========================================================================
+// PROYECTO: COBRO-FIRME - SISTEMA DE GESTIÓN DE PRÉSTAMOS Y COBROS (POSTGRESQL)
+// Base de datos: cobro_firme_db | Diagrama: Diagrama_ER_CobroFirme
+// Módulos: 1. Cobros | 2. Clientes | 3. Préstamos | 4. Resumen | 5. Lista Negra | 6. Papelera
+// MULTIUSUARIO: cada cobrador ve únicamente sus propios clientes, préstamos y cobros.
+// ACCESO: registro con correo verificado -> ingreso con usuario y contraseña -> huella / Face ID.
+// ADMINISTRADOR: interfaz aparte (rol ADMINISTRADOR) con 6 módulos: Dashboard general,
+// Cobradores, Cartera global, Bitácora de actividad, Reportes y Lista Negra / Papelera globales.
+// Usa las mismas tablas y ve todas las carteras; solo agrega las tablas de la sección 8
+// y lista_negra_global.
+// =========================================================================
+// AL CREAR LA BASE DE DATOS:
+//   ALTER DATABASE cobro_firme_db SET timezone TO 'America/Costa_Rica';
+// AISLAMIENTO POR COBRADOR (recomendado): activar Row Level Security en cada tabla
+// con columna cobrador_id, por ejemplo:
+//   ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
+//   CREATE POLICY por_cobrador ON clientes
+//     USING (cobrador_id = current_setting('app.usuario_id')::uuid
+//            OR current_setting('app.rol') = 'ADMINISTRADOR');
+// Las tablas hijas sin cobrador_id (renovaciones_prestamo, arreglos_pago,
+// historial_pasar_dia, historial_prestamos_archivo) se filtran a través de su tabla padre.
+// MODO OFFLINE: el celular genera el UUID (id) de cada registro nuevo; el servidor lo
+// acepta tal cual (INSERT ... ON CONFLICT (id) DO NOTHING) para que reenvíos no dupliquen.
+// =========================================================================
+
+Project CobroFirme_PostgreSQL {
+  database_type: 'PostgreSQL'
+  Note: 'cobro_firme_db - Cobro-Firme multiusuario (6 Módulos + Seguridad, Notificaciones e Historial de clientes eliminados)'
+}
+
+// -------------------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------------------
+
+Enum rol_usuario {
+  ADMINISTRADOR [note: 'Ve a todos los cobradores y gestiona usuarios']
+  COBRADOR [note: 'Ve solo sus propios clientes, préstamos y cobros']
+}
+
+Enum estado_cuenta {
+  PENDIENTE_VERIFICACION [note: 'Se registró pero aún no confirma su correo; no puede usar el aplicativo']
+  ACTIVA [note: 'Correo verificado; puede ingresar y trabajar con normalidad']
+  SUSPENDIDA [note: 'Desactivada por un administrador; conserva su historial']
+}
+
+Enum proposito_verificacion {
+  VERIFICAR_CORREO [note: 'Código enviado al registrarse']
+  RECUPERAR_CONTRASENA [note: 'Código enviado al olvidar la contraseña']
+}
+
+Enum estado_cliente {
+  ACTIVO [note: 'Visible en Módulo 2: Clientes registrados']
+  EN_PAPELERA [note: 'Visible en Módulo 6: Papelera de Clientes (30 días)']
+  EN_LISTA_NEGRA [note: 'Visible en Módulo 5: Lista Negra']
+}
+
+Enum modalidad_prestamo {
+  SEMANAL
+  QUINCENAL
+}
+
+Enum dia_semana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+}
+
+Enum estado_prestamo {
+  ACTIVO [note: 'Préstamo vigente normal']
+  ATRASADO [note: 'En pestaña Atrasados (4+ semanas o 2+ quincenas sin pagar)']
+  ARREGLO_PAGO [note: 'Con acuerdo especial de monto fijo y cuota especial']
+  LIQUIDADO [note: 'Pagado en su totalidad']
+  RENOVADO [note: 'Extendido mediante Renovar Préstamo']
+  SUSPENDIDO [note: 'Oculto mientras el cliente está en Papelera o Lista Negra; no aparece en Cobros ni en Resumen']
+}
+
+Enum estado_cuota_cobro {
+  PENDIENTE [note: 'Aparece en Pendientes de Hoy']
+  REGISTRADO [note: 'Aparece en Cobros ya registrados']
+  NO_PAGO [note: 'No pagó en su fecha; acumula semana o quincena de atraso']
+  PASADO_DE_DIA [note: 'Reprogramado temporalmente para otra fecha']
+}
+
+Enum tipo_pago {
+  COBRO_NORMAL [note: 'Botón Pagó en Pendientes']
+  PAGO_ATRASADO [note: 'Botón Registrar Pago en la pestaña Atrasados']
+}
+
+Enum accion_bitacora {
+  PAGO_REGISTRADO
+  COBRO_PASADO
+  NO_PAGO_REGISTRADO
+  CLIENTE_CREADO
+  CLIENTE_EDITADO
+  CLIENTE_A_PAPELERA
+  CLIENTE_RESTAURADO
+  CLIENTE_ELIMINADO_DEFINITIVO
+  CLIENTE_A_LISTA_NEGRA
+  CLIENTE_SACADO_DE_LISTA_NEGRA
+  PRESTAMO_CREADO
+  PRESTAMO_RENOVADO
+  ARREGLO_PAGO_CREADO
+  LISTA_NEGRA_COMPARTIDA [note: 'El administrador la envió a la Lista Negra global']
+  LISTA_NEGRA_GLOBAL_RETIRADA
+  CARTERA_TRANSFERIDA
+  USUARIO_SUSPENDIDO
+  USUARIO_REACTIVADO
+  CLAVE_RESTABLECIDA [note: 'El administrador envió un código de recuperación; nunca ve la contraseña']
+  HUELLA_ELIMINADA
+}
+
+// -------------------------------------------------------------------------
+// 1. SEGURIDAD: REGISTRO, USUARIOS (COBRADORES), HUELLA / FACE ID Y NOTIFICACIONES PUSH
+// -------------------------------------------------------------------------
+
+// REGISTRO: cualquier colaborador se registra con usuario, nombre completo, correo y la
+// contraseña que él crea (no la del correo). La cuenta nace en PENDIENTE_VERIFICACION y
+// pasa a ACTIVA solo al confirmar el código enviado a su correo.
+// El rol NUNCA se elige en el registro: todo registro nuevo es COBRADOR. El primer
+// ADMINISTRADOR se crea a mano en la base de datos.
+Table usuarios {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario varchar(50) [not null, note: 'Nombre de usuario para ingresar; único sin importar mayúsculas']
+  nombre_completo varchar(120) [not null, note: 'Nombre y apellidos de la persona']
+  correo varchar(254) [not null, note: 'Único sin importar mayúsculas; se guarda en minúsculas']
+  correo_verificado boolean [not null, default: false]
+  correo_verificado_en timestamptz [null]
+  password_hash text [not null, note: 'Contraseña creada por el usuario, con hash argon2id o bcrypt; nunca en claro']
+  rol rol_usuario [not null, default: 'COBRADOR']
+  estado_cuenta estado_cuenta [not null, default: 'PENDIENTE_VERIFICACION', note: 'Las cuentas se suspenden, no se borran, para conservar su historial']
+  webauthn_user_handle text [unique, note: 'Identificador aleatorio exigido por WebAuthn / passkeys']
+  intentos_fallidos int [not null, default: 0]
+  bloqueado_hasta timestamptz [null]
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    `lower(usuario)` [unique, name: 'uq_usuarios_usuario']
+    `lower(correo)` [unique, name: 'uq_usuarios_correo']
+  }
+
+  checks {
+    `(estado_cuenta = 'PENDIENTE_VERIFICACION') OR correo_verificado` [name: 'ck_usuarios_activa_requiere_correo_verificado']
+    `usuario ~ '^[A-Za-z0-9._-]{3,50}$'` [name: 'ck_usuarios_formato_usuario']
+  }
+}
+
+// Verificación de correo tipo Google: el servidor envía un código de 6 dígitos al correo y
+// el usuario lo escribe en la app. Es la única forma real de comprobar que el correo existe
+// y que le pertenece. Se guarda solo el hash del código, vence a los 10 minutos y permite
+// 5 intentos; el reenvío debe limitarse (por ejemplo, 1 por minuto y 5 por hora).
+Table verificaciones_correo {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, ref: > usuarios.id, delete: cascade]
+  correo varchar(254) [not null, note: 'Correo al que se envió el código, por si el usuario lo cambia antes de verificar']
+  proposito proposito_verificacion [not null, default: 'VERIFICAR_CORREO']
+  codigo_hash text [not null, note: 'Hash del código; nunca el código en claro']
+  intentos int [not null, default: 0]
+  expira_en timestamptz [not null, note: 'creado_en + 10 minutos']
+  usado_en timestamptz [null, note: 'Se llena al confirmar el código correcto']
+  creado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (usuario_id, proposito, creado_en)
+  }
+}
+
+// Huella, Face ID, Touch ID: el mismo estándar WebAuthn funciona en iPhone y Android.
+// Un usuario puede registrar varios celulares. Se activa después de entrar con contraseña.
+Table credenciales_webauthn {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, ref: > usuarios.id, delete: cascade]
+  credential_id text [unique, not null]
+  public_key text [not null]
+  sign_count bigint [not null, default: 0, note: 'Contador anti-replay']
+  transports varchar(100) [note: 'internal, hybrid, etc.']
+  dispositivo varchar(100) [note: 'Ej: iPhone Face ID, Samsung huella']
+  creado_en timestamptz [not null, default: `now()`]
+  ultimo_uso timestamptz [null]
+
+  indexes {
+    usuario_id
+  }
+}
+
+Table suscripciones_push {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, ref: > usuarios.id, delete: cascade]
+  endpoint text [unique, not null]
+  p256dh text [not null]
+  auth text [not null]
+  dispositivo varchar(100) [note: 'Ej: iPhone / Android PWA']
+  activo boolean [not null, default: true]
+  creado_en timestamptz [not null, default: `now()`]
+}
+
+Table notificaciones {
+  id uuid [pk, default: `gen_random_uuid()`]
+  usuario_id uuid [not null, ref: > usuarios.id, delete: cascade, note: 'Cobrador que recibe la notificación']
+  titulo varchar(120) [not null]
+  mensaje text [not null]
+  monto_resaltado numeric(14,2) [note: 'Monto que se resalta en verde sin paréntesis']
+  leida boolean [not null, default: false]
+  fecha_creacion timestamptz [not null, default: `now()`]
+
+  indexes {
+    (usuario_id, leida)
+  }
+}
+
+// -------------------------------------------------------------------------
+// 2. MÓDULO CLIENTES Y MÓDULO PAPELERA (30 DÍAS) - CADA CLIENTE PERTENECE A UN COBRADOR
+// -------------------------------------------------------------------------
+// La misma cédula puede existir en carteras de cobradores distintos.
+// Al enviar a Papelera o Lista Negra: los préstamos pasan a SUSPENDIDO (ocultos).
+// Al Restaurar o Sacar: vuelven a su estado anterior.
+// Al eliminar definitivamente (manual, Vaciar Papelera o a los 30 días): se llama a
+// archivar_y_eliminar_cliente(), que guarda el historial por 5 meses (ver sección 7).
+
+Table clientes {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
+  cobrador_id uuid [not null, ref: > usuarios.id, note: 'Dueño del cliente']
+  cedula char(9) [null, note: 'Opcional: si se escribe o escanea por foto, debe tener 9 dígitos sin guiones, ej: 605090727']
+  nombre varchar(100) [not null, note: '100% obligatorio: Nombre del cliente']
+  apellidos varchar(120) [null, note: 'Opcional: Apellidos del cliente']
+  telefono varchar(20) [not null, note: '100% obligatorio: Teléfono de contacto del cliente']
+  ubicacion varchar(200) [not null, note: '100% obligatorio: Ubicación o señas del cliente']
+  detalles text [null, note: 'Opcional: Referencias o notas adicionales del cliente']
+  estado estado_cliente [not null, default: 'ACTIVO']
+
+  fecha_envio_papelera timestamptz [null, note: 'Fecha en que se eliminó desde Clientes']
+  fecha_borrado_definitivo timestamptz [null, note: 'fecha_envio_papelera + 30 días']
+
+  version int [not null, default: 1, note: 'Se incrementa en cada cambio; sirve para detectar conflictos al sincronizar']
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (cobrador_id, cedula) [unique, name: 'uq_clientes_cobrador_cedula']
+    (estado, fecha_borrado_definitivo) [name: 'idx_clientes_papelera', note: 'Borrado automático de los 30 días']
+  }
+
+  checks {
+    `cedula IS NULL OR cedula ~ '^[0-9]{9}$'` [name: 'ck_clientes_cedula_9_digitos']
+    `btrim(nombre) <> '' AND btrim(telefono) <> '' AND btrim(ubicacion) <> ''` [name: 'ck_clientes_campos_obligatorios_no_vacios']
+    `(estado = 'EN_PAPELERA') = (fecha_envio_papelera IS NOT NULL)` [name: 'ck_clientes_papelera_fechas']
+  }
+}
+
+// -------------------------------------------------------------------------
+// 3. MÓDULO LISTA NEGRA (PRIVADA POR COBRADOR)
+// -------------------------------------------------------------------------
+// Una cédula tiene una sola fila por cobrador. Si se vuelve a registrar tras un Sacar,
+// se reactiva la misma fila (activo = true, fecha_salida = null).
+// Esta lista es privada de cada cobrador. Si el administrador decide que una persona debe
+// aparecer para TODOS los cobradores, la envía a lista_negra_global (ver más abajo).
+
+Table lista_negra {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cobrador_id uuid [not null, ref: > usuarios.id]
+  cliente_id uuid [null, ref: > clientes.id, note: 'Vinculado si provino de un cliente existente', delete: set null]
+  cedula char(9) [not null, note: '9 dígitos sin guiones']
+  nombre varchar(100) [not null]
+  apellidos varchar(120) [not null]
+  activo boolean [not null, default: true, note: 'true = Está en Lista Negra | false = Fue sacado hacia Clientes']
+  fecha_registro date [not null, default: `(now() AT TIME ZONE 'America/Costa_Rica')::date`]
+  fecha_salida timestamptz [null, note: 'Cuando se usa el botón Sacar']
+
+  indexes {
+    (cobrador_id, cedula) [unique, name: 'uq_lista_negra_cobrador_cedula']
+  }
+
+  checks {
+    `cedula ~ '^[0-9]{9}$'` [name: 'ck_lista_negra_cedula_9_digitos']
+  }
+}
+
+// LISTA NEGRA GLOBAL: la gestiona solo el administrador. Una fila por cédula, visible para
+// todos los cobradores. Al buscar una cédula, la app consulta la lista del cobrador y esta;
+// si está aquí muestra el Banner Rojo de Alerta. También muestra una insignia en la tarjeta
+// de cualquier cliente que ya tengan con esa cédula y bloquea préstamos nuevos.
+// No mueve ni toca los clientes ni préstamos de otros cobradores: solo avisa.
+// Si se retira y se vuelve a compartir, se reactiva la misma fila.
+Table lista_negra_global {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cedula char(9) [unique, not null]
+  nombre varchar(100) [not null]
+  apellidos varchar(120) [not null]
+  origen_lista_negra_id uuid [null, ref: > lista_negra.id, delete: set null, note: 'Registro del cobrador desde el que se compartió']
+  cobrador_origen_id uuid [null, ref: > usuarios.id]
+  compartida_por uuid [not null, ref: > usuarios.id, note: 'Administrador que la compartió']
+  activo boolean [not null, default: true]
+  fecha_compartida timestamptz [not null, default: `now()`]
+  retirada_por uuid [null, ref: > usuarios.id]
+  fecha_retiro timestamptz [null]
+
+  checks {
+    `cedula ~ '^[0-9]{9}$'` [name: 'ck_lista_negra_global_cedula_9_digitos']
+    `activo = (fecha_retiro IS NULL)` [name: 'ck_lista_negra_global_retiro']
+  }
+}
+
+// -------------------------------------------------------------------------
+// 4. MÓDULO PRÉSTAMOS
+// -------------------------------------------------------------------------
+// SEMANAL: cobra el día de la semana de dia_fijo_original (ej. Sábado).
+// QUINCENAL: cobra dos días fijos del mes, dia_mes_1 y dia_mes_2 (ej. 15 y 31).
+//   Si el mes tiene menos días que el valor, se cobra el último día del mes;
+//   por eso 31 significa "fin de mes" (30 en noviembre, 28 en febrero).
+
+Table prestamos {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
+  cobrador_id uuid [not null, ref: > usuarios.id]
+  cliente_id uuid [not null, ref: > clientes.id, delete: cascade]
+  monto_prestado numeric(14,2) [not null, note: 'Capital prestado en colones']
+  porcentaje_interes numeric(5,2) [not null, note: 'Porcentaje de interés, ej: 12.00']
+  monto_total_financiar numeric(14,2) [not null, note: 'Total que debe pagar sumando todas las cuotas']
+  monto_pagado_acumulado numeric(14,2) [not null, default: 0, note: 'Se alimenta de pagos_prestamo']
+  saldo_por_pagar numeric(14,2) [not null, note: 'Monto total que le falta por pagar']
+  cuota numeric(14,2) [not null, note: 'Monto de cada cobro semanal o quincenal']
+  modalidad modalidad_prestamo [not null]
+
+  dia_fijo_original dia_semana [null, note: 'Solo SEMANAL: día fijo al que siempre regresa tras pagar']
+  dia_mes_1 smallint [null, note: 'Solo QUINCENAL: primer día de cobro del mes (1 a 31), ej: 15']
+  dia_mes_2 smallint [null, note: 'Solo QUINCENAL: segundo día de cobro (1 a 31), ej: 31 = fin de mes']
+
+  fecha_inicio date [not null]
+  fecha_final date [not null]
+
+  total_periodos int [not null, note: 'Total de semanas o quincenas del préstamo']
+  periodos_pagados int [not null, default: 0]
+  periodos_pendientes int [not null, note: 'Semanas o quincenas que faltan para terminar de pagar el total']
+  periodos_atrasados_acumulados int [not null, default: 0, note: 'Sin pagar seguidas (4 sem o 2 quinc = Atrasados); vuelve a 0 al pagar']
+
+  estado estado_prestamo [not null, default: 'ACTIVO']
+  estado_previo_suspension estado_prestamo [null, note: 'Estado al que vuelve al Restaurar o Sacar de Lista Negra']
+
+  version int [not null, default: 1]
+  creado_en timestamptz [not null, default: `now()`]
+  actualizado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (cobrador_id, estado)
+    (cliente_id, estado)
+  }
+
+  checks {
+    `fecha_final >= fecha_inicio` [name: 'ck_prestamos_fechas']
+    `saldo_por_pagar >= 0` [name: 'ck_prestamos_saldo']
+    `dia_mes_1 BETWEEN 1 AND 31 AND dia_mes_2 BETWEEN 1 AND 31` [name: 'ck_prestamos_rango_dias_mes']
+    `(modalidad = 'SEMANAL' AND dia_fijo_original IS NOT NULL AND dia_mes_1 IS NULL AND dia_mes_2 IS NULL) OR (modalidad = 'QUINCENAL' AND dia_fijo_original IS NULL AND dia_mes_1 IS NOT NULL AND dia_mes_2 IS NOT NULL AND dia_mes_1 < dia_mes_2)` [name: 'ck_prestamos_dia_segun_modalidad']
+  }
+}
+
+Table renovaciones_prestamo {
+  id uuid [pk, default: `gen_random_uuid()`]
+  prestamo_id uuid [not null, ref: > prestamos.id, delete: cascade]
+  monto_anterior numeric(14,2) [not null]
+  monto_nuevo numeric(14,2) [not null]
+  cuota_anterior numeric(14,2) [not null]
+  cuota_nueva numeric(14,2) [not null]
+  fecha_final_anterior date [not null]
+  fecha_final_nueva date [not null]
+  fecha_renovacion timestamptz [not null, default: `now()`]
+}
+
+// Solo un arreglo con activo = true por préstamo. En PostgreSQL crear además:
+//   CREATE UNIQUE INDEX uq_arreglo_activo ON arreglos_pago (prestamo_id) WHERE activo;
+// Para préstamo SEMANAL usar nuevo_dia_cobro; para QUINCENAL usar nuevo_dia_mes_1 y _2.
+Table arreglos_pago {
+  id uuid [pk, default: `gen_random_uuid()`]
+  prestamo_id uuid [not null, ref: > prestamos.id, delete: cascade]
+  monto_fijo_acordado numeric(14,2) [not null]
+  cuota_especial numeric(14,2) [not null]
+  nuevo_dia_cobro dia_semana [null]
+  nuevo_dia_mes_1 smallint [null]
+  nuevo_dia_mes_2 smallint [null]
+  activo boolean [not null, default: true]
+  fecha_acuerdo date [not null, default: `(now() AT TIME ZONE 'America/Costa_Rica')::date`]
+}
+
+// -------------------------------------------------------------------------
+// 5. MÓDULO COBROS
+// -------------------------------------------------------------------------
+
+Table agenda_cobros {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
+  cobrador_id uuid [not null, ref: > usuarios.id]
+  prestamo_id uuid [not null, ref: > prestamos.id, delete: cascade]
+  cliente_id uuid [not null, ref: > clientes.id, delete: cascade]
+  numero_cobro int [not null, note: 'Orden del cobro: Cobro 1, Cobro 2, Cobro 3...']
+
+  fecha_programada_original date [not null, note: 'Fecha según el día fijo (semanal) o los días del mes (quincenal)']
+  fecha_cobro_actual date [not null, note: 'Fecha real en la barra de 7 días (cambia si se pasa de día)']
+  dia_semana_actual dia_semana [not null]
+  veces_pasado int [not null, default: 0, note: 'Ej: Pasado 2 veces']
+
+  monto_cuota numeric(14,2) [not null]
+  monto_moratoria numeric(14,2) [not null, default: 0]
+  monto_total_cobrado numeric(14,2) [not null, default: 0]
+
+  estado estado_cuota_cobro [not null, default: 'PENDIENTE']
+  fecha_hora_registro_pago timestamptz [null, note: 'Hora real del cobro tomada del celular, para Registrados por fecha']
+  fecha_proximo_cobro date [null]
+
+  version int [not null, default: 1]
+
+  indexes {
+    (prestamo_id, numero_cobro) [unique, name: 'uq_agenda_prestamo_numero']
+    (cobrador_id, fecha_cobro_actual, estado) [name: 'idx_agenda_barra_7_dias']
+  }
+}
+
+Table historial_pasar_dia {
+  id uuid [pk, default: `gen_random_uuid()`]
+  agenda_cobro_id uuid [not null, ref: > agenda_cobros.id, delete: cascade]
+  prestamo_id uuid [not null, ref: > prestamos.id, delete: cascade]
+  fecha_anterior date [not null]
+  fecha_nueva date [not null]
+  numero_reprogramacion int [not null, note: '1ra vez, 2da vez, etc.']
+  creado_en timestamptz [not null, default: `now()`, note: 'Hora del celular al momento de pasar el cobro']
+}
+
+Table pagos_prestamo {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
+  cobrador_id uuid [not null, ref: > usuarios.id, note: 'Dueño de la cartera']
+  prestamo_id uuid [not null, ref: > prestamos.id, delete: cascade]
+  agenda_cobro_id uuid [null, ref: > agenda_cobros.id, delete: set null, note: 'Nulo en pagos de atrasos que cubren varios periodos']
+  registrado_por uuid [null, ref: > usuarios.id, note: 'Quién registró el pago (puede ser un administrador)']
+  tipo tipo_pago [not null, default: 'COBRO_NORMAL']
+  monto_cobrado numeric(14,2) [not null, note: 'Capital + interés abonado a la deuda']
+  monto_moratoria numeric(14,2) [not null, default: 0]
+  periodos_cubiertos int [not null, default: 1]
+  fecha_hora_pago timestamptz [not null, default: `now()`, note: 'Hora real del cobro enviada por el celular']
+  sincronizado_en timestamptz [not null, default: `now()`, note: 'Cuándo llegó al servidor (distinto si se cobró sin internet)']
+
+  indexes {
+    (cobrador_id, fecha_hora_pago)
+    prestamo_id
+  }
+
+  checks {
+    `monto_cobrado >= 0 AND monto_moratoria >= 0` [name: 'ck_pagos_montos']
+  }
+}
+
+// -------------------------------------------------------------------------
+// 6. MÓDULO RESUMEN Y ESTADÍSTICAS (UNA FILA POR COBRADOR Y POR DÍA)
+// -------------------------------------------------------------------------
+// El administrador ve el total sumando las filas de todos los cobradores.
+// Los préstamos SUSPENDIDOS no cuentan en ninguna métrica.
+
+Table metricas_diarias_resumen {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cobrador_id uuid [not null, ref: > usuarios.id]
+  fecha date [not null, note: 'Permite filtrar 1-7 días, 1-4 semanas, 1-12 meses, años o Desde el inicio']
+  total_prestado_activo numeric(14,2) [not null, default: 0]
+  total_por_cobrar_hoy numeric(14,2) [not null, default: 0]
+  total_cobrado_hoy numeric(14,2) [not null, default: 0]
+  total_moratorias_cobradas numeric(14,2) [not null, default: 0]
+  clientes_programados_hoy int [not null, default: 0]
+  clientes_cobrados_hoy int [not null, default: 0]
+  clientes_al_dia_count int [not null, default: 0, note: 'Gráfico circular Estado de la Cartera']
+  clientes_pasados_semana_count int [not null, default: 0, note: 'Gráfico circular Estado de la Cartera']
+  clientes_atrasados_arreglo_count int [not null, default: 0, note: 'Gráfico circular Estado de la Cartera']
+  intereses_proyectados numeric(14,2) [not null, default: 0]
+  total_en_moratoria numeric(14,2) [not null, default: 0, note: 'Saldo pendiente de préstamos en Atrasados']
+  capital_en_arreglos_pago numeric(14,2) [not null, default: 0]
+  efectividad_semanal_pct numeric(5,2) [null]
+  efectividad_quincenal_pct numeric(5,2) [null]
+  actualizado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (cobrador_id, fecha) [unique, name: 'uq_metricas_cobrador_fecha']
+  }
+}
+
+// -------------------------------------------------------------------------
+// 7. HISTORIAL DE CLIENTES ELIMINADOS (SE CONSERVA 5 MESES)
+// -------------------------------------------------------------------------
+// Flujo: Papelera (30 días) -> eliminación definitiva -> historial 5 meses -> borrado automático.
+// - Una fila por (cobrador, cédula). Si el cliente vuelve a registrarse con la misma cédula
+//   dentro de los 5 meses, el historial se vincula al nuevo cliente (cliente_id_actual) y
+//   fecha_expiracion queda en nulo: no vence mientras ese cliente exista.
+// - Si se elimina otra vez, se agregan los préstamos nuevos al mismo historial y el reloj
+//   de 5 meses vuelve a empezar.
+// - fecha_expiracion con valor = cliente fuera del aplicativo; al llegar la fecha, se borra todo.
+
+Table historial_clientes_archivo {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cobrador_id uuid [not null, ref: > usuarios.id]
+  cliente_id_actual uuid [null, ref: > clientes.id, delete: set null, note: 'Nuevo cliente al que quedó vinculado si volvió a registrarse']
+  cedula char(9) [not null]
+  nombre varchar(100) [not null]
+  apellidos varchar(120) [not null]
+  telefono varchar(20) [null]
+  ubicacion varchar(200) [null]
+  detalles text [null]
+  fecha_eliminacion timestamptz [not null, default: `now()`]
+  fecha_expiracion timestamptz [null, note: 'fecha_eliminacion + 5 meses; nulo mientras el cliente esté registrado de nuevo']
+  creado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (cobrador_id, cedula) [unique, name: 'uq_historial_cobrador_cedula']
+    fecha_expiracion [name: 'idx_historial_expiracion']
+  }
+}
+
+Table historial_prestamos_archivo {
+  id uuid [pk, default: `gen_random_uuid()`]
+  archivo_id uuid [not null, ref: > historial_clientes_archivo.id, delete: cascade]
+  prestamo_id_original uuid [not null, note: 'Id que tenía en prestamos; ya no existe allí']
+  monto_prestado numeric(14,2) [not null]
+  porcentaje_interes numeric(5,2) [not null]
+  monto_total_financiar numeric(14,2) [not null]
+  monto_pagado numeric(14,2) [not null]
+  saldo_pendiente numeric(14,2) [not null, note: 'Lo que quedó debiendo al eliminarlo']
+  cuota numeric(14,2) [not null]
+  modalidad modalidad_prestamo [not null]
+  fecha_inicio date [not null]
+  fecha_final date [not null]
+  estado_final estado_prestamo [not null]
+  periodos_pagados int [not null]
+  total_periodos int [not null]
+  veces_pasado_total int [not null, default: 0]
+  total_moratorias numeric(14,2) [not null, default: 0]
+  pagos_detalle jsonb [not null, default: `'[]'::jsonb`, note: 'Lista de pagos: fecha, monto, moratoria, tipo']
+  archivado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    archivo_id
+  }
+}
+
+// -------------------------------------------------------------------------
+// 8. ADMINISTRADOR: BITÁCORA DE ACTIVIDAD Y TRANSFERENCIA DE CARTERA
+// -------------------------------------------------------------------------
+
+// Bitácora inmutable: solo se agregan filas; nunca se editan ni se borran (ver trigger en
+// el archivo SQL). No lleva llaves foráneas hacia clientes ni préstamos para que el registro
+// sobreviva a la eliminación definitiva. Guarda la cédula y montos, no más datos personales.
+Table bitacora_actividad {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
+  usuario_id uuid [not null, ref: > usuarios.id, note: 'Quién hizo la acción']
+  cobrador_id uuid [null, ref: > usuarios.id, note: 'Cartera afectada; nulo en acciones globales']
+  accion accion_bitacora [not null]
+  entidad varchar(40) [null, note: 'cliente, prestamo, usuario, lista_negra...']
+  entidad_id uuid [null, note: 'Sin llave foránea a propósito']
+  cedula char(9) [null, note: 'Para buscar la actividad de una persona']
+  detalle jsonb [not null, default: `'{}'::jsonb`, note: 'Montos, fechas y valores anteriores/nuevos']
+  fecha_hora timestamptz [not null, default: `now()`, note: 'Hora real de la acción tomada del celular']
+  sincronizado_en timestamptz [not null, default: `now()`]
+
+  indexes {
+    (cobrador_id, fecha_hora)
+    (usuario_id, fecha_hora)
+    (accion, fecha_hora)
+    cedula
+  }
+}
+
+// Registro de cada vez que el administrador pasa la cartera de un cobrador a otro
+// (por ejemplo, cuando un cobrador deja de trabajar). Ver transferir_cartera() en el SQL.
+Table transferencias_cartera {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cobrador_origen_id uuid [not null, ref: > usuarios.id]
+  cobrador_destino_id uuid [not null, ref: > usuarios.id]
+  realizado_por uuid [not null, ref: > usuarios.id, note: 'Administrador']
+  cantidad_clientes int [not null]
+  cantidad_prestamos int [not null]
+  motivo varchar(200) [null]
+  fecha timestamptz [not null, default: `now()`]
+
+  checks {
+    `cobrador_origen_id <> cobrador_destino_id` [name: 'ck_transferencia_distintos']
+  }
+}

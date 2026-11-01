@@ -1,0 +1,4059 @@
+/* ==========================================================================
+   COBRO-FIRME — DISEÑO EJECUTIVO FORMAL MOBILE-FIRST
+   Zero Emojis · 100% Vectorial · Micro-interacciones 150-200ms
+   ========================================================================== */
+
+:root {
+  /* Paleta Base Ejecutiva */
+  --color-slate-950: #0B0F19;
+  --color-slate-900: #0F172A;
+  --color-slate-850: #131629;
+  --color-slate-800: #1E293B;
+  --color-slate-700: #334155;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748B;
+  --color-slate-400: #94A3B8;
+  --color-slate-300: #CBD5E1;
+  --color-slate-200: #E2E8F0;
+  --color-slate-100: #F1F5F9;
+  --color-slate-50:  #F8FAFC;
+  --color-white:     #FFFFFF;
+
+  /* Colores de Acento y Estados Financieros */
+  --color-emerald-solid: #059669;
+  --color-emerald-light: #10B981;
+  --color-mint-bg:       #ECFDF5;
+  --color-mint-border:   #A7F3D0;
+  --color-mint-text:     #065F46;
+
+  --color-amber-bg:      #FFFBEB;
+  --color-amber-border:  #FDE68A;
+  --color-amber-text:    #92400E;
+
+  --color-red-bg:        #FEF2F2;
+  --color-red-border:    #FECACA;
+  --color-red-text:      #991B1B;
+  --color-red-solid:     #DC2626;
+
+  --color-lavender-bg:   #EEF2FF;
+  --color-lavender-text: #1E3A8A;
+
+  /* Tipografía y Espaciado */
+  --font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Micro-interacciones estrictas (150ms-200ms) */
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Sombras */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Animaciones utilitarias */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 0.85s linear infinite !important;
+  display: inline-block;
+  transform-origin: center center;
+}
+
+/* Reset Global */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: #0B0E14;
+  color: var(--color-slate-900);
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Contenedor Mobile-First PWA */
+.mobile-app-shell {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background-color: #080B11;
+}
+
+.mobile-screen-frame {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  background-color: var(--color-slate-50);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+}
+
+/* 1.1. TOP BAR SUPERIOR OSCURO COMPACTO (#131629) */
+.header-dark-compact {
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-slate-800);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38BDF8;
+}
+
+.brand-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-white);
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-slate-400);
+  text-transform: uppercase;
+}
+
+.notification-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-slate-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.notification-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-white);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-emerald-light);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+/* Contenido Principal con Scroll */
+.main-scrollable-content {
+  flex: 1;
+  padding: 14px 14px 90px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+/* 1.2. FECHA INTERACTIVA COMO BOTÓN DE CALENDARIO + FLECHAS SEMANALES */
+.current-date-display-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-date-trigger {
+  flex: 1 1 0%;
+  min-width: 0;
+  background-color: #FFFFFF;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 16px;
+  padding: 10px 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .btn-date-trigger {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+}
+
+.btn-date-trigger:hover {
+  background-color: var(--color-slate-50);
+  border-color: var(--color-slate-300);
+}
+
+.btn-date-trigger:active {
+  transform: scale(0.99);
+}
+
+.date-trigger-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.date-trigger-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-slate-600);
+  flex-shrink: 0;
+  margin-right: 7px;
+  display: block;
+}
+
+.date-trigger-text {
+  font-size: clamp(11.5px, 3.2vw, 13.5px);
+  font-weight: 700;
+  color: var(--color-slate-900);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .date-trigger-text {
+    font-size: 14px;
+    letter-spacing: -0.015em;
+  }
+}
+
+.date-trigger-chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--color-slate-500);
+  flex-shrink: 0;
+  margin-left: 2px;
+  display: block;
+  transition: transform var(--transition-fast);
+}
+
+.btn-date-trigger:hover .date-trigger-chevron {
+  color: var(--color-slate-700);
+}
+
+.date-nav-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.btn-date-nav-arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+  border: 1px solid var(--color-slate-200);
+  background-color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-700);
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all var(--transition-fast);
+}
+
+.btn-date-nav-arrow:hover {
+  background-color: var(--color-slate-50);
+  border-color: var(--color-slate-300);
+  color: var(--color-slate-900);
+}
+
+.btn-date-nav-arrow:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 380px) {
+  .current-date-display-row {
+    gap: 6px;
+  }
+  .btn-date-trigger {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .date-trigger-text {
+    font-size: 12px;
+    letter-spacing: -0.02em;
+  }
+  .btn-date-nav-arrow {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+  }
+}
+
+/* 1.3. LAS 3 TARJETAS FINANCIERAS BLANCAS CON ICONO */
+.white-summary-cards-section {
+  width: 100%;
+}
+
+.white-summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.white-summary-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 16px; /* rounded-2xl */
+  padding: 11px 9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.white-summary-card:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.card-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.card-title-gray {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-slate-500);
+  line-height: 1.2;
+}
+
+.card-icon-box {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-icon-box.indigo {
+  background-color: #EEF2FF;
+  color: #4F46E5;
+}
+
+.card-icon-box.amber {
+  background-color: #FFFBEB;
+  color: #D97706;
+}
+
+.card-icon-box.emerald {
+  background-color: #ECFDF5;
+  color: #059669;
+}
+
+.card-bottom-row {
+  margin-top: 8px;
+}
+
+.card-amount-black {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-slate-900);
+  letter-spacing: -0.02em;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-amount-black.highlight-today {
+  color: var(--color-emerald-solid);
+}
+
+/* BARRA DE 7 DÍAS */
+.week-selector-section {
+  width: 100%;
+}
+
+.week-days-bar-container {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-subtle);
+}
+
+.week-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+}
+
+.day-col-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  user-select: none;
+  position: relative;
+}
+
+.today-subtle-indicator {
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--color-emerald-solid);
+}
+
+.day-col-btn.active .today-subtle-indicator {
+  background-color: #6EE7B7;
+}
+
+.day-col-btn.border-left {
+  border-left: 1px solid var(--color-slate-200);
+}
+
+.day-abbr {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-slate-500);
+  margin-bottom: 2px;
+}
+
+.day-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-slate-800);
+}
+
+.day-col-btn.active {
+  background-color: var(--color-slate-850);
+}
+
+.day-col-btn.active .day-abbr {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.day-col-btn.active .day-number {
+  color: var(--color-white);
+}
+
+.day-col-btn:not(.active):hover {
+  background-color: var(--color-slate-100);
+}
+
+/* SELECTOR DE 3 SUB-PESTAÑAS (PENDIENTES, REGISTRADOS, ATRASADOS) */
+.segmented-tabs-wrapper {
+  width: 100%;
+}
+
+.segmented-tabs-control-three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background-color: var(--color-slate-100);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-full);
+  padding: 3.5px;
+  gap: 4px;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tab-btn.active {
+  background-color: var(--color-white);
+  color: var(--color-slate-900);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tab-counter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 50%;
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tab-btn.active .tab-counter-badge {
+  background-color: var(--color-emerald-solid);
+}
+
+.tab-counter-badge.red {
+  background-color: var(--color-red-solid) !important;
+  color: var(--color-white) !important;
+}
+
+/* 2. TARJETAS DE CLIENTES */
+.client-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.client-card:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.client-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatar-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: var(--color-lavender-bg);
+  color: var(--color-lavender-text);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(30, 58, 138, 0.1);
+}
+
+.avatar-circle.completed-avatar {
+  background-color: #F0FDF4;
+  color: #166534;
+  border-color: #DCFCE7;
+}
+
+.avatar-circle.overdue-avatar {
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border-color: #FECACA;
+}
+
+.client-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.client-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  line-height: 1.3;
+}
+
+.client-cedula-location {
+  font-size: 11.5px;
+  color: var(--color-slate-500);
+  margin-top: 1px;
+}
+
+.cuota-badge-wrapper {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.cuota-badge-emerald {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-emerald-solid);
+  color: var(--color-white);
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.25);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.cuota-badge-red {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-red-solid);
+  color: var(--color-white);
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.25);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Indicadores Contextuales */
+.card-contextual-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tag-rescheduled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-amber-bg);
+  border: 1px solid var(--color-amber-border);
+  color: var(--color-amber-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3.5px 9px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+.tag-overdue-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--color-red-bg);
+  border: 1px solid var(--color-red-border);
+  color: var(--color-red-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  line-height: 1.3;
+}
+
+.tag-icon-red {
+  color: var(--color-red-solid);
+  flex-shrink: 0;
+}
+
+/* Fila de 3 Botones Grandes */
+.card-action-buttons-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
+  transition: transform var(--transition-fast), filter var(--transition-fast), background-color var(--transition-fast);
+  user-select: none;
+}
+
+.action-btn:active {
+  transform: scale(0.97);
+}
+
+.action-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.btn-pago {
+  background-color: var(--color-mint-bg);
+  border-color: var(--color-mint-border);
+  color: var(--color-mint-text);
+}
+.btn-pago:hover { background-color: #D1FAE5; }
+
+.btn-pasar {
+  background-color: var(--color-amber-bg);
+  border-color: var(--color-amber-border);
+  color: var(--color-amber-text);
+}
+.btn-pasar:hover { background-color: #FEF3C7; }
+
+.btn-no-pago {
+  background-color: var(--color-red-bg);
+  border-color: var(--color-red-border);
+  color: var(--color-red-text);
+}
+.btn-no-pago:hover { background-color: #FEE2E2; }
+
+/* Tarjeta Registrada */
+.completed-timestamp-info {
+  font-size: 11.5px;
+  color: var(--color-slate-500);
+  margin-top: 2px;
+}
+
+.next-payment-date {
+  color: var(--color-slate-600);
+  font-weight: 500;
+}
+
+.completed-amount-wrapper {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.completed-amount-text {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.moratoria-sub-text {
+  font-size: 10.5px;
+  color: var(--color-amber-text);
+  font-weight: 600;
+}
+
+.completed-card-footer {
+  border-top: 1px solid var(--color-slate-100);
+  padding-top: 8px;
+  margin-top: -2px;
+}
+
+.badge-status-registered {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-emerald-solid);
+}
+
+.check-circle-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #D1FAE5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-emerald-solid);
+}
+
+.status-registered-text {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Tarjeta Atrasados (Pestaña Atrasados) */
+.overdue-critical-card {
+  border-color: #FECACA;
+  border-left: 4px solid var(--color-red-solid);
+}
+
+.overdue-critical-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  color: #991B1B;
+  font-size: 11.5px;
+}
+
+.critical-icon {
+  color: var(--color-red-solid);
+  flex-shrink: 0;
+}
+
+.overdue-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.overdue-metric-card {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-card-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-slate-500);
+}
+
+.metric-card-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-slate-900);
+  margin-top: 1px;
+}
+
+.metric-card-sub {
+  font-size: 10px;
+  color: var(--color-slate-500);
+}
+
+.card-action-single-row {
+  width: 100%;
+  padding-top: 2px;
+}
+
+.action-btn-full.btn-pago-liquidar {
+  width: 100%;
+  background-color: var(--color-mint-bg);
+  border: 1px solid var(--color-mint-border);
+  color: var(--color-mint-text);
+  padding: 11px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.action-btn-full.btn-pago-liquidar:hover {
+  background-color: #D1FAE5;
+}
+
+.action-btn-full.btn-pago-liquidar:active {
+  transform: scale(0.98);
+}
+
+/* Estados Vacíos */
+.state-empty-box {
+  background-color: var(--color-white);
+  border: 1px dashed var(--color-slate-300);
+  border-radius: var(--radius-lg);
+  padding: 36px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-icon-circle.mint {
+  background-color: #ECFDF5;
+  color: var(--color-emerald-solid);
+}
+
+.empty-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-slate-800);
+}
+
+.empty-description {
+  font-size: 12px;
+  color: var(--color-slate-500);
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+/* 3. MODALES DE DOBLE VERIFICACIÓN */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  animation: fadeIn 180ms ease-out forwards;
+}
+
+.modal-container {
+  width: 100%;
+  max-width: 390px;
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  border: 1px solid var(--color-slate-200);
+  animation: slideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-container.pass-modal-wide {
+  max-width: 410px;
+}
+
+.modal-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-slate-200);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  letter-spacing: -0.01em;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--color-slate-500);
+  margin-top: 1px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-slate-400);
+  padding: 4px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  color: var(--color-slate-700);
+  background-color: var(--color-slate-100);
+}
+
+.modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.confirmation-prompt-box {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.prompt-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prompt-icon-wrapper.mint {
+  background-color: #D1FAE5;
+  color: var(--color-emerald-solid);
+}
+
+.prompt-icon-wrapper.amber {
+  background-color: #FEF3C7;
+  color: var(--color-amber-text);
+}
+
+.prompt-icon-wrapper.red {
+  background-color: #FEE2E2;
+  color: var(--color-red-solid);
+}
+
+.prompt-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-slate-700);
+}
+
+.client-highlight {
+  color: var(--color-slate-900);
+  font-weight: 700;
+}
+
+.amount-highlight {
+  color: var(--color-emerald-solid);
+  font-weight: 700;
+}
+
+.return-day-notice {
+  font-size: 11.5px;
+  color: var(--color-slate-600);
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  text-align: left;
+  width: 100%;
+}
+
+/* 1. CORRECCIÓN DEL MODAL NO PAGO — APILADO VERTICAL A ANCHO COMPLETO */
+.overdue-stacked-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+}
+
+.overdue-stacked-card {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 11px 13px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overdue-clean-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-slate-500);
+  letter-spacing: 0.04em;
+}
+
+.overdue-clean-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.overdue-clean-value.red {
+  color: var(--color-red-solid);
+}
+
+.proximo-cobro-single-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.calendar-icon-soft-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-700);
+  flex-shrink: 0;
+}
+
+.proximo-cobro-text-clean {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 5. MODAL PASAR CLIENTE DE DÍA — CALENDARIO INTERACTIVO LIBRE */
+.calendar-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.client-pass-info-bar {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: var(--color-slate-600);
+}
+
+.calendar-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+}
+
+.calendar-nav-arrow-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-slate-200);
+  background-color: var(--color-white);
+  color: var(--color-slate-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.calendar-nav-arrow-btn:hover {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-900);
+}
+
+.calendar-current-month-year {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.calendar-month-name {
+  color: var(--color-slate-900);
+}
+
+.calendar-year-number {
+  color: var(--color-slate-500);
+}
+
+.calendar-weekdays-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.calendar-weekday-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-slate-400);
+  text-transform: uppercase;
+}
+
+.calendar-days-matrix {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.calendar-empty-cell {
+  height: 36px;
+}
+
+.calendar-day-btn {
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.calendar-day-btn:hover:not(.selected) {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-900);
+}
+
+.calendar-day-btn.selected {
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(19, 22, 41, 0.25);
+}
+
+.selected-date-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--color-slate-100);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.preview-card-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-white);
+  color: var(--color-slate-800);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-slate-200);
+  flex-shrink: 0;
+}
+
+.preview-card-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--color-slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preview-card-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+/* Modales - Métricas y Formularios */
+.overdue-calculation-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.overdue-summary-banner {
+  display: flex;
+  gap: 10px;
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.overdue-banner-icon {
+  color: var(--color-red-solid);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.overdue-banner-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-red-text);
+}
+
+.overdue-banner-text {
+  font-size: 11px;
+  color: #7F1D1D;
+  margin-top: 1px;
+}
+
+.metrics-auto-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metric-item {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-slate-500);
+  text-transform: uppercase;
+}
+
+.metric-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  margin-top: 2px;
+}
+
+.metric-value.red {
+  color: var(--color-red-solid);
+}
+
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-slate-700);
+  text-transform: uppercase;
+}
+
+.input-currency-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 12px;
+  font-weight: 700;
+  color: var(--color-slate-600);
+  font-size: 14px;
+}
+
+.form-input-currency {
+  width: 100%;
+  padding: 10px 12px 10px 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-slate-300);
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-slate-900);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-input-currency:focus {
+  border-color: var(--color-slate-850);
+  box-shadow: 0 0 0 3px rgba(19, 22, 41, 0.1);
+}
+
+.field-hint {
+  font-size: 10.5px;
+  color: var(--color-slate-500);
+}
+
+.total-calculation-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-slate-100);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.total-preview-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-slate-700);
+}
+
+.total-preview-amount {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-emerald-solid);
+}
+
+/* Botones del Modal */
+.modal-actions {
+  padding: 14px 18px;
+  background-color: var(--color-slate-50);
+  border-top: 1px solid var(--color-slate-200);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-btn-cancel {
+  border: 1px solid var(--color-slate-300);
+  background-color: var(--color-white);
+  color: var(--color-slate-700);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modal-btn-cancel:hover {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-900);
+}
+
+.modal-btn-confirm {
+  border: none;
+  background-color: var(--color-emerald-solid);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.modal-btn-confirm:hover {
+  background-color: #047857;
+}
+
+.modal-btn-confirm:active {
+  transform: scale(0.98);
+}
+
+.modal-btn-dark-primary {
+  border: none;
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.modal-btn-dark-primary:hover {
+  background-color: var(--color-slate-950);
+}
+
+.modal-btn-dark-primary:active {
+  transform: scale(0.98);
+}
+
+.modal-btn-danger {
+  border: none;
+  background-color: var(--color-red-solid);
+  color: var(--color-white);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.modal-btn-danger:hover {
+  background-color: #B91C1C;
+}
+
+.modal-btn-danger:active {
+  transform: scale(0.98);
+}
+
+/* 4. BARRA DE NAVEGACIÓN INFERIOR (LOS 6 MÓDULOS) */
+.bottom-nav-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  background-color: var(--color-white);
+  border-top: 1px solid var(--color-slate-200);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  height: 58px;
+  align-items: center;
+}
+
+.nav-tab-btn {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--color-slate-400);
+  transition: color var(--transition-fast);
+  padding: 4px 2px;
+}
+
+.nav-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+
+.nav-tab-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.nav-tab-btn.active {
+  color: var(--color-slate-900);
+}
+
+.nav-tab-btn.active .nav-icon-container {
+  transform: translateY(-1px);
+}
+
+.nav-tab-btn.active .nav-tab-label {
+  font-weight: 700;
+}
+
+.nav-tab-btn:hover {
+  color: var(--color-slate-700);
+}
+
+/* Reset demo button */
+.dev-reset-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.dev-reset-btn {
+  background-color: transparent;
+  border: 1px dashed var(--color-slate-300);
+  color: var(--color-slate-500);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dev-reset-btn:hover {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-800);
+  border-color: var(--color-slate-400);
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-slate-200);
+  border-top-color: var(--color-slate-850);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   5. MÓDULO 2: CLIENTES (DIRECTORIO, BUSCADOR, FORMULARIO Y OPCIONES)
+   ========================================================================== */
+
+.clients-directory-view {
+  padding: 0 16px 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2.2. Encabezado de Sección y Botón "Nuevo" */
+.directory-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.directory-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.directory-main-heading {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-slate-900);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.directory-count-subtitle {
+  font-size: 13px;
+  color: var(--color-slate-500);
+  font-weight: 500;
+}
+
+.btn-new-client {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(19, 22, 41, 0.2);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.btn-new-client:hover {
+  background-color: #1E2442;
+  transform: translateY(-1px);
+}
+
+.btn-new-client:active {
+  transform: translateY(0);
+}
+
+/* 2.3. Buscador Instantáneo */
+.directory-search-wrapper {
+  margin-bottom: 14px;
+}
+
+.directory-search-bar {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-subtle);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.directory-search-bar:focus-within {
+  border-color: var(--color-slate-400);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05);
+}
+
+.search-input-icon {
+  color: var(--color-slate-400);
+  flex-shrink: 0;
+}
+
+.directory-search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-size: 14px;
+  color: var(--color-slate-900);
+  font-family: inherit;
+}
+
+.directory-search-input::placeholder {
+  color: var(--color-slate-400);
+}
+
+.search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-slate-400);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.search-clear-btn:hover {
+  color: var(--color-slate-700);
+  background-color: var(--color-slate-100);
+}
+
+/* 2.4. Tarjetas de Clientes Registrados */
+.directory-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-directory-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  padding: 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  box-shadow: var(--shadow-subtle);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.client-directory-card:hover {
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+
+.client-avatar-container {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: #EEF2FF;
+  color: #1E1B4B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14.5px;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.client-info-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+  min-width: 0;
+}
+
+.client-full-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.client-meta-line {
+  font-size: 12.5px;
+  color: var(--color-slate-500);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-separator {
+  color: var(--color-slate-300);
+  font-weight: 700;
+}
+
+.client-location-text {
+  font-size: 12px;
+  color: var(--color-slate-700);
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+.client-details-text {
+  font-size: 11.5px;
+  color: var(--color-slate-500);
+  line-height: 1.4;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.client-actions-right {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: -2px;
+  margin-right: -4px;
+}
+
+.client-more-options-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-400);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.client-more-options-btn:hover {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-800);
+}
+
+/* Estado Vacío de Directorio */
+.directory-empty-state {
+  background-color: var(--color-white);
+  border: 1px dashed var(--color-slate-300);
+  border-radius: var(--radius-lg);
+  padding: 36px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-state-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-state-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-slate-800);
+}
+
+.empty-state-desc {
+  font-size: 12.5px;
+  color: var(--color-slate-500);
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+/* 3. Formulario de Cliente (Modal) */
+.client-form-modal {
+  max-width: 440px;
+  width: 92%;
+  overflow: hidden;
+}
+
+.client-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 18px 20px 18px;
+}
+
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.form-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-slate-500);
+  display: block;
+}
+
+/* 1. Estilo uniforme para TODOS los <input> y <textarea> */
+.form-input {
+  width: 100%;
+  height: 48px; /* h-12 */
+  padding: 0 16px; /* py-3 px-4 */
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md); /* rounded-xl (12px) */
+  font-family: var(--font-family-sans);
+  font-size: 14px; /* text-sm */
+  color: var(--color-slate-900);
+  outline: none;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.form-input::placeholder {
+  color: var(--color-slate-400);
+}
+
+.form-input:focus {
+  background-color: var(--color-white);
+  border-color: var(--color-slate-850);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.form-input.form-input-error,
+.currency-input-field.form-input-error,
+.form-select-custom.form-input-error,
+.client-select-input-wrapper.form-input-error {
+  border-color: #ef4444 !important;
+  background-color: rgba(254, 242, 242, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
+}
+
+.form-input.form-input-error:focus,
+.currency-input-field.form-input-error:focus,
+.form-select-custom.form-input-error:focus,
+.client-select-input-wrapper.form-input-error:focus-within {
+  border-color: #dc2626 !important;
+  background-color: rgba(254, 242, 242, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 16px; /* py-3 px-4 */
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md); /* rounded-xl (12px) */
+  font-family: var(--font-family-sans); /* font-sans (NO monospace!) */
+  font-size: 14px; /* text-sm */
+  color: var(--color-slate-900);
+  outline: none;
+  transition: all var(--transition-fast);
+  resize: none; /* resize-none */
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+.form-textarea::placeholder {
+  color: var(--color-slate-400);
+}
+
+.form-textarea:focus {
+  background-color: var(--color-white);
+  border-color: var(--color-slate-850);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+/* 2. Fila de NÚMERO DE CÉDULA + Botón Foto */
+.cedula-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* gap-3 */
+  width: 100%;
+}
+
+.cedula-input-wrapper {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cedula-input-wrapper .form-input {
+  width: 100%;
+  height: 48px;
+  padding-right: 38px;
+}
+
+.input-loader-badge {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.btn-foto-scanner {
+  flex-shrink: 0;
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
+  height: 48px; /* h-12 exacta */
+  padding: 0 8px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md); /* rounded-xl (12px) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.btn-foto-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+}
+
+.btn-foto-label-reading {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-600);
+}
+
+.btn-foto-scanner:hover:not(:disabled) {
+  background-color: var(--color-slate-50);
+  border-color: var(--color-slate-300);
+}
+
+.btn-foto-scanner:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+/* 3. Fila de NOMBRE y APELLIDOS (2 columnas) */
+.form-grid-two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px; /* gap-3 */
+  width: 100%;
+}
+
+/* 5. Botón Guardar Cliente en toda la parte inferior */
+.form-submit-container {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn-save-client {
+  width: 100%;
+  height: 48px; /* h-12 */
+  background-color: var(--color-slate-850); /* #131629 */
+  color: var(--color-white);
+  border-radius: var(--radius-md); /* rounded-xl (12px) */
+  font-size: 14px; /* text-sm */
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(19, 22, 41, 0.2);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.btn-save-client:hover {
+  background-color: #1E2442;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(19, 22, 41, 0.25);
+}
+
+.btn-save-client:active {
+  transform: translateY(0);
+}
+
+/* 4. Modal de Opciones del Cliente (...) */
+.client-options-modal {
+  max-width: 380px;
+  width: 90%;
+}
+
+.client-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.client-option-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.btn-option-edit {
+  background-color: var(--color-white);
+  border: 1px solid #E2E8F0;
+  color: var(--color-slate-800);
+}
+
+.btn-option-edit:hover {
+  background-color: #F8FAFC;
+  border-color: var(--color-slate-300);
+}
+
+.btn-option-blacklist {
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+}
+
+.btn-option-blacklist:hover {
+  background-color: #FEE2E2;
+}
+
+.btn-option-delete {
+  background-color: var(--color-white);
+  border: 1px solid #E2E8F0;
+  color: var(--color-slate-800);
+}
+
+.btn-option-delete:hover {
+  background-color: #F8FAFC;
+  border-color: var(--color-slate-300);
+}
+
+.confirm-modal-compact {
+  max-width: 380px;
+  width: 90%;
+}
+
+/* ==========================================================================
+   CALENDARIO MENSUAL INTERACTIVO FORMAL (COBROS)
+   ========================================================================== */
+.calendar-modal-container {
+  max-width: 360px;
+  width: 92%;
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.calendar-modal-sub {
+  font-size: 11.5px;
+  color: var(--color-slate-500);
+  font-weight: 500;
+}
+
+.calendar-month-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-slate-100);
+  background-color: var(--color-slate-50);
+}
+
+.cal-month-nav-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  color: var(--color-slate-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cal-month-nav-btn:hover {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-900);
+}
+
+.cal-month-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-month-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.cal-year-nav-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.cal-year-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-slate-800);
+  min-width: 36px;
+  text-align: center;
+}
+
+.cal-year-nav-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-slate-500);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.cal-year-nav-btn:hover {
+  color: var(--color-slate-900);
+}
+
+.calendar-grid-week-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 12px 14px 4px 14px;
+  text-align: center;
+}
+
+.cal-week-header-cell {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-slate-400);
+  text-transform: uppercase;
+}
+
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 4px 14px 14px 14px;
+}
+
+.cal-day-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.cal-day-cell.other-month {
+  color: var(--color-slate-300);
+}
+
+.cal-day-cell:hover:not(.selected) {
+  background-color: var(--color-slate-100);
+}
+
+.cal-day-cell.is-today:not(.selected) {
+  border: 2px solid #10B981;
+  background-color: #ECFDF5;
+  color: #047857;
+  font-weight: 800;
+}
+
+.cal-day-cell.selected {
+  background-color: var(--color-slate-850);
+  color: var(--color-white);
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(19, 22, 41, 0.25);
+}
+
+.cal-day-cell.selected.is-today {
+  border: 2px solid #10B981;
+}
+
+.cal-today-dot {
+  position: absolute;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: #10B981;
+}
+
+.cal-day-cell.selected .cal-today-dot {
+  background-color: #34D399;
+}
+
+.calendar-modal-footer {
+  padding: 12px 16px 16px 16px;
+  border-top: 1px solid var(--color-slate-100);
+  display: flex;
+  justify-content: center;
+}
+
+.cal-btn-go-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  max-width: 290px;
+  padding: 9px 16px;
+  background-color: #ECFDF5;
+  border: 1.5px solid #A7F3D0;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+  color: #065F46;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.1);
+}
+
+.cal-btn-go-today:hover {
+  background-color: #D1FAE5;
+  border-color: #6EE7B7;
+  color: #047857;
+  transform: translateY(-1px);
+}
+
+.cal-btn-go-today:active {
+  transform: scale(0.99);
+}
+
+.cal-today-pill {
+  font-size: 12px;
+  font-weight: 500;
+  color: #047857;
+  opacity: 0.85;
+}
+
+/* ==========================================================================
+   4. MODAL DE ALERTA / AVISO EJECUTIVO (REEMPLAZO TOTAL DE WINDOW.ALERT)
+   ========================================================================== */
+.alert-modal-overlay {
+  z-index: 1200 !important;
+  background-color: rgba(11, 15, 25, 0.72) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  padding: 16px;
+}
+
+.alert-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 384px; /* max-w-sm */
+  background-color: #FFFFFF;
+  border-radius: 16px; /* rounded-2xl */
+  border: 1px solid #E2E8F0; /* border-slate-200 */
+  padding: 24px 20px 20px 20px; /* p-5 */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.08); /* shadow-xl */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
+  animation: slideUp 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.alert-modal-close-x {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.alert-modal-close-x:hover {
+  background-color: #F1F5F9;
+  color: #334155;
+}
+
+.alert-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.alert-icon-circle.danger {
+  background-color: #FEF2F2; /* bg-red-50 */
+  color: #DC2626; /* text-red-600 */
+  border: 1px solid #FECACA;
+}
+
+.alert-icon-circle.warning {
+  background-color: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.alert-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0F172A; /* text-slate-900 */
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.alert-modal-message {
+  font-size: 14px; /* text-sm */
+  color: #475569; /* text-slate-600 */
+  line-height: 1.5;
+  margin-bottom: 22px;
+  max-width: 320px;
+  word-break: break-word;
+}
+
+.alert-modal-btn {
+  width: 100%; /* w-full */
+  height: 44px; /* h-11 */
+  border-radius: 12px; /* rounded-xl */
+  background-color: #131629; /* bg-[#131629] */
+  color: #FFFFFF;
+  font-weight: 600; /* font-semibold */
+  font-size: 14px; /* text-sm */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 4px rgba(19, 22, 41, 0.2);
+}
+
+.alert-modal-btn:hover {
+  background-color: #1E2340;
+  transform: translateY(-1px);
+}
+
+.alert-modal-btn:active {
+  transform: scale(0.99);
+}
+
+/* Clases utilitarias complementarias requeridas para controles de fecha */
+.flex-nowrap {
+  flex-wrap: nowrap !important;
+}
+
+.h-10 {
+  height: 40px !important;
+}
+
+.h-8 {
+  height: 32px !important;
+}
+
+.w-8 {
+  width: 32px !important;
+}
+
+.h-7 {
+  height: 28px !important;
+}
+
+.w-7 {
+  width: 28px !important;
+}
+
+.px-2 {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.px-2\.5 {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+.text-\[11px\] {
+  font-size: 11px !important;
+}
+
+.text-\[13px\] {
+  font-size: 13px !important;
+}
+
+.text-xs {
+  font-size: 12px !important;
+}
+
+.shrink-0 {
+  flex-shrink: 0 !important;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap !important;
+}
+
+.tracking-tight {
+  letter-spacing: -0.025em !important;
+}
+
+.rounded-full {
+  border-radius: 9999px !important;
+}
+
+.max-w-full {
+  max-width: 100% !important;
+}
+
+.overflow-hidden {
+  overflow: hidden !important;
+}
+
+.gap-1\.5 {
+  gap: 6px !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .sm\:inline {
+    display: inline !important;
+  }
+  .sm\:w-auto {
+    width: auto !important;
+  }
+  .sm\:px-2\.5 {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .sm\:text-sm {
+    font-size: 14px !important;
+  }
+}
+
+.w-9 {
+  width: 36px !important;
+}
+
+.h-9 {
+  height: 36px !important;
+}
+
+.px-3\.5 {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+.py-2 {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.gap-2 {
+  gap: 8px !important;
+}
+
+.rounded-xl {
+  border-radius: 12px !important;
+}
+
+.shadow-2xs {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.border-slate-200 {
+  border-color: var(--color-slate-200);
+}
+
+.text-slate-900 {
+  color: var(--color-slate-900) !important;
+}
+
+.text-slate-700 {
+  color: var(--color-slate-700) !important;
+}
+
+.text-slate-400 {
+  color: var(--color-slate-400) !important;
+}
+
+/* ==========================================================================
+   6. MÓDULO 3: PRÉSTAMOS (DIRECTORIO, ACORDEÓN, CALENDARIO DE PAGOS Y MODALES)
+   ========================================================================== */
+
+.loans-directory-container {
+  padding: 0 16px 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loans-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Tarjeta Acordeón de Préstamo */
+.loan-card-container {
+  background-color: var(--color-white);
+  border-radius: 18px;
+  border: 1px solid var(--color-slate-200);
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-fast);
+}
+
+.loan-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.loan-client-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.loan-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-700);
+  font-size: 13.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--color-slate-200);
+}
+
+.loan-name-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.loan-client-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.loan-client-cedula {
+  font-size: 12px;
+  color: var(--color-slate-500);
+  font-family: monospace;
+  letter-spacing: -0.01em;
+}
+
+.loan-status-wrapper {
+  flex-shrink: 0;
+}
+
+.loan-status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-block;
+  line-height: 1;
+}
+
+.loan-status-badge.success {
+  background-color: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.loan-status-badge.danger {
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.loan-status-badge.warning {
+  background-color: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.loan-status-badge.info {
+  background-color: #EEF2FF;
+  color: #1E3A8A;
+  border: 1px solid #C7D2FE;
+}
+
+/* Dos recuadros principales lado a lado */
+.loan-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.loan-metric-box {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-100);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loan-metric-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-slate-500);
+  letter-spacing: 0.04em;
+}
+
+.loan-metric-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-slate-900);
+  letter-spacing: -0.02em;
+}
+
+.loan-metric-value.green {
+  color: #059669;
+}
+
+/* Botón inferior único para alternar vista */
+.loan-toggle-expand-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-slate-200);
+  background-color: var(--color-white);
+  color: var(--color-slate-700);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.loan-toggle-expand-btn:hover {
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-900);
+}
+
+/* 3.2. Vista Desplegada */
+.loan-expanded-content {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-slate-100);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loan-conditions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.condition-card {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.condition-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-slate-500);
+  letter-spacing: 0.04em;
+}
+
+.condition-highlight {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-slate-900);
+}
+
+.condition-highlight.small {
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.condition-sub {
+  font-size: 10.5px;
+  color: var(--color-slate-500);
+  white-space: nowrap;
+}
+
+.loan-progress-card {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-slate-500);
+}
+
+.progress-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.progress-val.green {
+  color: #059669;
+}
+
+.progress-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-slate-200);
+}
+
+/* Calendario de Cuotas (Nuevo diseño ejecutivo legible en español) */
+.loan-calendar-section {
+  border: 1px solid var(--color-slate-200);
+  border-radius: 14px;
+  padding: 12px;
+  background-color: var(--color-white);
+}
+
+.calendar-section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-slate-100);
+}
+
+.calendar-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-slate-700);
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* Bloque Superior de Vigencia (2 tarjetas lado a lado: INICIO y FECHA FINAL) */
+.loan-validity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.loan-validity-box {
+  background-color: #F8FAFC;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.validity-box-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94A3B8;
+  line-height: 1.2;
+}
+
+.validity-box-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+  line-height: 1.3;
+}
+
+/* Lista Cronológica de Cuotas */
+.calendar-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cuota-card-item {
+  background-color: #FFFFFF;
+  border: 1px solid #F1F5F9;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: border-color var(--transition-fast);
+}
+
+.cuota-card-item:hover {
+  border-color: #E2E8F0;
+}
+
+.cuota-info-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cuota-number {
+  font-weight: 700;
+  color: #0F172A;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.cuota-date {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  line-height: 1.25;
+}
+
+.cuota-info-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.cuota-amount {
+  font-weight: 800;
+  color: #0F172A;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.cuota-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.cuota-pill.success {
+  background-color: #ECFDF5;
+  color: #065F46;
+}
+
+.cuota-pill.warning {
+  background-color: #FFFBEB;
+  color: #92400E;
+}
+
+.cuota-pill.danger {
+  background-color: #FEF2F2;
+  color: #991B1B;
+}
+
+.cuota-pill.default {
+  background-color: #F1F5F9;
+  color: #475569;
+}
+
+/* ==========================================================================
+   SISTEMA DE PROTECCIÓN CONTRA OLVIDOS (COBROS REZAGADOS SIN CERRAR)
+   ========================================================================== */
+
+.forgotten-cobros-banner {
+  background-color: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.06);
+}
+
+.forgotten-banner-icon-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background-color: #FEF3C7;
+  color: #D97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.forgotten-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.forgotten-banner-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #78350F;
+  line-height: 1.3;
+}
+
+.forgotten-banner-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #92400E;
+  line-height: 1.4;
+}
+
+.pending-card-rezagado {
+  border-color: #FCD34D !important;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.07);
+}
+
+.rezagado-badge-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.badge-rezagado-amber {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background-color: #FEF3C7;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.unclosed-pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: #F59E0B;
+  margin-top: 2px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* 2 Botones de Acción */
+.loan-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 6px 0 2px 0;
+}
+
+.loan-btn-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.loan-btn-action.renew {
+  background-color: #1E293B;
+  color: var(--color-white);
+}
+
+.loan-btn-action.renew:hover {
+  background-color: #0F172A;
+}
+
+.loan-btn-action.agreement {
+  background-color: #F8FAFC;
+  color: #1E293B;
+  border-color: #CBD5E1;
+}
+
+.loan-btn-action.agreement:hover {
+  background-color: #F1F5F9;
+}
+
+/* Modales de Préstamos */
+.new-loan-modal-container,
+.renew-loan-modal-container,
+.agreement-modal-container {
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 20px;
+}
+
+.new-loan-form-body,
+.renew-loan-body,
+.agreement-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.client-search-select-box {
+  position: relative;
+  width: 100%;
+}
+
+.client-select-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  padding: 0 14px;
+  cursor: text;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.client-select-input-wrapper:focus-within {
+  background-color: var(--color-white);
+  border-color: var(--color-slate-400);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.select-search-icon {
+  color: var(--color-slate-400);
+  flex-shrink: 0;
+}
+
+.client-select-native-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  color: var(--color-slate-900);
+  font-weight: 500;
+}
+
+.client-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.client-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-slate-100);
+  transition: background-color var(--transition-fast);
+}
+
+.client-dropdown-item:hover, .client-dropdown-item.selected {
+  background-color: var(--color-slate-50);
+}
+
+.dropdown-item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+}
+
+.dropdown-item-cedula {
+  font-size: 11.5px;
+  color: var(--color-slate-500);
+  font-family: monospace;
+}
+
+.dropdown-item-check {
+  color: #059669;
+}
+
+.client-dropdown-empty {
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: var(--color-slate-500);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Tarjeta limpia de cliente seleccionado dentro de Nuevo Préstamo */
+.selected-client-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  background-color: #F8FAFC;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+}
+
+.selected-client-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.selected-client-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: #131629;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.selected-client-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.selected-client-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-client-cedula {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748B;
+  font-family: monospace;
+  line-height: 1.2;
+}
+
+.btn-clear-selected-client {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background-color: #E2E8F0;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-clear-selected-client:hover {
+  background-color: #CBD5E1;
+  color: #0F172A;
+}
+
+.btn-clear-selected-client:active {
+  transform: scale(0.95);
+}
+
+.currency-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.currency-symbol-inside {
+  position: absolute;
+  left: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-slate-500);
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  z-index: 2;
+}
+
+.currency-input-field {
+  width: 100%;
+  height: 48px;
+  padding-left: 36px;
+  padding-right: 16px;
+  border-radius: 12px;
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  color: var(--color-slate-900);
+  font-family: var(--font-family-sans);
+  font-size: 16px;
+  font-weight: 700;
+  outline: none;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.currency-input-field:focus {
+  background-color: var(--color-white);
+  border-color: var(--color-slate-400);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.select-field-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.form-select-custom {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 48px;
+  padding: 0 40px 0 16px;
+  border-radius: 12px;
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  color: var(--color-slate-900);
+  font-family: var(--font-family-sans);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.form-select-custom:focus {
+  background-color: var(--color-white);
+  border-color: var(--color-slate-400);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.select-chevron-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--color-slate-500);
+  pointer-events: none;
+}
+
+.form-grid-two-cols .form-field-group {
+  justify-content: space-between;
+}
+
+.modal-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.btn-modal-cancel-full {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--color-slate-200);
+  background-color: var(--color-white);
+  color: var(--color-slate-700);
+  font-family: var(--font-family-sans);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.btn-modal-cancel-full:hover {
+  background-color: var(--color-slate-50);
+  border-color: var(--color-slate-300);
+  color: var(--color-slate-900);
+}
+
+.btn-modal-primary-full {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  border: none;
+  background-color: #131629;
+  color: var(--color-white);
+  font-family: var(--font-family-sans);
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 1px 2px rgba(19, 22, 41, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.btn-modal-primary-full:hover {
+  background-color: #1E293B;
+}
+
+.btn-modal-primary-full:active,
+.btn-modal-cancel-full:active {
+  transform: scale(0.98);
+}
+
+.loan-calculation-summary-card {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calc-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.calc-summary-divider {
+  border-top: 1px solid rgba(226, 232, 240, 0.85);
+  width: 100%;
+}
+
+.calc-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748B;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calc-val-highlight {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.calc-cuota-readonly-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ECFDF5;
+  border: 1px solid rgba(167, 243, 208, 0.85);
+  padding: 6px 14px;
+  border-radius: 12px;
+  color: #047857;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.segmented-control-two {
+  display: flex;
+  background-color: var(--color-slate-100);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.segment-btn {
+  flex: 1;
+  padding: 9px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-slate-600);
+  transition: all var(--transition-fast);
+}
+
+.segment-btn.active {
+  background-color: var(--color-white);
+  color: var(--color-slate-900);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.renew-previous-box {
+  background-color: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.renew-previous-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-slate-500);
+  letter-spacing: 0.04em;
+}
+
+.renew-previous-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-slate-700);
+}
+
+/* Eliminación total de flechas nativas (spinners ▲▼) en todos los inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button,
+.no-spinners::-webkit-outer-spin-button,
+.no-spinners::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"],
+.no-spinners {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Bloque informativo limpio de Modalidad Quincenal */
+.quincenal-info-block {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quincenal-info-icon {
+  width: 20px;
+  height: 20px;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.quincenal-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quincenal-info-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.25;
+}
+
+.quincenal-info-desc {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  line-height: 1.35;
+}
+
+/* Tarjeta fija de solo lectura para MONTO FIJO ACORDADO en Arreglo de Pago */
+.agreement-fixed-amount-card {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agreement-fixed-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.agreement-fixed-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   SELECTOR DE FECHA INTERACTIVO PROPIO EN MÓDULO PRÉSTAMOS (SIN INPUT DATE)
+   ========================================================================== */
+.loan-date-picker-trigger {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.loan-date-picker-trigger:hover {
+  background-color: #F1F5F9;
+  border-color: #CBD5E1;
+}
+
+.loan-date-picker-trigger:focus-visible {
+  outline: none;
+  background-color: #FFFFFF;
+  border-color: #94A3B8;
+  box-shadow: 0 0 0 3px rgba(19, 22, 41, 0.06);
+}
+
+.loan-date-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.loan-date-trigger-text {
+  font-size: clamp(12px, 3.4vw, 14px);
+  font-weight: 700;
+  color: #0F172A;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* Fondo difuminado fijo a pantalla completa (viewport 100%) sin cortarse al hacer scroll */
+.calendar-fullscreen-backdrop,
+.loan-datepicker-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  z-index: 1300 !important;
+  background-color: rgba(15, 23, 42, 0.54) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.loan-datepicker-card {
+  width: 100%;
+  max-width: 356px;
+  background-color: #FFFFFF;
+  border-radius: 18px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 20px 38px -8px rgba(15, 23, 42, 0.28), 0 8px 16px -6px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalFadeScale 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* Transiciones suaves al deslizar (swipe horizontal) o cambiar de mes */
+@keyframes calSlideFromRight {
+  from {
+    opacity: 0.45;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes calSlideFromLeft {
+  from {
+    opacity: 0.45;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.calendar-days-grid.cal-slide-next {
+  animation: calSlideFromRight 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.calendar-days-grid.cal-slide-prev {
+  animation: calSlideFromLeft 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.loan-datepicker-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1F5F9;
+  background-color: #FFFFFF;
+}
+
+.loan-datepicker-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loan-datepicker-label {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.loan-datepicker-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  background-color: #F8FAFC;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.loan-datepicker-close-btn:hover {
+  background-color: #E2E8F0;
+  color: #0F172A;
+}
+
+/* Contenedor de opciones quincenales y vista previa de cobros */
+.quincenal-options-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loan-schedule-preview-card {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.schedule-preview-heading {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+}
+
+.schedule-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.schedule-preview-box {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.schedule-preview-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.schedule-preview-date {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0F172A;
+  white-space: nowrap;
+}
+
+
