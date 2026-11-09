@@ -57,9 +57,9 @@ export const dbService = {
     return await api.sendClientToBlacklist(id, motivo);
   },
 
-  async getCobros(fechaStr) {
+  async getCobros(fechaStr, vistaUsuarioId = null) {
     try {
-      return await api.getCobros(fechaStr);
+      return await api.getCobros(fechaStr, vistaUsuarioId);
     } catch (err) {
       console.error('Error obteniendo cobros desde PostgreSQL:', err);
       return {
@@ -67,7 +67,8 @@ export const dbService = {
         metricas: { totalPrestado: 0, estaSemana: 0, hoy: 0 },
         pendientes: [],
         registrados: [],
-        atrasados: []
+        atrasados: [],
+        diasConPendientesSinCerrar: []
       };
     }
   },
@@ -104,5 +105,144 @@ export const dbService = {
 
   async paymentAgreement(id, data) {
     return await api.paymentAgreement(id, data);
+  },
+
+  async deleteLoan(id) {
+    return await api.deleteLoan(id);
+  },
+
+  async deleteLoansBatch(ids) {
+    return await api.deleteLoansBatch(ids);
+  },
+
+  // Resumen y Estadísticas (Módulo 4)
+  async getResumen() {
+    try {
+      return await api.getResumen();
+    } catch (err) {
+      console.error('Error obteniendo métricas de resumen:', err);
+      return null;
+    }
+  },
+
+  async getTendencia(tipo = 'DIA', cantidad = 7) {
+    try {
+      return await api.getTendencia(tipo, cantidad);
+    } catch (err) {
+      console.error('Error obteniendo tendencia de cobros:', err);
+      return null;
+    }
+  },
+
+  // Lista Negra (Módulo 5)
+  async getListaNegra() {
+    try {
+      return await api.getListaNegra();
+    } catch (err) {
+      console.error('Error obteniendo personas en Lista Negra:', err);
+      return [];
+    }
+  },
+
+  async verificarPersona(queryStr) {
+    return await api.verificarPersona(queryStr);
+  },
+
+  async consultarListaNegra(cedula) {
+    return await api.consultarListaNegra(cedula);
+  },
+
+  async agregarListaNegra(data) {
+    return await api.agregarListaNegra(data);
+  },
+
+  async sacarListaNegra(id) {
+    return await api.sacarListaNegra(id);
+  },
+
+  // Papelera de Clientes (Módulo 6)
+  async getPapelera() {
+    try {
+      return await api.getPapelera();
+    } catch (err) {
+      console.error('Error obteniendo clientes en papelera:', err);
+      return [];
+    }
+  },
+
+  async restaurarClientePapelera(id) {
+    return await api.restaurarClientePapelera(id);
+  },
+
+  async eliminarClienteDefinitivo(id) {
+    return await api.eliminarClienteDefinitivo(id);
+  },
+
+  async vaciarPapelera() {
+    return await api.vaciarPapelera();
+  },
+
+  // Centro de Notificaciones
+  async getNotificaciones(fechaStr) {
+    try {
+      return await api.getNotificaciones(fechaStr);
+    } catch (err) {
+      console.error('Error obteniendo notificaciones:', err);
+      return {
+        success: false,
+        total: 0,
+        categorias: {
+          COBROS_HOY: [],
+          COBROS_OLVIDADOS: [],
+          PASADOS_PARA_HOY: [],
+          ATRASOS_ACUMULADOS: []
+        },
+        notificaciones: []
+      };
+    }
+  },
+
+  async marcarNotificacionVista(idOrIds) {
+    try {
+      return await api.marcarNotificacionVista(idOrIds);
+    } catch (err) {
+      console.error('Error al sincronizar notificación vista:', err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Compartir Cobros y Contactos Vinculados
+  async getPersonasCompartir(q = '') {
+    try {
+      return await api.getPersonasCompartir(q);
+    } catch (err) {
+      console.error('Error al obtener personas vinculadas:', err);
+      return { success: false, misPersonas: [], resultadosBusqueda: [] };
+    }
+  },
+
+  async agregarPersonaCompartir(data) {
+    return await api.agregarPersonaCompartir(data);
+  },
+
+  async eliminarPersonaCompartir(contactoId) {
+    return await api.eliminarPersonaCompartir(contactoId);
+  },
+
+  async getResumenDiaCompartir(fecha) {
+    try {
+      return await api.getResumenDiaCompartir(fecha);
+    } catch (err) {
+      console.error('Error al obtener resumen de cobros del día:', err);
+      return { success: false, total_cobros: 0, monto_total: 0, cobros: [] };
+    }
+  },
+
+  async compartirCobrosDia(data) {
+    return await api.compartirCobrosDia(data);
+  },
+
+  async dejarDeCompartirDia(data) {
+    return await api.dejarDeCompartirDia(data);
   }
 };

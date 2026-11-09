@@ -10,8 +10,12 @@ import {
   ChevronRight,
   Calendar,
   CalendarDays,
-  RotateCcw
+  RotateCcw,
+  Minus,
+  Plus,
+  Banknote
 } from 'lucide-react';
+import { ConfirmActionStage } from '../Modals/ConfirmActionStage';
 import {
   SPANISH_MONTHS,
   formatColones,
@@ -23,7 +27,11 @@ import {
   isSameDay,
   formatISODateToFullSpanish,
   calculateLoanSchedulePreview,
+  calculateLoanScheduleDates,
+  calculateShiftedStartDateForAdvancedLoan,
+  formatShortSpanishDate,
   getInitials,
+  formatFullName,
   matchesClientSearch
 } from '../../utils/formatters';
 
@@ -74,9 +82,35 @@ export function NewLoanModal({
   const [slideAnim, setSlideAnim] = useState('');
   const [fieldErrors, setFieldErrors] = useState(INITIAL_LOAN_FIELD_ERRORS);
 
+  // Modo de registro: 'CERO' (nuevo préstamo estándar) o 'AVANZADO' (migrado con cuotas ya pagadas)
+  const [modoRegistro, setModoRegistro] = useState('CERO');
+  const [cuotasPagadas, setCuotasPagadas] = useState(0);
+
+  // Estados de doble verificación y animación escénica (1480ms)
+  const [pendingPayload, setPendingPayload] = useState(null);
+  const [confirmPhase, setConfirmPhase] = useState('idle');
+
+  const longPressTimerRef = useRef(null);
+  const repeatIntervalRef = useRef(null);
+
   const touchStartRef = useRef({ x: 0, y: 0 });
   const touchEndRef = useRef({ x: 0, y: 0 });
   const modalBodyScrollRef = useRef(null);
+
+  const clearLongPressTimers = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (repeatIntervalRef.current) {
+      clearInterval(repeatIntervalRef.current);
+      repeatIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => clearLongPressTimers();
+  }, []);
 
   // Reinicio completo del estado al abrir o cerrar el modal (en cero y Ninguno, salvo fecha de inicio en hoy)
   useEffect(() => {
@@ -96,6 +130,11 @@ export function NewLoanModal({
     setModalidad('SEMANAL');
     setQuincenalTipo('DIAS_MES');
     setDiaFijoSemanal('');
+    setModoRegistro('CERO');
+    setCuotasPagadas(0);
+    setPendingPayload(null);
+    setConfirmPhase('idle');
+    clearLongPressTimers();
     setFieldErrors(INITIAL_LOAN_FIELD_ERRORS);
   }, [isOpen]);
 
@@ -143,6 +182,8 @@ export function NewLoanModal({
     setClientSearchTerm('');
     setIsClientDropdownOpen(false);
     setIsDatePickerOpen(false);
+    setPendingPayload(null);
+    setConfirmPhase('idle');
     setFieldErrors(INITIAL_LOAN_FIELD_ERRORS);
     onClose();
   };
@@ -214,16 +255,41 @@ export function NewLoanModal({
   };
 
   const handleSelectCalendarDate = (dateObj) => {
-    setFechaInicio(formatDateToISO(dateObj));
+    const newDateISO = formatDateToISO(dateObj);
+    setFechaInicio(newDateISO);
     setIsDatePickerOpen(false);
+
+    // 2. Detección automática por fecha:
+    // Si el usuario selecciona una fecha de inicio pasada, calcula cuántas cuotas han transcurrido hasta hoy
+    if (periodosNum > 0 && (!usaDiaSemana || diaFijoSemanal)) {
+      const sched = calculateLoanScheduleDates({
+        fechaInicio: newDateISO,
+        modalidad,
+        quincenalTipo,
+        diaFijoSemanal,
+        totalPeriodos: periodosNum
+      });
+      const crTodayISO = formatDateToISO(getCostaRicaNow());
+      const passedCount = sched.filter((d) => d <= crTodayISO).length;
+      if (passedCount > 0) {
+        setModoRegistro('AVANZADO');
+        setCuotasPagadas(Math.min(passedCount, Math.max(0, periodosNum - 1)));
+      } else if (modoRegistro === 'CERO') {
+        setCuotasPagadas(0);
+      }
+    }
   };
 
   const handleSelectTodayDate = () => {
     const crToday = getCostaRicaNow();
-    setFechaInicio(formatDateToISO(crToday));
+    const todayISO = formatDateToISO(crToday);
+    setFechaInicio(todayISO);
     setViewYear(crToday.getFullYear());
     setViewMonth(crToday.getMonth());
     setIsDatePickerOpen(false);
+    if (modoRegistro === 'CERO') {
+      setCuotasPagadas(0);
+    }
   };
 
   const calendarCells = useMemo(() => {
@@ -312,15 +378,22 @@ export function NewLoanModal({
   const usaDiaSemana = modalidad === 'SEMANAL' || (modalidad === 'QUINCENAL' && quincenalTipo === 'CADA_2_SEMANAS');
   const isSchedulePreviewReady = periodosNum > 0 && (!usaDiaSemana || Boolean(diaFijoSemanal));
 
-  // Vista previa en vivo de la fecha del Primer cobro y del Último cobro (solo cuando hay cuotas > 0 y día elegido)
-  const schedulePreview = useMemo(() => {
-    if (!isSchedulePreviewReady) {
-      return {
-        primerCobroTexto: '—',
-        ultimoCobroTexto: '—'
-      };
-    }
-    return calculateLoanSchedulePreview({
+  // Cálculos contables de Préstamo Avanzado
+  const saldoPagadoPapel = useMemo(() => {
+    return cuotasPagadas * cuotaCalculada;
+  }, [cuotasPagadas, cuotaCalculada]);
+
+  const saldoRestantePorCobrar = useMemo(() => {
+    return Math.max(0, montoTotalFinanciar - saldoPagadoPapel);
+  }, [montoTotalFinanciar, saldoPagadoPapel]);
+
+  const cuotasPendientesPorCobrar = useMemo(() => {
+    return Math.max(0, periodosNum - cuotasPagadas);
+  }, [periodosNum, cuotasPagadas]);
+
+  const scheduleDates = useMemo(() => {
+    if (!isSchedulePreviewReady) return [];
+    return calculateLoanScheduleDates({
       fechaInicio,
       modalidad,
       quincenalTipo,
@@ -328,6 +401,86 @@ export function NewLoanModal({
       totalPeriodos: periodosNum
     });
   }, [isSchedulePreviewReady, fechaInicio, modalidad, quincenalTipo, diaFijoSemanal, periodosNum]);
+
+  // Vista previa en vivo de la fecha del Primer cobro por cobrar y del Último cobro
+  const schedulePreview = useMemo(() => {
+    if (!isSchedulePreviewReady || scheduleDates.length === 0) {
+      return {
+        primerCobroTexto: '—',
+        ultimoCobroTexto: '—'
+      };
+    }
+    const targetFirstDate =
+      modoRegistro === 'AVANZADO' && cuotasPagadas > 0 && cuotasPagadas < scheduleDates.length
+        ? scheduleDates[cuotasPagadas]
+        : scheduleDates[0];
+    const targetLastDate = scheduleDates[scheduleDates.length - 1];
+
+    return {
+      primerCobroTexto: targetFirstDate ? formatShortSpanishDate(targetFirstDate, true) : '—',
+      ultimoCobroTexto: targetLastDate ? formatShortSpanishDate(targetLastDate, true) : '—'
+    };
+  }, [isSchedulePreviewReady, scheduleDates, modoRegistro, cuotasPagadas]);
+
+  // Manejo de cambio de modo de registro (Desde cero vs Préstamo avanzado)
+  const cambiarModoRegistro = (nuevoModo) => {
+    setModoRegistro(nuevoModo);
+    if (nuevoModo === 'CERO') {
+      setCuotasPagadas(0);
+      const crToday = getCostaRicaNow();
+      setFechaInicio(formatDateToISO(crToday));
+    } else {
+      // Fijar el valor inicial de cuotas pagadas en 0 (o respetar si ya tenía)
+      const maxAllowed = Math.max(0, periodosNum - 1);
+      const safePaid = Math.max(0, Math.min(maxAllowed, cuotasPagadas));
+      setCuotasPagadas(safePaid);
+      if (safePaid > 0 && periodosNum > 0 && (!usaDiaSemana || diaFijoSemanal)) {
+        const crTodayISO = formatDateToISO(getCostaRicaNow());
+        const shifted = calculateShiftedStartDateForAdvancedLoan({
+          baseDateISO: crTodayISO,
+          paidCount: safePaid,
+          modalidad,
+          quincenalTipo
+        });
+        setFechaInicio(shifted);
+      }
+    }
+  };
+
+  // Ajuste de cuotas pagadas con cálculo automático de fecha de inicio hacia atrás
+  const adjustCuotasPagadas = (delta) => {
+    setCuotasPagadas((prev) => {
+      const maxAllowed = Math.max(0, periodosNum - 1);
+      if (periodosNum <= 0) return 0;
+      const nextVal = Math.max(0, Math.min(maxAllowed, prev + delta));
+      if (nextVal !== prev && (!usaDiaSemana || diaFijoSemanal)) {
+        const crTodayISO = formatDateToISO(getCostaRicaNow());
+        const shiftedDate = calculateShiftedStartDateForAdvancedLoan({
+          baseDateISO: crTodayISO,
+          paidCount: nextVal,
+          modalidad,
+          quincenalTipo
+        });
+        setFechaInicio(shiftedDate);
+      }
+      return nextVal;
+    });
+  };
+
+  const startAdjust = (delta) => {
+    if (periodosNum <= 0) return;
+    adjustCuotasPagadas(delta);
+    clearLongPressTimers();
+    longPressTimerRef.current = setTimeout(() => {
+      repeatIntervalRef.current = setInterval(() => {
+        adjustCuotasPagadas(delta);
+      }, 90);
+    }, 400);
+  };
+
+  const stopAdjust = () => {
+    clearLongPressTimers();
+  };
 
   // Validación formal y resaltado visual en rojo (sin banners de texto ni globos nativos)
   const handleSubmit = (e) => {
@@ -353,16 +506,16 @@ export function NewLoanModal({
           title: 'Datos incompletos',
           message: 'No has completado los datos necesarios para registrar un nuevo préstamo.',
           buttonText: 'Entendido',
-          iconType: 'alert'
+          iconType: 'incomplete'
         });
       }
       return;
     }
 
-    // Datos listos para la doble verificación soportando ambas formas quincenales
+    // Datos listos para la doble verificación soportando ambas formas quincenales y registro avanzado
     const loanPayload = {
       cliente_id: selectedClientId,
-      cliente_nombre: [selectedClient.nombre, selectedClient.apellidos].filter(Boolean).join(' ').trim(),
+      cliente_nombre: formatFullName(selectedClient.nombre, selectedClient.apellidos),
       monto_prestado: prestadoNum,
       porcentaje_interes: interesNum,
       monto_total_financiar: montoTotalFinanciar,
@@ -372,13 +525,139 @@ export function NewLoanModal({
       dia_mes_1: !usaDiaSemana ? 15 : null,
       dia_mes_2: !usaDiaSemana ? 31 : null,
       fecha_inicio: fechaInicio,
-      total_periodos: periodosNum
+      total_periodos: periodosNum,
+      cuotas_pagadas: modoRegistro === 'AVANZADO' ? cuotasPagadas : 0
     };
 
-    onSaveLoan(loanPayload);
+    setPendingPayload(loanPayload);
+  };
+
+  // Confirmar y guardar préstamo con cápsula escénica de 1480ms
+  const handleConfirmSaveLoan = () => {
+    if (!pendingPayload || confirmPhase !== 'idle') return;
+    setConfirmPhase('animating');
+
+    setTimeout(() => {
+      setConfirmPhase('exiting');
+    }, 1200);
+
+    setTimeout(async () => {
+      try {
+        await onSaveLoan(pendingPayload);
+      } finally {
+        setConfirmPhase('idle');
+        setPendingPayload(null);
+        handleCloseModal();
+      }
+    }, 1480);
   };
 
   if (!isOpen) return null;
+
+  const nombreClienteLimpio = selectedClient
+    ? formatFullName(selectedClient.nombre, selectedClient.apellidos)
+    : pendingPayload?.cliente_nombre || 'Cliente';
+
+  // Renderizado exclusivo de la cápsula escénica (desmonta por completo la caja blanca del modal)
+  if (confirmPhase !== 'idle') {
+    return (
+      <div
+        className="modal-overlay"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+      >
+        <ConfirmActionStage
+          variant="nuevo_prestamo"
+          phase={confirmPhase}
+          subtitle={nombreClienteLimpio}
+          clientName={nombreClienteLimpio}
+          detailPill={`${formatColones(prestadoNum)} · ${periodosNum} ${Number(periodosNum) === 1 ? 'cuota' : 'cuotas'}`}
+        />
+      </div>
+    );
+  }
+
+  // Vista de Doble Verificación ("Confirmar Préstamo")
+  if (pendingPayload) {
+    return (
+      <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-loan-title">
+        <div className="modal-container confirm-modal-compact">
+          <div className="modal-header">
+            <div className="modal-title-group">
+              <h3 id="confirm-loan-title" className="modal-title">
+                Confirmar Préstamo
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPendingPayload(null)}
+              className="modal-close-btn"
+              aria-label="Cerrar modal"
+            >
+              <X size={20} strokeWidth={1.75} />
+            </button>
+          </div>
+
+          <div className="modal-body">
+            <div className="confirmation-prompt-box">
+              <div
+                className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center"
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#D6E7D6',
+                  color: '#0A3323',
+                  border: '1px solid #8FB89A'
+                }}
+              >
+                <Banknote size={28} strokeWidth={2} className="shrink-0" />
+              </div>
+              <p className="prompt-text">
+                {`¿Deseas registrar este préstamo de ${formatColones(pendingPayload.monto_prestado)} en modalidad ${
+                  pendingPayload.modalidad === 'SEMANAL' ? 'semanal' : 'quincenal'
+                } con ${pendingPayload.total_periodos} cuotas de ${formatColones(pendingPayload.cuota)}${
+                  pendingPayload.cuotas_pagadas > 0
+                    ? `, iniciando con ${pendingPayload.cuotas_pagadas} de ${pendingPayload.total_periodos} cuotas pagadas previamente`
+                    : ''
+                } para ${pendingPayload.cliente_nombre}?`}
+              </p>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button
+              type="button"
+              onClick={() => setPendingPayload(null)}
+              className="modal-btn-cancel"
+            >
+              Revisar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleConfirmSaveLoan}
+              className="modal-btn-dark-primary"
+            >
+              Guardar Préstamo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const normalInputClasses = 'bg-slate-50 border border-slate-200 focus:bg-white focus:border-slate-400';
   const redInputClasses = 'border border-red-500 bg-red-50/50 focus:border-red-600 ring-2 ring-red-500/15 form-input-error';
@@ -451,7 +730,7 @@ export function NewLoanModal({
                     <Search size={16} strokeWidth={2} className="select-search-icon" />
                     <input
                       type="text"
-                      placeholder=""
+                      placeholder="Buscar por nombre, cédula, teléfono o ubicación"
                       value={clientSearchTerm}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -533,6 +812,67 @@ export function NewLoanModal({
             </div>
           </div>
 
+          {/* MODO DE REGISTRO: DESDE CERO VS PRÉSTAMO AVANZADO */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+            {/* Botones Desde cero | Préstamo avanzado */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: '4px',
+                backgroundColor: '#f1f5f9',
+                padding: '4px',
+                borderRadius: '14px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              {[
+                { key: 'CERO', label: 'Desde cero' },
+                { key: 'AVANZADO', label: 'Préstamo avanzado' },
+              ].map((modo) => {
+                const activo = modoRegistro === modo.key;
+                return (
+                  <button
+                    key={modo.key}
+                    type="button"
+                    onClick={() => cambiarModoRegistro(modo.key)}
+                    style={{
+                      height: '38px',
+                      borderRadius: '10px',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      backgroundColor: activo ? '#0A3323' : 'transparent',
+                      color: activo ? '#ffffff' : '#475569',
+                      border: activo ? '1px solid #1B4D37' : 'none',
+                      boxShadow: activo ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    {modo.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mini texto informativo según el modo activo */}
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#64748b',
+                paddingLeft: '4px',
+              }}
+            >
+              {modoRegistro === 'AVANZADO'
+                ? 'Registra un préstamo en curso indicando primero sus montos y cuotas abajo.'
+                : 'El préstamo iniciará desde la primera cuota sin abonos previos.'}
+            </p>
+          </div>
+
           {/* 2. MONTO PRESTADO */}
           <div className="form-field-group">
             <label className="form-field-label">
@@ -591,7 +931,13 @@ export function NewLoanModal({
                 placeholder="0"
                 value={totalPeriodos}
                 onChange={(e) => {
-                  setTotalPeriodos(e.target.value.replace(/\D/g, '').slice(0, 3));
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 3);
+                  setTotalPeriodos(val);
+                  const pNum = parseInt(val, 10) || 0;
+                  setCuotasPagadas((prev) => {
+                    const maxAllowed = Math.max(0, pNum - 1);
+                    return Math.min(prev, maxAllowed);
+                  });
                   if (fieldErrors.cuotas) {
                     setFieldErrors((prev) => ({ ...prev, cuotas: false }));
                   }
@@ -621,6 +967,269 @@ export function NewLoanModal({
               </span>
             </div>
           </div>
+
+          {/* CONTROL DE CUOTAS PAGADAS Y DESGLOSE CONTABLE PARA PRÉSTAMO AVANZADO */}
+          {modoRegistro === 'AVANZADO' && (
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              {/* Encabezado y Contador interactivo [ - ] X de N pagadas [ + ] */}
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <label
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      color: '#475569',
+                    }}
+                  >
+                    CUOTAS YA PAGADAS
+                  </label>
+                  <span
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#64748b',
+                    }}
+                  >
+                    {cuotasPendientesPorCobrar} pendientes
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '4px',
+                    height: '46px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    disabled={periodosNum <= 0 || cuotasPagadas <= 0}
+                    onMouseDown={() => startAdjust(-1)}
+                    onMouseUp={stopAdjust}
+                    onMouseLeave={stopAdjust}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startAdjust(-1);
+                    }}
+                    onTouchEnd={stopAdjust}
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: periodosNum <= 0 || cuotasPagadas <= 0 ? '#f1f5f9' : '#e2e8f0',
+                      color: periodosNum <= 0 || cuotasPagadas <= 0 ? '#94a3b8' : '#0f172a',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: periodosNum <= 0 || cuotasPagadas <= 0 ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                      touchAction: 'manipulation',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <Minus size={18} strokeWidth={2.5} />
+                  </button>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: 'inherit',
+                        fontSize: '15px',
+                        fontWeight: 900,
+                        color: '#0f172a',
+                      }}
+                    >
+                      {cuotasPagadas} de {periodosNum || 0}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#64748b',
+                      }}
+                    >
+                      pagadas
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)}
+                    onMouseDown={() => startAdjust(1)}
+                    onMouseUp={stopAdjust}
+                    onMouseLeave={stopAdjust}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startAdjust(1);
+                    }}
+                    onTouchEnd={stopAdjust}
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor:
+                        periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)
+                          ? '#f1f5f9'
+                          : '#0A3323',
+                      color:
+                        periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)
+                          ? '#94a3b8'
+                          : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor:
+                        periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)
+                          ? 'not-allowed'
+                          : 'pointer',
+                      transition: 'all 0.15s ease',
+                      touchAction: 'manipulation',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <Plus size={18} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Tarjetas contables en vivo */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      color: '#059669',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    MONTO ABONADO
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '14px',
+                      fontWeight: 800,
+                      color: '#047857',
+                    }}
+                  >
+                    {formatColones(saldoPagadoPapel)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '8px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      color: '#3b82f6',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    SALDO PENDIENTE
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'inherit',
+                      fontSize: '14px',
+                      fontWeight: 800,
+                      color: '#1d4ed8',
+                    }}
+                  >
+                    {formatColones(saldoRestantePorCobrar)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Indicador de próximo cobro en agenda */}
+              {schedulePreview.primerCobroTexto !== '—' && (
+                <div
+                  style={{
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontFamily: 'inherit',
+                    fontSize: '11px',
+                  }}
+                >
+                  <span style={{ color: '#475569', fontWeight: 600 }}>Primer cobro por cobrar:</span>
+                  <span style={{ color: '#0f172a', fontWeight: 800 }}>
+                    Cobro {cuotasPagadas + 1} ({schedulePreview.primerCobroTexto})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 4. MODALIDAD: SEMANAL O QUINCENAL */}
           <div className="form-field-group">
@@ -808,7 +1417,7 @@ export function NewLoanModal({
             </button>
             <button
               type="submit"
-              className="btn-modal-primary-full w-full h-12 rounded-xl bg-[#131629] hover:bg-slate-800 text-white font-semibold text-sm shadow-xs flex items-center justify-center transition-colors whitespace-nowrap cursor-pointer"
+              className="btn-modal-primary-full"
             >
               Guardar Préstamo
             </button>

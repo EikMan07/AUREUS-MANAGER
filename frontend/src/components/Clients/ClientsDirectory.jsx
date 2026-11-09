@@ -4,7 +4,7 @@ import { ClientCard } from './ClientCard';
 import { ClientFormModal } from './ClientFormModal';
 import { ClientOptionsModal } from './ClientOptionsModal';
 import { ConfirmModal } from './ConfirmModal';
-import { matchesClientSearch } from '../../utils/formatters';
+import { matchesClientSearch, formatFullName } from '../../utils/formatters';
 
 export function ClientsDirectory({
   clients = [],
@@ -77,9 +77,9 @@ export function ClientsDirectory({
     setBlacklistTarget(client);
   };
 
-  const handleConfirmBlacklist = () => {
+  const handleConfirmBlacklist = async () => {
     if (blacklistTarget) {
-      onBlacklistClient(blacklistTarget);
+      await onBlacklistClient(blacklistTarget);
       setBlacklistTarget(null);
     }
   };
@@ -89,9 +89,9 @@ export function ClientsDirectory({
     setDeleteTarget(client);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteTarget) {
-      onDeleteClient(deleteTarget);
+      await onDeleteClient(deleteTarget);
       setDeleteTarget(null);
     }
   };
@@ -124,7 +124,7 @@ export function ClientsDirectory({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder=""
+            placeholder="Buscar por nombre, cédula, teléfono o ubicación"
             className="directory-search-input"
             autoComplete="off"
             aria-label="Buscar clientes"
@@ -193,11 +193,13 @@ export function ClientsDirectory({
       <ConfirmModal
         isOpen={Boolean(blacklistTarget)}
         title="Confirmar Lista Negra"
-        question={`¿Estás seguro de que deseas enviar a ${[blacklistTarget?.nombre, blacklistTarget?.apellidos].filter(Boolean).join(' ').trim()} a la Lista Negra?`}
+        question={`¿Estás seguro de que deseas enviar a ${formatFullName(blacklistTarget?.nombre, blacklistTarget?.apellidos)} a la Lista Negra?`}
         cancelText="Cancelar"
         confirmText="Confirmar"
         confirmVariant="danger"
         iconType="shield"
+        stageVariant="lista_negra"
+        clientName={formatFullName(blacklistTarget?.nombre, blacklistTarget?.apellidos)}
         onCancel={() => setBlacklistTarget(null)}
         onConfirm={handleConfirmBlacklist}
       />
@@ -206,11 +208,13 @@ export function ClientsDirectory({
       <ConfirmModal
         isOpen={Boolean(deleteTarget)}
         title="Eliminar Cliente"
-        question={`¿Estás seguro de que deseas eliminar a ${[deleteTarget?.nombre, deleteTarget?.apellidos].filter(Boolean).join(' ').trim()}? Se guardará en la Papelera de Clientes durante 30 días.`}
+        question={`¿Estás seguro de que deseas eliminar a ${formatFullName(deleteTarget?.nombre, deleteTarget?.apellidos)}? Se guardará en la Papelera de Clientes durante 30 días.`}
         cancelText="Cancelar"
         confirmText="Eliminar"
         confirmVariant="danger"
         iconType="trash"
+        stageVariant="eliminar_cliente"
+        clientName={formatFullName(deleteTarget?.nombre, deleteTarget?.apellidos)}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
       />

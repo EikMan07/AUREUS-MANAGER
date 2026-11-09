@@ -1,0 +1,12 @@
+// Configuración de sequelize-cli para Cobro-Firme.
+// El backend es ESM ("type": "module"); el CLI carga estos archivos con require,
+// por eso la configuración y las migraciones usan la extensión .cjs.
+const path = require('path');
+
+module.exports = {
+  config: path.resolve(__dirname, 'src', 'config', 'sequelize.config.cjs'),
+  'models-path': path.resolve(__dirname, 'src', 'models'),
+  'migrations-path': path.resolve(__dirname, 'migrations'),
+  'seeders-path': path.resolve(__dirname, 'seeders'),
+};
+

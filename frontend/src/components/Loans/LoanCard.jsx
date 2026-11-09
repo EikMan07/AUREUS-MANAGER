@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -8,16 +8,75 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  CalendarDays
+  CalendarDays,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { formatColones, getInitials, formatShortSpanishDate } from '../../utils/formatters';
 
 export function LoanCard({
   loan,
+  clientLoans = [],
   onRenew,
-  onAgreement
+  onAgreement,
+  onDelete,
+  isSelectionMode = false,
+  isSelected = false,
+  selectedLoanIds = [],
+  onToggleSelect
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // 1. Arreglo unificado de préstamos para este cliente
+  const loansList = useMemo(() => {
+    if (Array.isArray(clientLoans) && clientLoans.length > 0) {
+      return clientLoans;
+    }
+    return loan ? [loan] : [];
+  }, [clientLoans, loan]);
+
+  // 2. ID del préstamo activo dentro de la tarjeta
+  const [activeLoanId, setActiveLoanId] = useState(() => loansList[0]?.id || loan?.id);
+
+  // Sincronizar activeLoanId si la lista de préstamos cambia o si activeLoanId fue eliminado
+  useEffect(() => {
+    if (!loansList.some((l) => String(l.id) === String(activeLoanId))) {
+      setActiveLoanId(loansList[0]?.id || loan?.id);
+    }
+  }, [loansList, activeLoanId, loan?.id]);
+
+  // 3. Préstamo activo sobre el cual operan todos los datos y acciones
+  const currentLoan = useMemo(() => {
+    return loansList.find((l) => String(l.id) === String(activeLoanId)) || loansList[0] || loan || {};
+  }, [loansList, activeLoanId, loan]);
+
+  // 4. Totales consolidados cuando el cliente tiene 2 o más préstamos
+  const totalPrestadoCliente = useMemo(() => {
+    return loansList.reduce((acc, l) => acc + (Number(l.monto_prestado) || 0), 0);
+  }, [loansList]);
+
+  const totalFaltaPagarCliente = useMemo(() => {
+    return loansList.reduce((acc, l) => {
+      const isReg =
+        String(l.estado || l.status || '').toUpperCase() === 'CANCELADO' ||
+        String(l.estado || '').toUpperCase() === 'LIQUIDADO' ||
+        String(l.estado || '').toUpperCase() === 'PAGADO' ||
+        String(l.estado || '').toUpperCase() === 'REGISTRADO' ||
+        (Number(l.monto_prestado ?? l.amount ?? 0) > 0 && Number(l.saldo_por_pagar ?? l.remainingBalance ?? 1) <= 0) ||
+        (Number(l.total_periodos || 0) > 0 && Number(l.periodos_pagados || 0) >= Number(l.total_periodos || 0));
+
+      if (isReg) return acc;
+      return acc + (Number(l.saldo_por_pagar != null ? l.saldo_por_pagar : l.monto_total_financiar) || 0);
+    }, 0);
+  }, [loansList]);
+
+  // 5. Estado de selección
+  const isCurrentSelected = useMemo(() => {
+    if (!currentLoan?.id) return false;
+    return Array.isArray(selectedLoanIds) && selectedLoanIds.includes(currentLoan.id);
+  }, [selectedLoanIds, currentLoan?.id]);
+
+  const isCardHighlighted = isSelectionMode && (isCurrentSelected || isSelected);
 
   // Formato del día fijo (soporta Semanal y las dos formas de Quincenal)
   const formatDayDisplay = () => {
@@ -30,27 +89,94 @@ export function LoanCard({
       'SABADO': 'Sábado',
       'DOMINGO': 'Domingo'
     };
-    if (loan.modalidad === 'SEMANAL') {
-      return `Cada ${dayMap[loan.dia_fijo_original] || loan.dia_fijo_original || 'Sábado'}`;
+    if (currentLoan.modalidad === 'SEMANAL') {
+      return `Cada ${dayMap[currentLoan.dia_fijo_original] || currentLoan.dia_fijo_original || 'Sábado'}`;
     }
-    if (loan.dia_fijo_original) {
-      return `Cada 2 sem · ${dayMap[loan.dia_fijo_original] || loan.dia_fijo_original}`;
+    if (currentLoan.dia_fijo_original) {
+      return `Cada 2 sem · ${dayMap[currentLoan.dia_fijo_original] || currentLoan.dia_fijo_original}`;
     }
     return 'Día 15 y fin de mes';
   };
 
-  // Badge de estado del préstamo
+  // Clasificación individual del préstamo actual
+  const isRegistrado = useMemo(() => {
+    const estado = String(currentLoan.estado || currentLoan.status || '').toUpperCase();
+    const saldo = Number(currentLoan.saldo_por_pagar ?? currentLoan.remainingBalance ?? 1);
+    const monto = Number(currentLoan.monto_prestado ?? currentLoan.amount ?? 0);
+    const totalP = Number(currentLoan.total_periodos || 0);
+    const pagadosP = Number(currentLoan.periodos_pagados || 0);
+
+    return (
+      estado === 'CANCELADO' ||
+      estado === 'LIQUIDADO' ||
+      estado === 'PAGADO' ||
+      estado === 'REGISTRADO' ||
+      (monto > 0 && saldo <= 0) ||
+      (totalP > 0 && pagadosP >= totalP)
+    );
+  }, [currentLoan]);
+
+  const isAtrasado = useMemo(() => {
+    if (isRegistrado) return false;
+    const estado = String(currentLoan.estado || currentLoan.status || '').toUpperCase();
+    const atrasos = Number(currentLoan.periodos_atrasados_acumulados || 0);
+    return (
+      estado === 'ATRASADO' ||
+      (currentLoan.modalidad === 'QUINCENAL' ? atrasos >= 2 : atrasos >= 4)
+    );
+  }, [isRegistrado, currentLoan]);
+
+  // Badge de estado del préstamo (Insignia superior derecha)
   const renderStateBadge = () => {
-    switch (loan.estado) {
-      case 'ATRASADO':
-        return <span className="loan-status-badge danger">Atrasado</span>;
-      case 'ARREGLO_PAGO':
-        return <span className="loan-status-badge warning">Arreglo de pago</span>;
-      case 'RENOVADO':
-        return <span className="loan-status-badge info">Renovado</span>;
-      default:
-        return <span className="loan-status-badge success">Activo</span>;
+    if (isRegistrado) {
+      return (
+        <span
+          className="loan-status-badge success"
+          style={{
+            backgroundColor: '#D6E7D6',
+            border: '1px solid #8FB89A',
+            color: '#0A3323',
+            fontWeight: 800
+          }}
+        >
+          Registrado
+        </span>
+      );
     }
+    if (isAtrasado) {
+      return (
+        <span
+          className="loan-status-badge danger"
+          style={{
+            backgroundColor: '#fff1f2',
+            border: '1px solid #fecdd3',
+            color: '#e11d48',
+            fontWeight: 800
+          }}
+        >
+          Atrasado
+        </span>
+      );
+    }
+    if (currentLoan.estado === 'ARREGLO_PAGO') {
+      return <span className="loan-status-badge warning">Arreglo de pago</span>;
+    }
+    if (currentLoan.estado === 'RENOVADO') {
+      return <span className="loan-status-badge info">Renovado</span>;
+    }
+    return (
+      <span
+        className="loan-status-badge success"
+        style={{
+          backgroundColor: '#D6E7D6',
+          border: '1px solid #8FB89A',
+          color: '#0A3323',
+          fontWeight: 800
+        }}
+      >
+        Pendiente
+      </span>
+    );
   };
 
   // Badge de cuota individual en el calendario
@@ -87,44 +213,265 @@ export function LoanCard({
     }
   };
 
-  const cuotas = Array.isArray(loan.cuotas) ? loan.cuotas : [];
+  const cuotas = Array.isArray(currentLoan.cuotas) ? currentLoan.cuotas : [];
 
   return (
-    <article className="loan-card-container">
+    <article
+      className="loan-card-container"
+      onClick={() => {
+        if (isSelectionMode && onToggleSelect && currentLoan?.id) {
+          onToggleSelect(currentLoan.id);
+        }
+      }}
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: 'var(--card-padding, 16px)',
+        cursor: isSelectionMode ? 'pointer' : 'default',
+        border: isCardHighlighted ? '2px solid #e11d48' : undefined,
+        backgroundColor: isCardHighlighted ? '#fff1f2' : undefined,
+        transition: 'all 0.15s ease'
+      }}
+    >
       {/* 3.1. VISTA CONTRAÍDA (Encabezado y Resumen Principal) */}
       <div className="loan-card-header">
         <div className="loan-client-info">
           <div className="loan-avatar" aria-hidden="true">
-            {getInitials(loan.cliente_nombre, loan.cliente_apellidos)}
+            {getInitials(currentLoan.cliente_nombre, currentLoan.cliente_apellidos)}
           </div>
           <div className="loan-name-group">
             <h3 className="loan-client-name">
-              {[loan.cliente_nombre, loan.cliente_apellidos].filter(Boolean).join(' ')}
+              {[currentLoan.cliente_nombre, currentLoan.cliente_apellidos].filter(Boolean).join(' ')}
             </h3>
-            {loan.cliente_cedula && (
+            {currentLoan.cliente_cedula && (
               <span className="loan-client-cedula">
-                {loan.cliente_cedula}
+                {currentLoan.cliente_cedula}
               </span>
             )}
           </div>
         </div>
-        <div className="loan-status-wrapper">
+
+        <div className="loan-status-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {loansList.length > 1 && (
+            <span
+              style={{
+                backgroundColor: '#eef2ff',
+                color: '#3730a3',
+                border: '1px solid #c7d2fe',
+                fontSize: '11px',
+                fontWeight: 800,
+                padding: '3px 9px',
+                borderRadius: '9999px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {loansList.length} préstamos
+            </span>
+          )}
+
           {renderStateBadge()}
+
+          {onDelete && !isSelectionMode && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(currentLoan);
+              }}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '10px',
+                border: '1px solid #fee2e2',
+                backgroundColor: '#fff1f2',
+                color: '#e11d48',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Eliminar préstamo"
+              aria-label="Eliminar préstamo"
+            >
+              <Trash2 size={15} strokeWidth={2.2} />
+            </button>
+          )}
+
+          {isSelectionMode && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleSelect && currentLoan?.id) {
+                  onToggleSelect(currentLoan.id);
+                }
+              }}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                border: isCurrentSelected ? '1.5px solid #e11d48' : '2px solid #cbd5e1',
+                backgroundColor: isCurrentSelected ? '#e11d48' : '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {isCurrentSelected && <Check size={14} strokeWidth={3} color="#ffffff" />}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Dos recuadros principales lado a lado */}
-      <div className="loan-metrics-grid">
-        <div className="loan-metric-box">
-          <span className="loan-metric-label">MONTO PRESTADO</span>
-          <span className="loan-metric-value whitespace-nowrap">
-            {formatColones(loan.monto_prestado)}
+      {/* Franja de Resumen Total del Cliente (cuando el cliente tiene 2 o más préstamos) */}
+      {loansList.length > 1 && (
+        <div
+          style={{
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '10px',
+            padding: '6px 10px',
+            marginTop: '8px',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px'
+          }}
+        >
+          <span style={{ color: '#64748b', fontWeight: 600 }}>
+            Total prestado: <strong style={{ color: '#0f172a' }}>{formatColones(totalPrestadoCliente)}</strong>
+          </span>
+          <span style={{ color: '#64748b', fontWeight: 600 }}>
+            Falta pagar: <strong style={{ color: '#0f172a', fontWeight: 800 }}>{formatColones(totalFaltaPagarCliente)}</strong>
           </span>
         </div>
-        <div className="loan-metric-box">
+      )}
+
+      {/* Selector de Pestañas por Préstamo (cuando el cliente tiene 2 o más préstamos) */}
+      {loansList.length > 1 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              loansList.length === 2
+                ? 'repeat(2, minmax(0, 1fr))'
+                : 'repeat(auto-fit, minmax(135px, 1fr))',
+            gap: '6px',
+            backgroundColor: '#f1f5f9',
+            padding: '5px',
+            borderRadius: '12px',
+            marginBottom: '12px'
+          }}
+          role="tablist"
+          aria-label="Pestañas de préstamos de este cliente"
+        >
+          {loansList.map((item, idx) => {
+            const isTabActive = String(item.id) === String(currentLoan?.id);
+            const isItemOverdue = item.estado === 'ATRASADO' || Number(item.periodos_atrasados_acumulados) > 0;
+            const isItemMarkedForDelete = Array.isArray(selectedLoanIds) && selectedLoanIds.includes(item.id);
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={isTabActive}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveLoanId(item.id);
+                }}
+                style={{
+                  backgroundColor: isTabActive ? '#0A3323' : '#ffffff',
+                  color: isTabActive ? '#ffffff' : '#475569',
+                  fontWeight: isTabActive ? 800 : 700,
+                  boxShadow: isTabActive ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                  borderRadius: '9px',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  border: isTabActive ? '1px solid #1B4D37' : '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {isItemOverdue && (
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#e11d48',
+                      flexShrink: 0
+                    }}
+                    title="Préstamo con atraso"
+                  />
+                )}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {`Préstamo ${idx + 1} · ${formatColones(item.monto_prestado)}`}
+                </span>
+                {isSelectionMode && isItemMarkedForDelete && (
+                  <Check size={12} strokeWidth={3} color={isTabActive ? '#ffffff' : '#e11d48'} style={{ flexShrink: 0 }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Dos recuadros principales lado a lado (Cero desbordes) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: '10px',
+          margin: '12px 0',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#f8fafc',
+            border: '1px solid #f1f5f9',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '3px',
+            minWidth: 0,
+            boxSizing: 'border-box'
+          }}
+        >
+          <span className="loan-metric-label">MONTO PRESTADO</span>
+          <span className="loan-metric-value" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {formatColones(currentLoan.monto_prestado)}
+          </span>
+        </div>
+        <div
+          style={{
+            backgroundColor: '#f8fafc',
+            border: '1px solid #f1f5f9',
+            borderRadius: '12px',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '3px',
+            minWidth: 0,
+            boxSizing: 'border-box'
+          }}
+        >
           <span className="loan-metric-label">CUOTA</span>
-          <span className="loan-metric-value green whitespace-nowrap">
-            {formatColones(loan.cuota)}
+          <span className="loan-metric-value green" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {formatColones(currentLoan.cuota)}
           </span>
         </div>
       </div>
@@ -132,115 +479,272 @@ export function LoanCard({
       {/* 3.2. VISTA DESPLEGADA (Detalles Completos) */}
       {isExpanded && (
         <div className="loan-expanded-content">
-          {/* 3 Recuadros de Condiciones */}
-          <div className="loan-conditions-grid">
-            <div className="condition-card">
-              <span className="condition-title">INTERÉS</span>
-              <span className="condition-highlight">{Math.round(Number(loan.porcentaje_interes || 0))}%</span>
-              <span className="condition-sub">Total: {formatColones(loan.monto_total_financiar)}</span>
+          {/* 3 Recuadros de Condiciones (Grid estricto 3 columnas - Cero desbordes) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'var(--loan-meta-cols, repeat(3, minmax(0, 1fr)))',
+              gap: '8px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Caja 1: INTERÉS */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '10px 8px',
+                minWidth: 0,
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+                INTERÉS
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                {currentLoan.porcentaje_interes}%
+              </div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#64748b',
+                  marginTop: '2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                Total: {formatColones(currentLoan.monto_total_financiar)}
+              </div>
             </div>
-            <div className="condition-card">
-              <span className="condition-title">MODALIDAD</span>
-              <span className="condition-highlight">
-                {loan.modalidad === 'SEMANAL' ? 'Semanal' : 'Quincenal'}
-              </span>
+
+            {/* Caja 2: MODALIDAD */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '10px 8px',
+                minWidth: 0,
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+                MODALIDAD
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+                {currentLoan.modalidad === 'QUINCENAL' ? 'Quincenal' : 'Semanal'}
+              </div>
             </div>
-            <div className="condition-card">
-              <span className="condition-title">COBRO</span>
-              <span className="condition-highlight small">
+
+            {/* Caja 3: COBRO */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '10px 8px',
+                minWidth: 0,
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+                COBRO
+              </div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  marginTop: '4px',
+                  lineHeight: 1.2,
+                  wordBreak: 'break-word'
+                }}
+              >
                 {formatDayDisplay()}
-              </span>
+              </div>
             </div>
           </div>
 
-          {/* Resumen de Progreso */}
-          <div className="loan-progress-card">
-            <div className="progress-item">
-              <span className="progress-label">Pagado</span>
-              <span className="progress-val green">{formatColones(loan.monto_pagado_acumulado)}</span>
+          {/* Resumen de Progreso (Grid 3 columnas equilibrado - Cero encimados de texto) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'var(--loan-progress-cols, repeat(3, minmax(0, 1fr)))',
+              gap: '6px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '10px 8px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Pagado */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Pagado
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#059669', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {formatColones(isRegistrado ? (Number(currentLoan.monto_total_financiar) || Number(currentLoan.monto_pagado_acumulado)) : currentLoan.monto_pagado_acumulado)}
+              </span>
             </div>
-            <div className="progress-divider" />
-            <div className="progress-item">
-              <span className="progress-label">Falta por pagar</span>
-              <span className="progress-val">{formatColones(loan.saldo_por_pagar)}</span>
+
+            {/* Falta por pagar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Falta pagar
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {formatColones(isRegistrado ? 0 : (currentLoan.saldo_por_pagar != null ? currentLoan.saldo_por_pagar : currentLoan.monto_total_financiar))}
+              </span>
             </div>
-            <div className="progress-divider" />
-            <div className="progress-item">
-              <span className="progress-label">Cuotas</span>
-              <span className="progress-val">
-                {loan.periodos_pagados} de {loan.total_periodos} pagadas
+
+            {/* Cuotas */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Cuotas
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {isRegistrado ? (currentLoan.total_periodos || currentLoan.periodos_pagados || 0) : (currentLoan.periodos_pagados || 0)} de {currentLoan.total_periodos || 0}
               </span>
             </div>
           </div>
 
           {/* CALENDARIO DE PAGOS */}
-          <div className="loan-calendar-section">
+          <div className="loan-calendar-section" style={{ width: '100%', boxSizing: 'border-box' }}>
             <div className="calendar-section-header">
               <CalendarDays size={16} strokeWidth={2} style={{ marginRight: '8px', color: '#475569', display: 'block' }} />
               <h4 className="calendar-section-title">CALENDARIO DE PAGOS</h4>
             </div>
 
             {/* Bloque Superior de Vigencia (Inicio y Fecha Final en 2 columnas) */}
-            <div className="loan-validity-grid grid grid-cols-2 gap-2.5 mb-3">
-              <div className="loan-validity-box bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+            <div className="loan-validity-grid grid grid-cols-2 gap-2.5 mb-3" style={{ width: '100%', boxSizing: 'border-box' }}>
+              <div className="loan-validity-box bg-slate-50 border border-slate-200/80 rounded-xl p-2.5" style={{ minWidth: 0, boxSizing: 'border-box' }}>
                 <span className="validity-box-label text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   INICIO
                 </span>
-                <span className="validity-box-date text-xs sm:text-sm font-bold text-slate-800">
-                  {formatShortSpanishDate(loan.fecha_inicio)}
+                <span className="validity-box-date text-xs sm:text-sm font-bold text-slate-800" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {formatShortSpanishDate(currentLoan.fecha_inicio)}
                 </span>
               </div>
 
-              <div className="loan-validity-box bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+              <div className="loan-validity-box bg-slate-50 border border-slate-200/80 rounded-xl p-2.5" style={{ minWidth: 0, boxSizing: 'border-box' }}>
                 <span className="validity-box-label text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   FECHA FINAL
                 </span>
-                <span className="validity-box-date text-xs sm:text-sm font-bold text-slate-800">
-                  {formatShortSpanishDate(loan.fecha_final)}
+                <span className="validity-box-date text-xs sm:text-sm font-bold text-slate-800" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {formatShortSpanishDate(currentLoan.fecha_final)}
                 </span>
               </div>
             </div>
 
             {/* Lista Cronológica de Cuotas */}
-            <div className="calendar-timeline">
+            <div className="calendar-timeline" style={{ width: '100%', boxSizing: 'border-box' }}>
               {cuotas.map((c) => (
                 <div
                   key={c.id || c.numero_cobro}
-                  className="cuota-card-item bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between gap-2"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #f1f5f9',
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.02)'
+                  }}
                 >
-                  <div className="cuota-info-left">
-                    <span className="cuota-number">Cobro {c.numero_cobro}</span>
-                    <span className="cuota-date">{formatShortSpanishDate(c.fecha_cobro_actual)}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: '1 1 auto' }}>
+                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px', lineHeight: 1.2 }}>
+                      Cobro {c.numero_cobro}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#64748b',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        lineHeight: 1.3
+                      }}
+                    >
+                      {formatShortSpanishDate(c.fecha_cobro_actual)}
+                    </span>
                   </div>
-                  <div className="cuota-info-right">
-                    <span className="cuota-amount">{formatColones(c.monto_cuota)}</span>
-                    {renderCuotaBadge(c.estado)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        fontSize: '13px',
+                        letterSpacing: '-0.01em',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {formatColones(c.monto_cuota)}
+                    </span>
+                    {renderCuotaBadge(isRegistrado ? 'REGISTRADO' : c.estado)}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 2 Botones de Acción */}
-          <div className="loan-actions-grid">
+          {/* Botones de Acción */}
+          <div
+            style={{
+              display: isRegistrado ? 'block' : 'grid',
+              gridTemplateColumns: isRegistrado ? undefined : 'repeat(2, minmax(0, 1fr))',
+              gap: '8px',
+              width: '100%',
+              boxSizing: 'border-box',
+              margin: '6px 0 2px 0'
+            }}
+          >
             <button
               type="button"
-              onClick={() => onRenew(loan)}
+              onClick={() => onRenew(currentLoan)}
               className="loan-btn-action renew"
+              style={{
+                width: '100%',
+                minWidth: 0,
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
               title="Renovar este préstamo"
             >
-              <RefreshCw size={16} strokeWidth={2} style={{ marginRight: '8px', display: 'block' }} />
-              <span>Renovar Préstamo</span>
+              <RefreshCw size={15} strokeWidth={2} style={{ marginRight: '6px', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Renovar</span>
             </button>
-            <button
-              type="button"
-              onClick={() => onAgreement(loan)}
-              className="loan-btn-action agreement"
-              title="Realizar acuerdo de pago"
-            >
-              <Handshake size={16} strokeWidth={2} style={{ marginRight: '8px', display: 'block' }} />
-              <span>Arreglo de Pago</span>
-            </button>
+            {!isRegistrado && (
+              <button
+                type="button"
+                onClick={() => onAgreement(currentLoan)}
+                className="loan-btn-action agreement"
+                style={{
+                  width: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+                title="Realizar acuerdo de pago"
+              >
+                <Handshake size={15} strokeWidth={2} style={{ marginRight: '6px', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Arreglo</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -248,7 +752,10 @@ export function LoanCard({
       {/* Botón inferior único para alternar vista */}
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
         className="loan-toggle-expand-btn"
         aria-expanded={isExpanded}
       >
@@ -262,3 +769,5 @@ export function LoanCard({
     </article>
   );
 }
+
+export default LoanCard;

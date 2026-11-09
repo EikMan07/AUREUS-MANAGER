@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { scanCedula } from '../controllers/ocrController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+router.use(authMiddleware);
 
 // Imagen en memoria (sin tocar disco), máx. 12 MB, solo imágenes
 const upload = multer({

@@ -1,0 +1,392 @@
+/* ==========================================================================
+   COBRO-FIRME — MICRO-ANIMACIONES Y CONFIRMACIONES VISUALES SUTILES
+   Paleta Oficial Verde Dólar Ejecutivo · Aceleración GPU (transform, opacity)
+   Zero Emojis · Zero Slashes/Paréntesis en UI · Estricto Tema Claro
+   ========================================================================== */
+
+/* 1. Micro-interacción en Botones */
+button:not(:disabled),
+.btn-primary:not(:disabled),
+.btn-new-client:not(:disabled),
+.btn-save-client:not(:disabled),
+.btn-modal-primary-full:not(:disabled),
+.modal-btn-confirm:not(:disabled),
+.modal-btn-cancel:not(:disabled),
+.modal-btn-danger:not(:disabled),
+.modal-btn-dark-primary:not(:disabled),
+.action-btn:not(:disabled),
+.nav-tab-btn:not(:disabled),
+.client-option-btn:not(:disabled) {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.16s ease,
+              background-color 0.16s ease,
+              border-color 0.16s ease,
+              color 0.16s ease;
+}
+
+button:hover:not(:disabled):not(.no-hover-lift),
+.btn-primary:hover:not(:disabled),
+.btn-new-client:hover:not(:disabled),
+.btn-save-client:hover:not(:disabled),
+.btn-modal-primary-full:hover:not(:disabled),
+.modal-btn-confirm:hover:not(:disabled),
+.modal-btn-cancel:hover:not(:disabled),
+.modal-btn-danger:hover:not(:disabled),
+.modal-btn-dark-primary:hover:not(:disabled),
+.action-btn:hover:not(:disabled),
+.client-option-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled),
+.btn-primary:active:not(:disabled),
+.btn-new-client:active:not(:disabled),
+.btn-save-client:active:not(:disabled),
+.btn-modal-primary-full:active:not(:disabled),
+.modal-btn-confirm:active:not(:disabled),
+.modal-btn-cancel:active:not(:disabled),
+.modal-btn-danger:active:not(:disabled),
+.modal-btn-dark-primary:active:not(:disabled),
+.action-btn:active:not(:disabled),
+.nav-tab-btn:active:not(:disabled),
+.client-option-btn:active:not(:disabled) {
+  transform: translateY(0px) scale(0.97);
+}
+
+/* 2. Efecto de Foco Ejecutivo en Buscadores e Inputs */
+input:focus,
+select:focus,
+textarea:focus,
+.directory-search-bar:focus-within,
+.directory-search-input:focus,
+.input-currency-wrapper:focus-within,
+.form-input-currency:focus {
+  outline: none;
+  border-color: #4E8F6F !important;
+  box-shadow: 0 0 0 3px rgba(214, 231, 214, 0.65) !important;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* 3. Animaciones de Entrada en Modales y Desplegables */
+@keyframes cfModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-container,
+.confirm-modal-compact,
+.client-options-modal,
+.modal-enter-animation {
+  animation: cfModalIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes cfCardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.client-card,
+.loan-card,
+.white-summary-card,
+.loan-expanded-content,
+.card-fade-animation {
+  animation: cfCardFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4. Las 5 Animaciones Personalizadas de Confirmación (Post-Doble Verificación) */
+
+/* 4.1. Confirmar Pagó (Pago recibido) */
+@keyframes cfCheckPop {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(78, 143, 111, 0.45);
+  }
+  45% {
+    transform: scale(1.09);
+    box-shadow: 0 0 0 10px rgba(214, 231, 214, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(214, 231, 214, 0);
+  }
+}
+
+.cf-anim-check-pop {
+  animation: cfCheckPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+/* 4.2. Confirmar Pasar (Reprogramar fecha de cobro) */
+@keyframes cfClockTurn {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-12deg) scale(1.05);
+  }
+  60% {
+    transform: rotate(14deg) scale(1.02);
+  }
+  85% {
+    transform: rotate(-3deg);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.cf-anim-clock-turn {
+  animation: cfClockTurn 420ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards !important;
+}
+
+/* 4.3. Confirmar No Pagó (Incumplimiento) */
+@keyframes cfAlertShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.cf-anim-alert-shake {
+  animation: cfAlertShake 420ms ease-in-out forwards !important;
+}
+
+/* 4.4. Confirmar Enviar a Lista Negra */
+@keyframes cfShieldSeal {
+  0% {
+    transform: translateY(-5px) scale(1.12);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  48% {
+    transform: translateY(2px) scale(0.96);
+    box-shadow: 0 0 0 8px rgba(254, 202, 202, 0);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 0 rgba(254, 202, 202, 0);
+  }
+}
+
+.cf-anim-shield-seal {
+  animation: cfShieldSeal 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+/* 4.5. Confirmar Eliminar (Papelera o Eliminar Préstamo) */
+@keyframes cfTrashDrop {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  28% {
+    transform: rotate(-14deg) translateY(-3px) scale(1.06);
+  }
+  65% {
+    transform: rotate(6deg) translateY(1px);
+  }
+  100% {
+    transform: rotate(0deg) translateY(0) scale(1);
+  }
+}
+
+.cf-anim-trash-drop {
+  animation: cfTrashDrop 420ms cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+
+/* ==========================================================================
+   5. CONFIRM ACTION STAGE — COREOGRAFÍA CENTRAL (ESTILO REACT BITS PRO)
+   Transición en 3 tiempos con dibujo SVG vectorial y ondas expansivas
+   ========================================================================== */
+
+/* 5.1. Entrada elástica del círculo de 96px */
+@keyframes cfStagePopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) translateY(12px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.06) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 5.2. Salida fluida del círculo hacia arriba */
+@keyframes cfStageFadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.86) translateY(-12px);
+  }
+}
+
+/* 5.3. Onda expansiva concéntrica exterior (Pulse Rings) */
+@keyframes cfPulseRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* 5.4. Dibujo de trazos vectoriales SVG (Check, Anillo, Cruz) */
+@keyframes cfStrokeDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 5.5. Giro completo de manecilla minutera (Variante Pasar) */
+@keyframes cfClockHandsSweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 5.6. Avance de manecilla horaria de reprogramación (Variante Pasar) */
+@keyframes cfClockHourAdvance {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(45deg);
+  }
+}
+
+/* 5.7. Golpe elástico de sellado con vibración (Variante No Pagó) */
+@keyframes cfStampShake {
+  0% {
+    transform: scale(0.45) translateY(12px);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(0.94);
+  }
+  75% {
+    transform: scale(1.03) translateX(-3px);
+  }
+  88% {
+    transform: scale(0.99) translateX(3px);
+  }
+  100% {
+    transform: scale(1) translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 5.8. Aparición suave de la píldora flotante inferior */
+@keyframes cfPillSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 5.9. Deslizamiento diagonal del lápiz de edición (Variante Editar Cliente) */
+@keyframes cfPencilGlide {
+  0% {
+    opacity: 0;
+    transform: translate(8px, -8px) rotate(12deg) scale(0.85);
+  }
+  55% {
+    opacity: 1;
+    transform: translate(-2px, 2px) rotate(-6deg) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+}
+
+/* 5.10. Apertura y cierre elástico de tapa de papelera (Variante Eliminar Cliente) */
+@keyframes cfTrashLidOpenClose {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+  30% {
+    transform: rotate(-18deg) translateY(-4px);
+  }
+  65% {
+    transform: rotate(-14deg) translateY(-3px);
+  }
+  85% {
+    transform: rotate(4deg) translateY(1px);
+  }
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+}
+
+/* 5.11. Entrada de tarjeta hacia el interior de la papelera (Variante Eliminar Cliente) */
+@keyframes cfCardIntoTrash {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.85);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1);
+  }
+  80% {
+    opacity: 0.9;
+    transform: translateY(14px) scale(0.75);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+}
+
+/* Contenedor del escenario central */
+.confirm-action-stage-wrapper.stage-entering {
+  animation: cfStagePopIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.confirm-action-stage-wrapper.stage-exiting {
+  animation: cfStageFadeOut 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+

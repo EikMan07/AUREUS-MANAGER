@@ -65,7 +65,7 @@ export function RenewLoanModal({
           title: 'Datos incompletos',
           message: 'No has completado los datos necesarios para renovar el préstamo.',
           buttonText: 'Entendido',
-          iconType: 'alert'
+          iconType: 'incomplete'
         });
       }
       return;
@@ -222,7 +222,7 @@ export function RenewLoanModal({
             </button>
             <button
               type="submit"
-              className="btn-modal-primary-full w-full h-12 rounded-xl bg-[#131629] hover:bg-slate-800 text-white font-semibold text-sm shadow-xs flex items-center justify-center transition-colors whitespace-nowrap cursor-pointer"
+              className="btn-modal-primary-full"
             >
               Renovar Préstamo
             </button>

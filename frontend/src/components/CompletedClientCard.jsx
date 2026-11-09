@@ -1,11 +1,13 @@
 import React from 'react';
-import { Check } from 'lucide-react';
-import { formatColones, getInitials } from '../utils/formatters';
+import { Check, Share2 } from 'lucide-react';
+import { formatColones, getInitials, formatFullName } from '../utils/formatters';
 
 export function CompletedClientCard({ client }) {
   const initials = getInitials(client?.nombre, client?.apellidos);
-  const fullName = [client?.nombre, client?.apellidos].filter(Boolean).join(' ').trim();
-  const totalCobrado = client.cuotaDiaria + (client.moratoriaCobrada || 0);
+  const fullName = formatFullName(client?.nombre, client?.apellidos);
+  const totalCobrado = Number(client?.montoTotalCobrado) > 0
+    ? Number(client.montoTotalCobrado)
+    : (Number(client?.cuotaDiaria || 0) + Number(client?.moratoriaCobrada || 0));
 
   return (
     <article className="client-card completed-card" aria-label={`Cobro registrado de ${fullName}`}>
@@ -24,6 +26,43 @@ export function CompletedClientCard({ client }) {
                 </span>
               )}
             </p>
+            {client?.es_compartido ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  padding: '1px 6px',
+                  borderRadius: '5px',
+                  marginTop: '3px'
+                }}
+              >
+                <Share2 size={11} strokeWidth={2.2} />
+                <span>Compartido por {client.compartido_por_nombre || 'otro cobrador'}</span>
+              </span>
+            ) : client?.compartido_con_nombre ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  backgroundColor: '#ecfdf5',
+                  color: '#065f46',
+                  padding: '1px 6px',
+                  borderRadius: '5px',
+                  marginTop: '3px'
+                }}
+              >
+                <Share2 size={11} strokeWidth={2.2} />
+                <span>Cobrado por {client.compartido_con_nombre}</span>
+              </span>
+            ) : null}
           </div>
         </div>
 

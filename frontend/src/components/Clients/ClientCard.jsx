@@ -1,15 +1,10 @@
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import { getInitials, formatCedulaCR, formatTelefonoCR } from '../../utils/formatters';
+import { getInitials, formatFullName, formatCedulaCR, formatTelefonoCR } from '../../utils/formatters';
 
 export function ClientCard({ client, onOptionsClick }) {
-  const inicialNombre = (client?.nombre || '').trim().charAt(0).toUpperCase() || 'C';
-  const inicialApellido = (client?.apellidos || '').trim().charAt(0).toUpperCase() || '';
-  const initials = `${inicialNombre}${inicialApellido}` || getInitials(client?.nombre, client?.apellidos);
-
-  const cleanNombre = (client?.nombre || '').trim();
-  const cleanApellidos = (client?.apellidos || '').trim();
-  const fullName = cleanApellidos ? `${cleanNombre} ${cleanApellidos}`.trim() : cleanNombre;
+  const initials = getInitials(client?.nombre, client?.apellidos);
+  const fullName = formatFullName(client?.nombre, client?.apellidos);
 
   const rawCedula = (client?.cedula || '').toString().trim();
   const cedulaFormatted = rawCedula ? (formatCedulaCR(rawCedula) || rawCedula) : 'Sin cédula';

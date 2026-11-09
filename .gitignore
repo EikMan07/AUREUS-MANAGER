@@ -33,3 +33,9 @@ dist-ssr
 # OCR (datos de idioma de Tesseract descargados en tiempo de ejecución)
 .tesseract-cache/
 *.traineddata
+
+# Documentos internos de trabajo y bitácora del agente (no subir a GitHub)
+bitacora_agente.md
+prompts_indicaciones.md
+scratch/
+

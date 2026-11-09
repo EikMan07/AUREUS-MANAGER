@@ -94,6 +94,9 @@ Todos los endpoints responden bajo el prefijo `/api`:
 
 | Método | Endpoint | Descripción |
 | :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Autenticación de usuario y emisión de token JWT. |
+| `POST` | `/api/auth/register` | Registro de nuevo usuario con cifrado `bcryptjs`. |
+| `GET` | `/api/auth/me` | Verificación de sesión activa mediante token JWT. |
 | `GET` | `/api/health` | Estado del servicio y verificación de conexión a `cobro_firme_db`. |
 | `GET` | `/api/clientes` | Directorio de clientes con `estado = 'ACTIVO'` ordenados por fecha. |
 | `POST` | `/api/clientes` | Registro de nuevo cliente con validación estricta de 9 dígitos y auditoría. |
@@ -109,22 +112,26 @@ Todos los endpoints responden bajo el prefijo `/api`:
 | `POST` | `/api/prestamos` | Registro de nuevo préstamo, cálculo del calendario de pagos y generación de agenda. |
 | `POST` | `/api/prestamos/:id/renovar` | Renovación de préstamo existente con nuevo monto, cuotas y reemplazo de agenda. |
 | `POST` | `/api/prestamos/:id/arreglo` | Reestructuración de préstamo mediante arreglo de pago con cuota especial. |
+| `DELETE` | `/api/prestamos/batch` | Eliminación por lote o individual de préstamos seleccionados. |
+| `GET` | `/api/resumen` | Métricas ejecutivas de cartera, recaudación y distribución por frecuencia. |
+| `GET` | `/api/lista-negra` | Listado de registros activos en Lista Negra y control de restricciones. |
+| `GET` | `/api/papelera` | Listado de clientes en Papelera, restauración y eliminación permanente. |
+| `GET` | `/api/notificaciones` | Centro de notificaciones de cobros programados y alertas de mora. |
 
 ---
 
-## 6. Estado Inicial Limpio
+## 6. Módulos Integrados (1 al 6)
 
 - **Módulo 1 (Cobros)**:
-  - Tarjetas de resumen en **`₡0`** (`TOTAL PRESTADO`, `ESTA SEMANA`, `HOY`).
-  - Pestañas `Pendientes (0)`, `Registrados` y `Atrasados (0)` con estados vacíos formales.
-  - Navegación temporal con calendario mensual interactivo libre de restricciones de scroll.
+  - Tarjetas de resumen (`TOTAL PRESTADO`, `ESTA SEMANA`, `HOY`), exportación PDF (`CompartirCobrosModal.jsx`) y pestañas `Pendientes`, `Registrados` y `Atrasados`.
+  - Modales de pago, pasar día y no pago con cálculo de acumulado de atrasos y cápsulas escénicas animadas de `1480ms` (`ConfirmActionStage.jsx`).
 - **Módulo 2 (Clientes)**:
-  - Encabezado con contador **`"0 clientes en cartera"`** y lista limpia hasta crear clientes reales mediante **`+ Nuevo`**.
-  - Búsqueda multi-criterio (nombre, apellidos, teléfono con o sin guion, cédula, ubicación y detalles).
-  - Bloqueo de duplicidad de teléfono y cédula, y validación visual con recuadros en rojo.
+  - Directorio con búsqueda multi-criterio, OCR de cédula, validación de duplicados, doble verificación al editar y cápsulas escénicas de confirmación (`editar_cliente`, `lista_negra`, `eliminar_cliente`).
 - **Módulo 3 (Préstamos)**:
-  - Listado de préstamos activos con vista previa de vigencia y cronograma de cuotas.
-  - Modales de `"Nuevo Préstamo"`, `"Renovar Préstamo"` y `"Arreglo de Pago"` con inicialización en cero/vacío.
-  - Soporte de esquemas semanal y quincenal (día 15 y fin de mes o cada 2 semanas con día fijo).
-  - Validación formal con modal de confirmación y recuadros en rojo sin alertas intrusivas.
-- **Vistas habilitadas**: En esta fase se encuentran activos e integrados los módulos de **Cobros**, **Clientes** y **Préstamos**.
+  - Creación, renovación, arreglo de pago y eliminación por categoría (`Pendientes`, `Registrados`, `Atrasados`) con cápsulas escénicas de `1480ms` diferenciadas.
+- **Módulo 4 (Resumen)**:
+  - Tablero analítico con indicadores de rendimiento, frecuencias de cobro y estado global de cartera.
+- **Módulo 5 (Lista Negra)**:
+  - Control de morosidad y restricciones para registrar y consultar personas que han incumplido con sus pagos, evitando otorgarles nuevos préstamos.
+- **Módulo 6 (Papelera)**:
+  - Retención de clientes eliminados por 30 días con opciones de restauración o borrado permanente definitivo (`eliminar_definitivo`).

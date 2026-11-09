@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, HelpCircle, Check } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarClock, Check } from 'lucide-react';
+import { ConfirmActionStage } from './ConfirmActionStage';
 import {
   SPANISH_MONTHS,
-  SPANISH_WEEKDAYS,
   SPANISH_DAY_KEYS,
   formatDateToFullSpanish,
   getDayNameFromKey,
@@ -10,7 +10,7 @@ import {
 } from '../../utils/formatters';
 
 export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
-  // Fecha seleccionada por defecto: día siguiente a la fecha actual real de Costa Rica
+  // Todos los Hooks al inicio del componente antes de cualquier return condicional
   const [selectedYear, setSelectedYear] = useState(() => {
     const tmrw = getCostaRicaNow();
     tmrw.setDate(tmrw.getDate() + 1);
@@ -33,6 +33,8 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
 
   // Paso de Doble Verificación
   const [isVerifying, setIsVerifying] = useState(false);
+  // Fase de confirmación central: 'idle' | 'animating' | 'exiting'
+  const [confirmPhase, setConfirmPhase] = useState('idle');
 
   // Al abrir el modal, resetear al día siguiente de hoy
   useEffect(() => {
@@ -45,12 +47,21 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
       setViewYear(tmrw.getFullYear());
       setViewMonth(tmrw.getMonth());
       setIsVerifying(false);
+      setConfirmPhase('idle');
     }
   }, [isOpen]);
 
   if (!isOpen || !client) return null;
 
-  const fullName = `${client.nombre} ${client.apellidos}`;
+  // Limpieza estricta del nombre del cliente para jamás mostrar "null" o "undefined"
+  const cleanPart = (val) => {
+    if (!val || val === 'null' || val === 'undefined') return '';
+    return String(val).replace(/\bnull\b/gi, '').replace(/\bundefined\b/gi, '').trim();
+  };
+  const nombreCliente = [
+    cleanPart(client?.nombre || client?.cliente_nombre || client?.name),
+    cleanPart(client?.apellidos || client?.cliente_apellidos)
+  ].filter(Boolean).join(' ') || 'Cliente';
 
   // Días de la semana en orden español (Lunes a Domingo)
   const weekDayHeaders = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
@@ -59,7 +70,7 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   // Primer día del mes (0=Dom, 1=Lun, ..., 6=Sáb) ajustado para Lunes=0
   const firstDayIndexRaw = new Date(viewYear, viewMonth, 1).getDay();
-  const firstDayOffset = firstDayIndexRaw === 0 ? 6 : firstDayIndexRaw - 1; // Lunes = 0, Domingo = 6
+  const firstDayOffset = firstDayIndexRaw === 0 ? 6 : firstDayIndexRaw - 1;
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {
@@ -87,7 +98,7 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
 
   // Texto de la fecha seleccionada: ej. "Jueves, 19 de Noviembre de 2026"
   const selectedDateFullText = formatDateToFullSpanish(selectedYear, selectedMonth, selectedDay);
-  
+
   // Clave de día (LUN, MAR, etc.) y formato ISO (YYYY-MM-DD)
   const selectedDateObj = new Date(selectedYear, selectedMonth, selectedDay);
   const selectedDayKey = SPANISH_DAY_KEYS[selectedDateObj.getDay()];
@@ -99,18 +110,73 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
     setIsVerifying(true);
   };
 
-  const handleFinalConfirm = () => {
-    onConfirmPass(client.id, selectedDayKey, selectedDateISO, selectedDateFullText);
-    handleClose();
-  };
-
   const handleClose = () => {
     setIsVerifying(false);
+    setConfirmPhase('idle');
     onClose();
   };
 
+  const handleFinalConfirm = () => {
+    if (confirmPhase !== 'idle') return;
+    setConfirmPhase('animating');
+
+    // Mantener visible 1200ms para apreciar el trazado del reloj y leer la fecha con claridad
+    setTimeout(() => {
+      setConfirmPhase('exiting');
+    }, 1200);
+
+    // Ejecutar la acción de reprogramación y cerrar tras completar el desvanecimiento (1480ms)
+    setTimeout(async () => {
+      try {
+        await onConfirmPass(client.id, selectedDayKey, selectedDateISO, selectedDateFullText);
+      } finally {
+        handleClose();
+      }
+    }, 1480);
+  };
+
+  // Renderizado exclusivo de la cápsula de confirmación (desmonta por completo la caja blanca del modal)
+  if (confirmPhase !== 'idle') {
+    return (
+      <div
+        className="modal-overlay"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)'
+        }}
+      >
+        <ConfirmActionStage
+          variant="pasar"
+          phase={confirmPhase}
+          clientName={nombreCliente}
+          subtitle={selectedDateFullText}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pass-modal-title">
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pass-modal-title"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }}
+    >
       <div className="modal-container pass-modal-wide">
         {/* Encabezado del Modal */}
         <div className="modal-header">
@@ -119,13 +185,13 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
               Pasar Cliente de Día
             </h3>
             <p className="modal-subtitle">
-              Reprogramar fecha de cobro para {fullName}
+              Reprogramar fecha de cobro para {nombreCliente}
             </p>
           </div>
-          <button 
-            type="button" 
-            onClick={handleClose} 
-            className="modal-close-btn" 
+          <button
+            type="button"
+            onClick={handleClose}
+            className="modal-close-btn"
             aria-label="Cerrar modal"
           >
             <X size={20} strokeWidth={1.75} />
@@ -184,9 +250,9 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
                 {/* Días del mes actual */}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const dayNum = i + 1;
-                  const isSelected = 
-                    selectedDay === dayNum && 
-                    selectedMonth === viewMonth && 
+                  const isSelected =
+                    selectedDay === dayNum &&
+                    selectedMonth === viewMonth &&
                     selectedYear === viewYear;
 
                   return (
@@ -202,7 +268,7 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
                 })}
               </div>
 
-              {/* Resumen único y claro de la fecha elegida (Sin textos duplicados) */}
+              {/* Resumen único y claro de la fecha elegida */}
               <div className="selected-date-preview-card">
                 <div className="preview-card-icon-box">
                   <CalendarIcon size={18} strokeWidth={1.75} />
@@ -216,11 +282,20 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
           ) : (
             /* Doble Verificación Paso 2 */
             <div className="confirmation-prompt-box">
-              <div className="prompt-icon-wrapper amber">
-                <HelpCircle size={28} strokeWidth={1.75} className="prompt-icon amber" />
+              <div
+                className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center bg-amber-50 text-amber-600 border border-amber-200/80"
+                style={{
+                  backgroundColor: '#fffbeb',
+                  color: '#d97706',
+                  borderColor: 'rgba(253, 230, 138, 0.8)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid'
+                }}
+              >
+                <CalendarClock size={28} strokeWidth={2} />
               </div>
               <p className="prompt-text">
-                ¿Seguro que deseas pasar el cobro de <strong className="client-highlight">{fullName}</strong> para el <strong className="amount-highlight">{selectedDateFullText}</strong>?
+                ¿Seguro que deseas pasar el cobro de <strong className="client-highlight">{nombreCliente}</strong> para el <strong className="amount-highlight">{selectedDateFullText}</strong>?
               </p>
               <div className="return-day-notice">
                 El cliente desaparecerá de hoy y se mostrará únicamente en esa fecha. Su día habitual seguirá registrado como <strong>{getDayNameFromKey(client.diaFijoOriginal)}</strong>.
@@ -251,10 +326,11 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
           ) : (
             <button
               type="button"
+              disabled={confirmPhase !== 'idle'}
               onClick={handleFinalConfirm}
               className="modal-btn-dark-primary"
             >
-              <span>Sí, confirmar reprogramación</span>
+              <span>{confirmPhase !== 'idle' ? 'Reprogramación confirmada' : 'Sí, confirmar reprogramación'}</span>
             </button>
           )}
         </div>

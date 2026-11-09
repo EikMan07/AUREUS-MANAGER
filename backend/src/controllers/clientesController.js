@@ -1,54 +1,15 @@
-import { query } from '../config/db.js';
+import { query, debugPayload } from '../config/db.js';
 import { getDefaultCobradorId } from '../services/seedService.js';
+
+function cleanCedula9(raw) {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, '').slice(0, 9);
+  return digits.length === 9 ? digits : null;
+}
 
 // Valores por defecto no vacíos para compatibilidad futura al pasar un registro de lista_negra a clientes
 export const DEFAULT_TELEFONO_LISTA_NEGRA = '0000-0000';
 export const DEFAULT_CAMPO_LISTA_NEGRA = 'Sin ubicación';
-
-let schemaMigrated = false;
-
-async function ensureClientesSchema() {
-  if (schemaMigrated) return;
-  try {
-    await query(`
-      ALTER TABLE clientes
-        ALTER COLUMN cedula DROP NOT NULL,
-        ALTER COLUMN apellidos DROP NOT NULL,
-        ALTER COLUMN detalles DROP NOT NULL;
-
-      UPDATE clientes SET nombre = 'Sin nombre' WHERE nombre IS NULL OR btrim(nombre) = '';
-      UPDATE clientes SET telefono = '0000-0000' WHERE telefono IS NULL OR btrim(telefono) = '';
-      UPDATE clientes SET ubicacion = 'Sin ubicación' WHERE ubicacion IS NULL OR btrim(ubicacion) = '';
-
-      ALTER TABLE clientes
-        ALTER COLUMN nombre SET NOT NULL,
-        ALTER COLUMN telefono SET NOT NULL,
-        ALTER COLUMN ubicacion SET NOT NULL;
-
-      ALTER TABLE clientes DROP CONSTRAINT IF EXISTS ck_clientes_cedula_9_digitos;
-      ALTER TABLE clientes ADD CONSTRAINT ck_clientes_cedula_9_digitos
-        CHECK (cedula IS NULL OR cedula ~ '^[0-9]{9}$');
-
-      ALTER TABLE clientes DROP CONSTRAINT IF EXISTS ck_clientes_campos_obligatorios_no_vacios;
-      ALTER TABLE clientes ADD CONSTRAINT ck_clientes_campos_obligatorios_no_vacios
-        CHECK (btrim(nombre) <> '' AND btrim(telefono) <> '' AND btrim(ubicacion) <> '');
-
-      ALTER TABLE lista_negra
-        ALTER COLUMN cedula DROP NOT NULL,
-        ALTER COLUMN apellidos DROP NOT NULL;
-      ALTER TABLE lista_negra DROP CONSTRAINT IF EXISTS ck_lista_negra_cedula_9_digitos;
-      ALTER TABLE lista_negra ADD CONSTRAINT ck_lista_negra_cedula_9_digitos
-        CHECK (cedula IS NULL OR cedula ~ '^[0-9]{9}$');
-
-      ALTER TABLE historial_clientes_archivo
-        ALTER COLUMN cedula DROP NOT NULL,
-        ALTER COLUMN apellidos DROP NOT NULL;
-    `);
-    schemaMigrated = true;
-  } catch (err) {
-    console.error('Aviso al sincronizar restricciones de clientes:', err.message);
-  }
-}
 
 function validarCamposObligatoriosCliente(body = {}, isEdit = false) {
   const rawCedula = (body.cedula ?? '').toString().trim().replace(/\D/g, '');
@@ -92,8 +53,7 @@ function validarCamposObligatoriosCliente(body = {}, isEdit = false) {
 
 export async function getClientes(req, res) {
   try {
-    await ensureClientesSchema();
-    const cobradorId = req.query.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const sql = `
       SELECT 
@@ -116,17 +76,20 @@ export async function getClientes(req, res) {
     const { rows } = await query(sql, [cobradorId]);
     return res.json(rows);
   } catch (err) {
-    console.error('Error al consultar clientes:', err);
-    return res.status(500).json({ error: 'Error interno del servidor al consultar clientes' });
+    console.error('[Error SQL detallado]: Error al consultar clientes:', err);
+    return res.status(500).json({
+      error: 'No se pudieron consultar los clientes en este momento.',
+      userMessage: 'No se pudieron consultar los clientes en este momento.',
+      ...debugPayload(err)
+    });
   }
 }
 
 export async function createCliente(req, res) {
   try {
-    await ensureClientesSchema();
     const validacion = validarCamposObligatoriosCliente(req.body, false);
     if (!validacion.valid) {
-      return res.status(400).json({ error: validacion.error, field: validacion.field || null });
+      return res.status(400).json({ error: validacion.error, userMessage: validacion.error, field: validacion.field || null });
     }
 
     const {
@@ -138,7 +101,7 @@ export async function createCliente(req, res) {
       cleanDetalles
     } = validacion.values;
 
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     // 1. Verificar duplicidad de teléfono entre clientes activos
     const { rows: dupPhone } = await query(
@@ -153,6 +116,7 @@ export async function createCliente(req, res) {
     if (dupPhone.length > 0) {
       return res.status(409).json({
         error: 'Este número de teléfono ya se encuentra registrado.',
+        userMessage: 'Este número de teléfono ya se encuentra registrado.',
         field: 'telefono'
       });
     }
@@ -171,6 +135,7 @@ export async function createCliente(req, res) {
       if (dupCedula.length > 0) {
         return res.status(409).json({
           error: 'Este número de cédula ya se encuentra registrado.',
+          userMessage: 'Este número de cédula ya se encuentra registrado.',
           field: 'cedula'
         });
       }
@@ -186,7 +151,7 @@ export async function createCliente(req, res) {
         ubicacion,
         detalles,
         estado
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVO')
+      ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, 'ACTIVO'::public.estado_cliente)
       RETURNING *;
     `;
 
@@ -202,7 +167,8 @@ export async function createCliente(req, res) {
 
     const nuevoCliente = rows[0];
 
-    // Registro en bitácora de actividad (inmutable)
+    // Registro en bitácora de actividad (inmutable) con casteo estricto
+    const finalCedula = cleanCedula9(nuevoCliente.cedula);
     const logSql = `
       INSERT INTO bitacora_actividad (
         usuario_id,
@@ -212,13 +178,13 @@ export async function createCliente(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'CLIENTE_CREADO', 'clientes', $3, $4, $5);
+      ) VALUES ($1::uuid, $2::uuid, 'CLIENTE_CREADO'::public.accion_bitacora, 'clientes', $3::uuid, $4, $5);
     `;
     await query(logSql, [
       cobradorId,
       cobradorId,
       nuevoCliente.id,
-      nuevoCliente.cedula,
+      finalCedula,
       JSON.stringify({
         nombre: nuevoCliente.nombre,
         apellidos: nuevoCliente.apellidos,
@@ -233,22 +199,27 @@ export async function createCliente(req, res) {
     if (err.code === '23505') { // Llave duplicada (cobrador_id, cedula)
       return res.status(409).json({
         error: 'Este número de cédula ya se encuentra registrado.',
+        userMessage: 'Este número de cédula ya se encuentra registrado.',
         field: 'cedula'
       });
     }
     if (err.code === '23514' || err.code === '23502') {
       return res.status(400).json({
-        error: 'No has completado los datos necesarios para registrar un nuevo cliente.'
+        error: 'No has completado los datos necesarios para registrar un nuevo cliente.',
+        userMessage: 'No has completado los datos necesarios para registrar un nuevo cliente.'
       });
     }
-    console.error('Error al crear cliente:', err);
-    return res.status(500).json({ error: 'Ocurrió un inconveniente al registrar el cliente.' });
+    console.error('[Error SQL detallado]: Error al crear cliente:', err);
+    return res.status(500).json({
+      error: 'Ocurrió un inconveniente al registrar el cliente. Por favor, inténtalo nuevamente.',
+      userMessage: 'Ocurrió un inconveniente al registrar el cliente. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
   }
 }
 
 export async function updateCliente(req, res) {
   try {
-    await ensureClientesSchema();
     const { id } = req.params;
     const validacion = validarCamposObligatoriosCliente(req.body, true);
     if (!validacion.valid) {
@@ -264,7 +235,7 @@ export async function updateCliente(req, res) {
       cleanDetalles
     } = validacion.values;
 
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     // 1. Verificar duplicidad de teléfono excluyendo el cliente actual
     const { rows: dupPhone } = await query(
@@ -333,7 +304,8 @@ export async function updateCliente(req, res) {
 
     const clienteActualizado = rows[0];
 
-    // Registrar en bitácora
+    // Registrar en bitácora con casteo explícito
+    const finalCedula = cleanCedula9(clienteActualizado.cedula);
     const logSql = `
       INSERT INTO bitacora_actividad (
         usuario_id,
@@ -343,13 +315,13 @@ export async function updateCliente(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'CLIENTE_EDITADO', 'clientes', $3, $4, $5);
+      ) VALUES ($1::uuid, $2::uuid, 'CLIENTE_EDITADO'::public.accion_bitacora, 'clientes', $3::uuid, $4, $5);
     `;
     await query(logSql, [
       cobradorId,
       cobradorId,
       clienteActualizado.id,
-      clienteActualizado.cedula,
+      finalCedula,
       JSON.stringify({
         nombre: clienteActualizado.nombre,
         apellidos: clienteActualizado.apellidos,
@@ -364,33 +336,39 @@ export async function updateCliente(req, res) {
     if (err.code === '23505') {
       return res.status(409).json({
         error: 'Este número de cédula ya se encuentra registrado.',
+        userMessage: 'Este número de cédula ya se encuentra registrado.',
         field: 'cedula'
       });
     }
     if (err.code === '23514' || err.code === '23502') {
       return res.status(400).json({
-        error: 'No has completado los datos necesarios para guardar los cambios del cliente.'
+        error: 'No has completado los datos necesarios para guardar los cambios del cliente.',
+        userMessage: 'No has completado los datos necesarios para guardar los cambios del cliente.'
       });
     }
-    console.error('Error al actualizar cliente:', err);
-    return res.status(500).json({ error: 'Ocurrió un inconveniente al actualizar el cliente.' });
+    console.error('[Error SQL detallado]: Error al actualizar cliente:', err);
+    return res.status(500).json({
+      error: 'Ocurrió un inconveniente al actualizar el cliente. Por favor, inténtalo nuevamente.',
+      userMessage: 'Ocurrió un inconveniente al actualizar el cliente. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
   }
 }
 
 export async function enviarPapelera(req, res) {
   try {
     const { id } = req.params;
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const updateSql = `
       UPDATE clientes
       SET 
-        estado = 'EN_PAPELERA',
+        estado = 'EN_PAPELERA'::public.estado_cliente,
         fecha_envio_papelera = now(),
         fecha_borrado_definitivo = now() + interval '30 days',
-        version = version + 1,
+        version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $1
+      WHERE id = $1::uuid
       RETURNING *;
     `;
 
@@ -405,6 +383,7 @@ export async function enviarPapelera(req, res) {
     await query('SELECT suspender_prestamos_cliente($1);', [id]);
 
     // Registrar en bitácora
+    const finalCedula = cleanCedula9(clienteEnPapelera.cedula);
     const logSql = `
       INSERT INTO bitacora_actividad (
         usuario_id,
@@ -414,13 +393,13 @@ export async function enviarPapelera(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'CLIENTE_A_PAPELERA', 'clientes', $3, $4, $5);
+      ) VALUES ($1::uuid, $2::uuid, 'CLIENTE_A_PAPELERA'::public.accion_bitacora, 'clientes', $3::uuid, $4, $5);
     `;
     await query(logSql, [
       cobradorId,
       cobradorId,
       clienteEnPapelera.id,
-      clienteEnPapelera.cedula,
+      finalCedula,
       JSON.stringify({
         motivo: req.body.motivo || 'Enviado a papelera por el cobrador',
         fecha_borrado_definitivo: clienteEnPapelera.fecha_borrado_definitivo
@@ -432,24 +411,27 @@ export async function enviarPapelera(req, res) {
       cliente: clienteEnPapelera
     });
   } catch (err) {
-    console.error('Error al enviar cliente a papelera:', err);
-    return res.status(500).json({ error: 'Error interno al enviar cliente a la papelera' });
+    console.error('[Error SQL detallado]: Error al enviar cliente a papelera:', err);
+    return res.status(500).json({
+      error: 'No se pudo mover el cliente a la papelera en este momento.',
+      userMessage: 'No se pudo mover el cliente a la papelera en este momento.',
+      ...debugPayload(err)
+    });
   }
 }
 
 export async function enviarListaNegra(req, res) {
   try {
-    await ensureClientesSchema();
     const { id } = req.params;
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const updateSql = `
       UPDATE clientes
       SET 
-        estado = 'EN_LISTA_NEGRA',
-        version = version + 1,
+        estado = 'EN_LISTA_NEGRA'::public.estado_cliente,
+        version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $1
+      WHERE id = $1::uuid
       RETURNING *;
     `;
 
@@ -511,7 +493,8 @@ export async function enviarListaNegra(req, res) {
     // Suspender préstamos asociados
     await query('SELECT suspender_prestamos_cliente($1);', [id]);
 
-    // Registrar en bitácora
+    // Registrar en bitácora con casteo explícito
+    const finalCedula = cleanCedula9(cliente.cedula);
     const logSql = `
       INSERT INTO bitacora_actividad (
         usuario_id,
@@ -521,13 +504,13 @@ export async function enviarListaNegra(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'CLIENTE_A_LISTA_NEGRA', 'clientes', $3, $4, $5);
+      ) VALUES ($1::uuid, $2::uuid, 'CLIENTE_A_LISTA_NEGRA'::public.accion_bitacora, 'clientes', $3::uuid, $4, $5);
     `;
     await query(logSql, [
       cobradorId,
       cobradorId,
       cliente.id,
-      cliente.cedula,
+      finalCedula,
       JSON.stringify({
         motivo: req.body.motivo || 'Enviado a lista negra por el cobrador'
       })
@@ -538,7 +521,11 @@ export async function enviarListaNegra(req, res) {
       cliente
     });
   } catch (err) {
-    console.error('Error al enviar cliente a lista negra:', err);
-    return res.status(500).json({ error: 'Error interno al enviar cliente a la lista negra' });
+    console.error('[Error SQL detallado]: Error al enviar cliente a lista negra:', err);
+    return res.status(500).json({
+      error: 'No se pudo bloquear al cliente en este momento.',
+      userMessage: 'No se pudo bloquear al cliente en este momento.',
+      ...debugPayload(err)
+    });
   }
 }

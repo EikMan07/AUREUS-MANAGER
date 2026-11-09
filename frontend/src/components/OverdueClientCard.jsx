@@ -1,13 +1,15 @@
 import React from 'react';
 import { Check, AlertCircle, AlertTriangle } from 'lucide-react';
-import { formatColones, getInitials, getDayNameFromKey, formatCedulaCR } from '../utils/formatters';
+import { formatColones, getInitials, formatFullName, getDayNameFromKey, formatCedulaCR } from '../utils/formatters';
 
 export function OverdueClientCard({ client, onPayClick }) {
   const initials = getInitials(client?.nombre, client?.apellidos);
-  const fullName = [client?.nombre, client?.apellidos].filter(Boolean).join(' ').trim();
-  const esQuincenal = client.frecuencia === 'quincenal';
-  const labelPeriodo = esQuincenal ? 'quincenas' : 'semanas';
-  const periodos = client.periodosAtrasados || (esQuincenal ? 2 : 4);
+  const fullName = formatFullName(client?.nombre, client?.apellidos);
+  const esQuincenal = client?.frecuencia === 'quincenal' || client?.modalidad === 'QUINCENAL';
+  const periodos = Number(client?.periodos_atrasados_acumulados || client?.periodosAtrasados || (esQuincenal ? 2 : 4));
+  const labelPeriodo = esQuincenal
+    ? (periodos === 1 ? 'quincena sin pagar' : 'quincenas sin pagar')
+    : (periodos === 1 ? 'semana sin pagar' : 'semanas sin pagar');
   const totalCuotasAtrasadas = (client.cuotaDiaria || 0) * periodos;
   const cedulaLimpia = formatCedulaCR(client?.cedula);
 
@@ -39,7 +41,7 @@ export function OverdueClientCard({ client, onPayClick }) {
       <div className="overdue-critical-banner">
         <AlertTriangle size={16} strokeWidth={1.75} className="critical-icon" />
         <span className="critical-text">
-          Atraso acumulado: <strong>{periodos} {labelPeriodo} sin pagar</strong>
+          Atraso acumulado: <strong>{periodos} {labelPeriodo}</strong>
         </span>
       </div>
 

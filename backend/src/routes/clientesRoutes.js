@@ -6,8 +6,10 @@ import {
   enviarPapelera,
   enviarListaNegra
 } from '../controllers/clientesController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+router.use(authMiddleware);
 
 router.get('/', getClientes);
 router.post('/', createCliente);

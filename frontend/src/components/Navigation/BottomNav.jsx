@@ -7,9 +7,9 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule }) {
     { id: 'cobros', label: 'Cobros', icon: Coins, enabled: true },
     { id: 'clientes', label: 'Clientes', icon: Users, enabled: true },
     { id: 'prestamos', label: 'Préstamos', icon: Landmark, enabled: true },
-    { id: 'resumen', label: 'Resumen', icon: BarChart3, enabled: false },
-    { id: 'lista-negra', label: 'Lista Negra', icon: ShieldAlert, enabled: false },
-    { id: 'papelera', label: 'Papelera', icon: Trash2, enabled: false },
+    { id: 'resumen', label: 'Resumen', icon: BarChart3, enabled: true },
+    { id: 'lista-negra', label: 'Lista Negra', icon: ShieldAlert, enabled: true },
+    { id: 'papelera', label: 'Papelera', icon: Trash2, enabled: true },
   ];
 
   return (

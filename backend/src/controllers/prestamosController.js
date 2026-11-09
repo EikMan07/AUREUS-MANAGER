@@ -1,12 +1,34 @@
-import { pool, query } from '../config/db.js';
+import { pool, query, debugPayload } from '../config/db.js';
 import { getDefaultCobradorId } from '../services/seedService.js';
 
 const DIA_SEMANA_ENUM = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
+function cleanCedula9(raw) {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, '').slice(0, 9);
+  return digits.length === 9 ? digits : null;
+}
+
+function normalizeDiaSemana(dia) {
+  if (!dia) return null;
+  const clean = String(dia)
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const valid = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+  return valid.includes(clean) ? clean : null;
+}
+
 function getDiaSemanaEnum(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!dateStr) return 'LUNES';
+  const cleanStr = dateStr instanceof Date 
+    ? dateStr.toISOString().slice(0, 10) 
+    : String(dateStr).slice(0, 10);
+  const [y, m, d] = cleanStr.split('-').map(Number);
   const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  return DIA_SEMANA_ENUM[dateObj.getUTCDay()];
+  const dayIdx = dateObj.getUTCDay();
+  return DIA_SEMANA_ENUM[dayIdx] || 'LUNES';
 }
 
 function addDaysISO(dateStr, days) {
@@ -158,7 +180,7 @@ function generateScheduleDates(fechaInput, modalidad, diaFijoOriginal, diaMes1, 
  */
 export async function getPrestamos(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const sql = `
       SELECT 
@@ -191,6 +213,7 @@ export async function getPrestamos(req, res) {
         c.cedula AS cliente_cedula,
         c.telefono AS cliente_telefono,
         c.ubicacion AS cliente_ubicacion,
+        c.ubicacion AS ubicacion,
         c.detalles AS cliente_detalles,
         COALESCE(
           (
@@ -217,15 +240,47 @@ export async function getPrestamos(req, res) {
       FROM prestamos p
       JOIN clientes c ON p.cliente_id = c.id
       WHERE p.cobrador_id = $1
-        AND p.estado IN ('ACTIVO', 'ATRASADO', 'ARREGLO_PAGO', 'RENOVADO')
+        AND c.estado = 'ACTIVO'
+        AND p.estado IN ('ACTIVO', 'ATRASADO', 'ARREGLO_PAGO', 'RENOVADO', 'CANCELADO', 'LIQUIDADO')
       ORDER BY p.creado_en DESC;
     `;
 
     const { rows } = await query(sql, [cobradorId]);
-    return res.json(rows);
+
+    const normalizedRows = rows.map((p) => {
+      const saldoPorPagar = Number(p.saldo_por_pagar ?? 0);
+      const totalPeriodos = Number(p.total_periodos ?? 0);
+      const periodosPagados = Number(p.periodos_pagados ?? 0);
+      const cuotas = Array.isArray(p.cuotas) ? p.cuotas : [];
+      const todasCuotasRegistradas = cuotas.length > 0 && cuotas.every(c => c.estado === 'REGISTRADO');
+
+      let estadoNormalizado = p.estado;
+      if (
+        p.estado === 'CANCELADO' ||
+        p.estado === 'LIQUIDADO' ||
+        saldoPorPagar <= 0 ||
+        (totalPeriodos > 0 && periodosPagados >= totalPeriodos) ||
+        todasCuotasRegistradas
+      ) {
+        estadoNormalizado = 'CANCELADO';
+      }
+
+      return {
+        ...p,
+        saldo_por_pagar: estadoNormalizado === 'CANCELADO' && saldoPorPagar <= 0 ? 0 : saldoPorPagar,
+        periodos_atrasados_acumulados: estadoNormalizado === 'CANCELADO' ? 0 : Number(p.periodos_atrasados_acumulados || 0),
+        estado: estadoNormalizado
+      };
+    });
+
+    return res.json(normalizedRows);
   } catch (err) {
-    console.error('[Préstamos] Error al obtener préstamos:', err);
-    return res.status(500).json({ error: 'Error interno al consultar los préstamos.' });
+    console.error('[Error SQL detallado]: Error al obtener préstamos:', err);
+    return res.status(500).json({
+      error: 'No se pudieron consultar los préstamos en este momento.',
+      userMessage: 'No se pudieron consultar los préstamos en este momento.',
+      ...debugPayload(err)
+    });
   }
 }
 
@@ -250,7 +305,7 @@ export async function createPrestamo(req, res) {
       total_periodos
     } = req.body;
 
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     // 1. Validaciones básicas con mensaje formal unificado
     if (!cliente_id) {
@@ -376,6 +431,13 @@ export async function createPrestamo(req, res) {
 
     const totalFinanciarNum = Number(monto_total_financiar) || (prestadoNum * (1 + interesNum / 100));
 
+    // Registro de Préstamo Avanzado: cuotas pagadas en papel previamente
+    const cuotasPagadasInput = Math.max(0, parseInt(req.body.cuotas_pagadas, 10) || 0);
+    const periodosPagados = Math.min(cuotasPagadasInput, Math.max(0, periodosInt - 1));
+    const periodosPendientes = periodosInt - periodosPagados;
+    const montoPagadoAcumulado = periodosPagados * cuotaNum;
+    const saldoPorPagar = Math.max(0, totalFinanciarNum - montoPagadoAcumulado);
+
     // 5. Iniciar Transacción
     await client.query('BEGIN');
 
@@ -401,7 +463,7 @@ export async function createPrestamo(req, res) {
         periodos_atrasados_acumulados,
         estado
       ) VALUES (
-        $1, $2, $3, $4, $5, 0, $5, $6, $7, $8, $9, $10, $11, $12, $13, 0, $13, 0, 'ACTIVO'
+        $1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9::public.modalidad_prestamo, $10::public.dia_semana, $11, $12, $13::date, $14::date, $15::int, $16::int, $17::int, 0, 'ACTIVO'::public.estado_prestamo
       )
       RETURNING *;
     `;
@@ -412,21 +474,31 @@ export async function createPrestamo(req, res) {
       prestadoNum,
       interesNum,
       totalFinanciarNum,
+      montoPagadoAcumulado,
+      saldoPorPagar,
       cuotaNum,
       modUpper,
-      finalDiaFijo,
+      finalDiaFijo ? normalizeDiaSemana(finalDiaFijo) : null,
       finalDiaMes1,
       finalDiaMes2,
       fechaInicioStr,
       fechaFinalStr,
-      periodosInt
+      periodosInt,
+      periodosPagados,
+      periodosPendientes
     ]);
 
     const nuevoPrestamo = prestamoRes.rows[0];
 
-    // 6. Insertar todas las cuotas en agenda_cobros
+    // 6. Insertar todas las cuotas en agenda_cobros (y pagos_prestamo si ya fue pagada en papel)
     for (const item of schedule) {
-      await client.query(
+      const esPagadaEnPapel = item.numero_cobro <= periodosPagados;
+      const estadoCuota = esPagadaEnPapel ? 'REGISTRADO' : 'PENDIENTE';
+      const montoCobrado = esPagadaEnPapel ? cuotaNum : 0;
+      // Fecha histórica al mediodía hora de Costa Rica (nunca fecha de hoy)
+      const fechaHoraRegistro = esPagadaEnPapel ? `${item.fecha} 12:00:00 -06:00` : null;
+
+      const agendaInsertRes = await client.query(
         `INSERT INTO agenda_cobros (
           cobrador_id,
           prestamo_id,
@@ -439,23 +511,57 @@ export async function createPrestamo(req, res) {
           monto_cuota,
           monto_moratoria,
           monto_total_cobrado,
-          estado
+          estado,
+          fecha_hora_registro_pago
         ) VALUES (
-          $1, $2, $3, $4, $5, $5, $6, 0, $7, 0, 0, 'PENDIENTE'
-        );`,
+          $1::uuid, $2::uuid, $3::uuid, $4::int, $5::date, $5::date, $6::public.dia_semana, 0, $7, 0, $8, $9::public.estado_cuota_cobro, $10::timestamptz
+        ) RETURNING id;`,
         [
           cobradorId,
           nuevoPrestamo.id,
           cliente_id,
           item.numero_cobro,
           item.fecha,
-          item.dia_semana,
-          cuotaNum
+          normalizeDiaSemana(item.dia_semana),
+          cuotaNum,
+          montoCobrado,
+          estadoCuota,
+          fechaHoraRegistro
         ]
       );
+
+      // Si es cuota pagada en papel, registrar en pagos_prestamo con su fecha histórica correspondiente
+      if (esPagadaEnPapel) {
+        const agendaId = agendaInsertRes.rows[0].id;
+        await client.query(
+          `INSERT INTO pagos_prestamo (
+            cobrador_id,
+            prestamo_id,
+            agenda_cobro_id,
+            registrado_por,
+            tipo,
+            monto_cobrado,
+            monto_moratoria,
+            periodos_cubiertos,
+            fecha_hora_pago,
+            sincronizado_en
+          ) VALUES (
+            $1::uuid, $2::uuid, $3::uuid, $1::uuid, 'COBRO_NORMAL'::public.tipo_pago, $4, 0, 1, $5::timestamptz, now()
+          );`,
+          [
+            cobradorId,
+            nuevoPrestamo.id,
+            agendaId,
+            cuotaNum,
+            fechaHoraRegistro
+          ]
+        );
+      }
     }
 
     // 7. Bitácora de actividad
+    const finalCedula = cleanCedula9(clienteObj.cedula);
+
     await client.query(
       `INSERT INTO bitacora_actividad (
         usuario_id,
@@ -465,19 +571,21 @@ export async function createPrestamo(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'PRESTAMO_CREADO', 'prestamos', $3, $4, $5);`,
+      ) VALUES ($1::uuid, $2::uuid, 'PRESTAMO_CREADO'::public.accion_bitacora, 'prestamos', $3::uuid, $4, $5);`,
       [
         cobradorId,
         cobradorId,
         nuevoPrestamo.id,
-        clienteObj.cedula,
+        finalCedula,
         JSON.stringify({
           prestamo_id: nuevoPrestamo.id,
-          cliente: `${clienteObj.nombre} ${clienteObj.apellidos}`.trim(),
+          cliente: `${clienteObj.nombre} ${clienteObj.apellidos || ''}`.trim(),
           monto_prestado: prestadoNum,
           monto_total: totalFinanciarNum,
           modalidad: modUpper,
           cuotas: periodosInt,
+          cuotas_pagadas_avanzadas: periodosPagados,
+          saldo_restante: saldoPorPagar,
           cuota: cuotaNum
         })
       ]
@@ -489,8 +597,12 @@ export async function createPrestamo(req, res) {
     return res.status(201).json(nuevoPrestamo);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[Préstamos] Error creando préstamo:', err);
-    return res.status(500).json({ error: err.message || 'Error interno al registrar el préstamo.' });
+    console.error('[Error SQL detallado]: [Préstamos] Error creando préstamo:', err);
+    return res.status(500).json({
+      error: 'No se pudo registrar el préstamo en este momento. Por favor, inténtalo nuevamente.',
+      userMessage: 'No se pudo registrar el préstamo en este momento. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
   } finally {
     client.release();
   }
@@ -511,7 +623,7 @@ export async function renovarPrestamo(req, res) {
       nueva_cuota
     } = req.body;
 
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const nuevoMontoNum = Number(nuevo_monto_prestado);
     const interesNum = Number(porcentaje_interes);
@@ -635,7 +747,7 @@ export async function renovarPrestamo(req, res) {
           monto_total_cobrado,
           estado
         ) VALUES (
-          $1, $2, $3, $4, $5, $5, $6, 0, $7, 0, 0, 'PENDIENTE'
+          $1::uuid, $2::uuid, $3::uuid, $4::int, $5::date, $5::date, $6::public.dia_semana, 0, $7, 0, 0, 'PENDIENTE'::public.estado_cuota_cobro
         );`,
         [
           cobradorId,
@@ -643,13 +755,13 @@ export async function renovarPrestamo(req, res) {
           currentLoan.cliente_id,
           item.numero_cobro,
           item.fecha,
-          item.dia_semana,
+          normalizeDiaSemana(item.dia_semana),
           cuotaNum
         ]
       );
     }
 
-    // 6. Actualizar préstamo
+    // 6. Actualizar préstamo con casteo explícito de enum
     const updatedPrestamoRes = await client.query(
       `UPDATE prestamos SET
         monto_prestado = $1,
@@ -657,15 +769,15 @@ export async function renovarPrestamo(req, res) {
         monto_total_financiar = $3,
         saldo_por_pagar = $3,
         cuota = $4,
-        total_periodos = $5,
+        total_periodos = $5::int,
         periodos_pagados = 0,
-        periodos_pendientes = $5,
+        periodos_pendientes = $5::int,
         periodos_atrasados_acumulados = 0,
-        fecha_final = $6,
-        estado = 'RENOVADO',
-        version = version + 1,
+        fecha_final = $6::date,
+        estado = 'RENOVADO'::public.estado_prestamo,
+        version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $7
+      WHERE id = $7::uuid
       RETURNING *;`,
       [
         nuevoMontoNum,
@@ -679,6 +791,8 @@ export async function renovarPrestamo(req, res) {
     );
 
     // 7. Bitácora de actividad
+    const finalCedula = cleanCedula9(currentLoan.cedula);
+
     await client.query(
       `INSERT INTO bitacora_actividad (
         usuario_id,
@@ -688,15 +802,15 @@ export async function renovarPrestamo(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'PRESTAMO_RENOVADO', 'prestamos', $3, $4, $5);`,
+      ) VALUES ($1::uuid, $2::uuid, 'PRESTAMO_RENOVADO'::public.accion_bitacora, 'prestamos', $3::uuid, $4, $5);`,
       [
         cobradorId,
         cobradorId,
         id,
-        currentLoan.cedula,
+        finalCedula,
         JSON.stringify({
           prestamo_id: id,
-          cliente: `${currentLoan.nombre} ${currentLoan.apellidos}`.trim(),
+          cliente: `${currentLoan.nombre || ''} ${currentLoan.apellidos || ''}`.trim(),
           monto_anterior: currentLoan.monto_prestado,
           monto_nuevo: nuevoMontoNum,
           cuota_nueva: cuotaNum,
@@ -709,8 +823,12 @@ export async function renovarPrestamo(req, res) {
     return res.json(updatedPrestamoRes.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[Préstamos] Error al renovar préstamo:', err);
-    return res.status(500).json({ error: err.message || 'Error interno al renovar el préstamo.' });
+    console.error('[Error SQL detallado]: Error al renovar préstamo:', err);
+    return res.status(500).json({
+      error: 'No se pudo renovar el préstamo en este momento. Por favor, inténtalo nuevamente.',
+      userMessage: 'No se pudo renovar el préstamo en este momento. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
   } finally {
     client.release();
   }
@@ -732,7 +850,7 @@ export async function arregloPagoPrestamo(req, res) {
       nuevo_dia_mes_2
     } = req.body;
 
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const montoAcordadoNum = Number(monto_fijo_acordado);
     const cuotaEspecialNum = Number(cuota_especial);
@@ -808,7 +926,7 @@ export async function arregloPagoPrestamo(req, res) {
       [id]
     );
 
-    // 3. Insertar nuevo acuerdo
+    // 3. Insertar nuevo acuerdo con casteo explícito de dia_semana
     await client.query(
       `INSERT INTO arreglos_pago (
         prestamo_id,
@@ -818,12 +936,12 @@ export async function arregloPagoPrestamo(req, res) {
         nuevo_dia_mes_1,
         nuevo_dia_mes_2,
         activo
-      ) VALUES ($1, $2, $3, $4, $5, $6, true);`,
+      ) VALUES ($1::uuid, $2, $3, $4::public.dia_semana, $5, $6, true);`,
       [
         id,
         montoFijoReal,
         cuotaEspecialNum,
-        diaFijoAcordado,
+        diaFijoAcordado ? normalizeDiaSemana(diaFijoAcordado) : null,
         diaMes1Acordado,
         diaMes2Acordado
       ]
@@ -852,11 +970,11 @@ export async function arregloPagoPrestamo(req, res) {
 
     // 5. Eliminar cuotas pendientes anteriores
     await client.query(
-      `DELETE FROM agenda_cobros WHERE prestamo_id = $1 AND estado IN ('PENDIENTE', 'PASADO_DE_DIA')`,
+      `DELETE FROM agenda_cobros WHERE prestamo_id = $1::uuid AND estado IN ('PENDIENTE', 'PASADO_DE_DIA')`,
       [id]
     );
 
-    // 6. Insertar nuevas cuotas del arreglo
+    // 6. Insertar nuevas cuotas del arreglo con casteo explícito
     let saldoPorDistribuir = montoFijoReal;
     for (let i = 0; i < schedule.length; i++) {
       const item = schedule[i];
@@ -881,7 +999,7 @@ export async function arregloPagoPrestamo(req, res) {
           monto_total_cobrado,
           estado
         ) VALUES (
-          $1, $2, $3, $4, $5, $5, $6, 0, $7, 0, 0, 'PENDIENTE'
+          $1::uuid, $2::uuid, $3::uuid, $4::int, $5::date, $5::date, $6::public.dia_semana, 0, $7, 0, 0, 'PENDIENTE'::public.estado_cuota_cobro
         );`,
         [
           cobradorId,
@@ -889,33 +1007,33 @@ export async function arregloPagoPrestamo(req, res) {
           currentLoan.cliente_id,
           item.numero_cobro,
           item.fecha,
-          item.dia_semana,
+          normalizeDiaSemana(item.dia_semana),
           montoCuotaThis
         ]
       );
     }
 
-    // 7. Actualizar préstamo
+    // 7. Actualizar préstamo con casteo explícito de estado_prestamo y dia_semana
     const updatedPrestamoRes = await client.query(
       `UPDATE prestamos SET
-        estado = 'ARREGLO_PAGO',
+        estado = 'ARREGLO_PAGO'::public.estado_prestamo,
         saldo_por_pagar = $1,
         cuota = $2,
         periodos_atrasados_acumulados = 0,
-        dia_fijo_original = $3,
+        dia_fijo_original = $3::public.dia_semana,
         dia_mes_1 = $4,
         dia_mes_2 = $5,
-        fecha_final = $6,
-        total_periodos = $7,
-        periodos_pendientes = $7,
-        version = version + 1,
+        fecha_final = $6::date,
+        total_periodos = $7::int,
+        periodos_pendientes = $7::int,
+        version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $8
+      WHERE id = $8::uuid
       RETURNING *;`,
       [
         montoFijoReal,
         cuotaEspecialNum,
-        diaFijoAcordado,
+        diaFijoAcordado ? normalizeDiaSemana(diaFijoAcordado) : null,
         diaMes1Acordado,
         diaMes2Acordado,
         nuevaFechaFinalStr,
@@ -924,7 +1042,9 @@ export async function arregloPagoPrestamo(req, res) {
       ]
     );
 
-    // 8. Bitácora de actividad
+    // 8. Bitácora de actividad con tipos estrictos
+    const finalCedula = cleanCedula9(currentLoan.cedula);
+
     await client.query(
       `INSERT INTO bitacora_actividad (
         usuario_id,
@@ -934,15 +1054,15 @@ export async function arregloPagoPrestamo(req, res) {
         entidad_id,
         cedula,
         detalle
-      ) VALUES ($1, $2, 'ARREGLO_PAGO_CREADO', 'prestamos', $3, $4, $5);`,
+      ) VALUES ($1::uuid, $2::uuid, 'ARREGLO_PAGO_CREADO'::public.accion_bitacora, 'prestamos', $3::uuid, $4, $5);`,
       [
         cobradorId,
         cobradorId,
         id,
-        currentLoan.cedula,
+        finalCedula,
         JSON.stringify({
           prestamo_id: id,
-          cliente: `${currentLoan.nombre} ${currentLoan.apellidos}`.trim(),
+          cliente: `${currentLoan.nombre || ''} ${currentLoan.apellidos || ''}`.trim(),
           monto_fijo_acordado: montoFijoReal,
           cuota_especial: cuotaEspecialNum,
           cuotas_acordadas: cuotasRestantes
@@ -954,8 +1074,121 @@ export async function arregloPagoPrestamo(req, res) {
     return res.json(updatedPrestamoRes.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[Préstamos] Error al crear arreglo de pago:', err);
-    return res.status(500).json({ error: err.message || 'Error interno al registrar el arreglo de pago.' });
+    console.error('[Error SQL detallado]: Error al crear arreglo de pago:', err);
+    return res.status(500).json({
+      error: 'No se pudo registrar el arreglo de pago en este momento. Por favor, inténtalo nuevamente.',
+      userMessage: 'No se pudo registrar el arreglo de pago en este momento. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Elimina uno o varios préstamos seleccionados y sus dependencias (agenda_cobros,
+ * pagos_prestamo, renovaciones_prestamo, arreglos_pago, historial_pasar_dia),
+ * manteniendo el registro del cliente completamente intacto.
+ */
+export async function eliminarPrestamos(req, res) {
+  const client = await pool.connect();
+  try {
+    const cobradorId = req.user?.id || (await getDefaultCobradorId());
+
+    // 1. Unificar y validar IDs recibidos por parámetro de ruta o cuerpo en lote
+    let rawIds = [];
+    if (req.params.id) {
+      rawIds.push(req.params.id);
+    }
+    if (req.body && req.body.ids) {
+      if (Array.isArray(req.body.ids)) {
+        rawIds.push(...req.body.ids);
+      } else {
+        rawIds.push(req.body.ids);
+      }
+    }
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const prestamoIds = Array.from(
+      new Set(
+        rawIds
+          .map((id) => String(id || '').trim())
+          .filter((id) => UUID_REGEX.test(id))
+      )
+    );
+
+    if (prestamoIds.length === 0) {
+      return res.status(400).json({
+        error: 'No se suministraron identificadores válidos de préstamos.',
+        userMessage: 'No se seleccionaron préstamos válidos para eliminar.'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // 2. Verificar que los préstamos existan y pertenezcan al cobrador autenticado
+    const checkRes = await client.query(
+      `SELECT id, cliente_id, monto_prestado 
+       FROM prestamos 
+       WHERE id = ANY($1::uuid[]) AND cobrador_id = $2::uuid;`,
+      [prestamoIds, cobradorId]
+    );
+
+    if (checkRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        error: 'No se encontraron préstamos para eliminar.',
+        userMessage: 'No se encontraron préstamos disponibles para eliminar.'
+      });
+    }
+
+    const idsParaEliminar = checkRes.rows.map((r) => r.id);
+
+    // 3. Eliminar dependencias explícitamente dentro de la transacción
+    await client.query('DELETE FROM historial_pasar_dia WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
+    await client.query('DELETE FROM pagos_prestamo WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
+    await client.query('DELETE FROM arreglos_pago WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
+    await client.query('DELETE FROM renovaciones_prestamo WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
+    await client.query('DELETE FROM agenda_cobros WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
+
+    // 4. Eliminar los préstamos seleccionados (el cliente en la tabla clientes se conserva intacto)
+    const deleteRes = await client.query(
+      `DELETE FROM prestamos 
+       WHERE id = ANY($1::uuid[]) AND cobrador_id = $2::uuid 
+       RETURNING id, cliente_id, monto_prestado;`,
+      [idsParaEliminar, cobradorId]
+    );
+
+    // 5. Limpiar notificaciones asociadas a esos préstamos
+    try {
+      await client.query('SAVEPOINT sp_notif;');
+      for (const pid of idsParaEliminar) {
+        await client.query('DELETE FROM notificaciones_revisadas WHERE notificacion_id LIKE $1;', [`%${pid}%`]);
+      }
+    } catch (notifErr) {
+      console.warn('[Notificaciones] Advertencia limpiando notificaciones_revisadas:', notifErr.message);
+      await client.query('ROLLBACK TO SAVEPOINT sp_notif;');
+    }
+
+    await client.query('COMMIT');
+
+    const count = deleteRes.rowCount || idsParaEliminar.length;
+    return res.json({
+      ok: true,
+      eliminadosCount: count,
+      ids: idsParaEliminar,
+      userMessage: count === 1
+        ? 'El préstamo ha sido eliminado exitosamente.'
+        : `Se han eliminado ${count} préstamos exitosamente.`
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[Error SQL detallado]: Error al eliminar préstamos:', err);
+    return res.status(500).json({
+      error: 'No se pudieron eliminar los préstamos en este momento.',
+      userMessage: 'No se pudieron eliminar los préstamos en este momento. Por favor, inténtalo nuevamente.',
+      ...debugPayload(err)
+    });
   } finally {
     client.release();
   }

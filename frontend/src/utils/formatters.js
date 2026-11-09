@@ -42,9 +42,23 @@ export function parseFormattedAmount(formattedValue = '') {
   return Number(rawDigits) || 0;
 }
 
+export function cleanNamePart(val) {
+  if (!val || val === 'null' || val === 'undefined') return '';
+  return String(val)
+    .replace(/\bnull\b/gi, '')
+    .replace(/\bundefined\b/gi, '')
+    .trim();
+}
+
+export function formatFullName(nombre = '', apellidos = '') {
+  const n = cleanNamePart(nombre);
+  const a = cleanNamePart(apellidos);
+  return [n, a].filter(Boolean).join(' ') || 'Cliente';
+}
+
 export function getInitials(nombre = '', apellidos = '') {
-  const n = String(nombre || '').trim().charAt(0).toUpperCase() || 'C';
-  const a = String(apellidos || '').trim().charAt(0).toUpperCase() || '';
+  const n = cleanNamePart(nombre).charAt(0).toUpperCase() || 'C';
+  const a = cleanNamePart(apellidos).charAt(0).toUpperCase() || '';
   return `${n}${a}`;
 }
 
@@ -303,15 +317,15 @@ export function matchesClientSearch(cliente, rawSearch = '') {
   const normalizedQuery = normalizeSearchText(rawSearch);
   if (!normalizedQuery) return true;
 
-  const nombreNorm = normalizeSearchText(cliente?.nombre);
-  const apellidosNorm = normalizeSearchText(cliente?.apellidos);
+  const nombreNorm = normalizeSearchText(cliente?.nombre || cliente?.cliente_nombre);
+  const apellidosNorm = normalizeSearchText(cliente?.apellidos || cliente?.cliente_apellidos);
   const nombreCompletoNorm = `${nombreNorm} ${apellidosNorm}`.trim();
-  const cedulaNorm = normalizeSearchText(cliente?.cedula);
-  const cedulaDigits = cleanCedulaDigits(cliente?.cedula);
-  const telefonoNorm = normalizeSearchText(cliente?.telefono);
-  const telefonoDigits = String(cliente?.telefono || '').replace(/\D/g, '');
-  const ubicacionNorm = normalizeSearchText(cliente?.ubicacion);
-  const detallesNorm = normalizeSearchText(cliente?.detalles);
+  const cedulaNorm = normalizeSearchText(cliente?.cedula || cliente?.cliente_cedula);
+  const cedulaDigits = cleanCedulaDigits(cliente?.cedula || cliente?.cliente_cedula);
+  const telefonoNorm = normalizeSearchText(cliente?.telefono || cliente?.cliente_telefono);
+  const telefonoDigits = String(cliente?.telefono || cliente?.cliente_telefono || '').replace(/\D/g, '');
+  const ubicacionNorm = normalizeSearchText(cliente?.ubicacion || cliente?.cliente_ubicacion || cliente?.address);
+  const detallesNorm = normalizeSearchText(cliente?.detalles || cliente?.cliente_detalles || cliente?.motivo);
 
   const combinedSearchable = [
     nombreCompletoNorm,
@@ -362,10 +376,10 @@ function getDaysInMonthUTC(y, m) {
 }
 
 /**
- * Calcula en vivo el calendario de fechas de un préstamo (idéntico al backend)
- * y retorna la fecha del primer cobro y del último cobro formateadas en español claro.
+ * Genera el arreglo completo de fechas ISO de cobro de un préstamo
+ * idéntico a la lógica del backend.
  */
-export function calculateLoanSchedulePreview({
+export function calculateLoanScheduleDates({
   fechaInicio,
   modalidad = 'SEMANAL',
   quincenalTipo = 'DIAS_MES', // 'DIAS_MES' | 'CADA_2_SEMANAS'
@@ -447,14 +461,45 @@ export function calculateLoanSchedulePreview({
     }
   }
 
-  const primerCobroISO = dates[0] || cleanStart;
-  const ultimoCobroISO = dates[dates.length - 1] || cleanStart;
+  return dates;
+}
+
+/**
+ * Calcula la fecha de inicio estimada hacia atrás al registrar un préstamo avanzado
+ */
+export function calculateShiftedStartDateForAdvancedLoan({
+  baseDateISO,
+  paidCount,
+  modalidad = 'SEMANAL',
+  quincenalTipo = 'DIAS_MES'
+}) {
+  const cleanBase = extractISODatePart(baseDateISO) || formatDateToISO(getCostaRicaNow());
+  const count = Math.max(0, parseInt(paidCount, 10) || 0);
+  if (count === 0) return cleanBase;
+
+  if (modalidad === 'SEMANAL') {
+    return addDaysToISO(cleanBase, -(count * 7));
+  } else if (quincenalTipo === 'CADA_2_SEMANAS') {
+    return addDaysToISO(cleanBase, -(count * 14));
+  } else {
+    return addDaysToISO(cleanBase, -(count * 15));
+  }
+}
+
+/**
+ * Calcula en vivo el calendario de fechas de un préstamo (idéntico al backend)
+ * y retorna la fecha del primer cobro y del último cobro formateadas en español claro.
+ */
+export function calculateLoanSchedulePreview(params) {
+  const dates = calculateLoanScheduleDates(params);
+  const primerCobroISO = dates[0] || '';
+  const ultimoCobroISO = dates[dates.length - 1] || '';
 
   return {
     primerCobroISO,
     ultimoCobroISO,
-    primerCobroTexto: formatShortSpanishDate(primerCobroISO, true),
-    ultimoCobroTexto: formatShortSpanishDate(ultimoCobroISO, true)
+    primerCobroTexto: primerCobroISO ? formatShortSpanishDate(primerCobroISO, true) : '—',
+    ultimoCobroTexto: ultimoCobroISO ? formatShortSpanishDate(ultimoCobroISO, true) : '—'
   };
 }
 

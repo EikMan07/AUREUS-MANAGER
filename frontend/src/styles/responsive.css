@@ -1,0 +1,321 @@
+/* ==========================================================================
+   COBRO-FIRME — SISTEMA RESPONSIVE 100% FULL-VIEWPORT
+   Borde a Borde (100% Ancho x 100dvh Alto) en Celulares, Tablets y Computadoras
+   Cero espacios vacíos laterales, superiores o inferiores
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. VARIABLES CSS GLOBALES (100% EN TODOS LOS DISPOSITIVOS)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Ancho de contenedor al 100% real sin límites rígidos */
+  --app-max-width: 100%;
+  --app-frame-max-width: 100%;
+  --nav-max-width: 100%;
+
+  /* Grillas de módulos y listas */
+  --modules-grid-cols: minmax(0, 1fr);
+  --stats-grid-cols: repeat(2, minmax(0, 1fr));
+  --chart-grid-cols: minmax(0, 1fr);
+
+  /* Condiciones y progreso de préstamos */
+  --loan-meta-cols: repeat(3, minmax(0, 1fr));
+  --loan-progress-cols: repeat(3, minmax(0, 1fr));
+
+  /* Espaciados y padding */
+  --card-padding: 14px 16px;
+  --card-padding-x: 16px;
+  --card-padding-y: 14px;
+  --main-content-padding: 14px 16px 90px 16px;
+  --main-content-gap: 14px;
+
+  /* Modales */
+  --modal-max-width: 480px;
+  --modal-form-max-width: 520px;
+  --modal-overlay-padding: 16px 12px;
+
+  /* Barra de navegación inferior */
+  --nav-tab-font-size: 10px;
+  --nav-icon-size: 20px;
+  --nav-height: 58px;
+}
+
+/* --------------------------------------------------------------------------
+   2. CELULARES PEQUEÑOS / ULTRA-COMPACTOS (320px – 380px)
+   -------------------------------------------------------------------------- */
+@media screen and (max-width: 380px) {
+  :root {
+    --card-padding: 10px 10px;
+    --card-padding-x: 10px;
+    --card-padding-y: 10px;
+    --main-content-padding: 10px 10px 85px 10px;
+    --main-content-gap: 10px;
+
+    --stats-grid-cols: minmax(0, 1fr);
+    --loan-meta-cols: repeat(3, minmax(0, 1fr));
+    --loan-progress-cols: repeat(3, minmax(0, 1fr));
+
+    --modal-max-width: 100%;
+    --modal-form-max-width: 100%;
+    --modal-overlay-padding: 8px 6px;
+
+    --nav-tab-font-size: 8.5px;
+    --nav-icon-size: 18px;
+  }
+
+  /* Barra de los 7 días de cobro */
+  .day-col-btn {
+    padding: 6px 1px !important;
+  }
+  .day-abbr {
+    font-size: 9px !important;
+  }
+  .day-number {
+    font-size: 12px !important;
+  }
+
+  /* Las 3 tarjetas de resumen blanco */
+  .white-summary-cards-grid {
+    gap: 5px !important;
+  }
+  .white-summary-card {
+    padding: 8px 6px !important;
+    border-radius: 12px !important;
+  }
+  .card-amount-black {
+    font-size: 12.5px !important;
+  }
+  .card-title-gray {
+    font-size: 8px !important;
+  }
+  .card-icon-box {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .card-icon-box svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* Pestañas segmentadas */
+  .segmented-tabs-control-three {
+    padding: 3px !important;
+    gap: 2px !important;
+  }
+  .segmented-tabs-control-three .tab-btn {
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+    gap: 3px !important;
+  }
+
+  /* Fila de 3 botones de acción en tarjeta pendiente */
+  .card-action-buttons-row {
+    gap: 6px !important;
+  }
+  .action-btn {
+    padding: 8px 3px !important;
+  }
+  .action-label {
+    font-size: 10.5px !important;
+  }
+  .action-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Botones del menú inferior de 6 módulos */
+  .bottom-nav-inner {
+    height: 52px !important;
+  }
+  .nav-tab-btn {
+    padding: 2px 0 !important;
+  }
+  .nav-tab-label {
+    font-size: 8.5px !important;
+    letter-spacing: -0.02em !important;
+  }
+  .nav-icon {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  /* Tarjeta de cliente en directorio */
+  .client-directory-card {
+    padding: 11px !important;
+    gap: 9px !important;
+  }
+  .client-avatar-container {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 13px !important;
+  }
+
+  /* Modales */
+  .modal-overlay {
+    padding: 8px 6px !important;
+  }
+  .modal-container {
+    border-radius: 16px !important;
+  }
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 10px 12px !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. TABLETS (768px – 1023px) — 100% REAL DE LA PANTALLA
+   -------------------------------------------------------------------------- */
+@media screen and (min-width: 768px) {
+  :root {
+    --app-max-width: 100%;
+    --app-frame-max-width: 100%;
+    --nav-max-width: 100%;
+
+    --modules-grid-cols: repeat(2, minmax(0, 1fr));
+    --stats-grid-cols: repeat(3, minmax(0, 1fr));
+    --chart-grid-cols: minmax(0, 1fr);
+
+    --card-padding: 16px 20px;
+    --card-padding-x: 20px;
+    --card-padding-y: 16px;
+    --main-content-padding: 18px 24px 95px 24px;
+    --main-content-gap: 16px;
+
+    --modal-max-width: 540px;
+    --modal-form-max-width: 580px;
+    --modal-overlay-padding: 24px;
+
+    --nav-tab-font-size: 11px;
+    --nav-icon-size: 20px;
+    --nav-height: 60px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. LAPTOPS Y COMPUTADORAS DE ESCRITORIO (1024px en adelante)
+   100% REAL DE LA PANTALLA — De Borde Izquierdo a Borde Derecho
+   -------------------------------------------------------------------------- */
+@media screen and (min-width: 1024px) {
+  :root {
+    --app-max-width: 100%;
+    --app-frame-max-width: 100%;
+    --nav-max-width: 100%;
+
+    --modules-grid-cols: repeat(auto-fill, minmax(400px, 1fr));
+    --stats-grid-cols: repeat(4, minmax(0, 1fr));
+    --chart-grid-cols: repeat(2, minmax(0, 1fr));
+
+    --card-padding: 18px 22px;
+    --card-padding-x: 22px;
+    --card-padding-y: 18px;
+    --main-content-padding: 20px 32px 100px 32px;
+    --main-content-gap: 18px;
+
+    --modal-max-width: 600px;
+    --modal-form-max-width: 640px;
+    --modal-overlay-padding: 32px;
+
+    --nav-tab-font-size: 11.5px;
+    --nav-icon-size: 21px;
+    --nav-height: 62px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. REGLAS ESTRUCTURALES FULL-VIEWPORT (TODOS LOS DISPOSITIVOS)
+   -------------------------------------------------------------------------- */
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100dvh !important;
+  background-color: #f8fafc !important;
+  overflow-x: hidden !important;
+}
+
+.mobile-app-shell,
+.mobile-screen-frame {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100dvh !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: #f8fafc !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+}
+
+.header-dark-compact {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.bottom-nav-bar {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  transform: none !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  box-sizing: border-box !important;
+}
+
+.main-scrollable-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. CLASES UTILITARIAS Y ESTADOS VACÍOS A ANCHO COMPLETO
+   -------------------------------------------------------------------------- */
+.resp-grid-two {
+  display: grid !important;
+  grid-template-columns: var(--modules-grid-cols, 1fr) !important;
+  gap: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.resp-grid-charts {
+  display: grid !important;
+  grid-template-columns: var(--chart-grid-cols, 1fr) !important;
+  gap: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.resp-full-span,
+.state-empty-box,
+.directory-empty-state,
+.loans-empty-state,
+.lista-negra-empty,
+.papelera-empty-card,
+.forgotten-cobros-banner {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Clases de visibilidad condicional */
+@media screen and (max-width: 767px) {
+  .resp-hide-mobile {
+    display: none !important;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .resp-hide-desktop {
+    display: none !important;
+  }
+}

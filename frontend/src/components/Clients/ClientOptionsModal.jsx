@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Pencil, ShieldAlert, Trash2 } from 'lucide-react';
-import { formatCedulaCR } from '../../utils/formatters';
+import { formatCedulaCR, formatFullName } from '../../utils/formatters';
 
 export function ClientOptionsModal({
   isOpen,
@@ -12,9 +12,7 @@ export function ClientOptionsModal({
 }) {
   if (!isOpen || !client) return null;
 
-  const cleanNombre = (client?.nombre || '').trim();
-  const cleanApellidos = (client?.apellidos || '').trim();
-  const fullName = cleanApellidos ? `${cleanNombre} ${cleanApellidos}`.trim() : cleanNombre;
+  const fullName = formatFullName(client?.nombre, client?.apellidos);
   const rawCedula = (client?.cedula || '').toString().trim();
   const formattedCedula = rawCedula ? (formatCedulaCR(rawCedula) || rawCedula) : 'Sin cédula';
 

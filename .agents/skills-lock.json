@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "backend-postgres-guardian": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": "skills/backend-postgres-guardian/SKILL.md",
+      "computedHash": "adad179d8e9b02c785f0f9991949b662adb47cb535ff1c59297d2813afc8e59c"
+    },
     "committed": {
       "source": "anthropics/skills",
       "sourceType": "github",
