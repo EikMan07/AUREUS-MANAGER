@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import { playConfirmationChime } from '../../utils/confirmationSound';
 
 /**
  * ConfirmActionStage
@@ -22,6 +23,18 @@ export function ConfirmActionStage({
   detailPill = '',
   isPlural = false
 }) {
+  // Todos los Hooks al inicio del componente antes de cualquier lógica o retorno
+  const hasPlayedSoundRef = useRef(false);
+
+  useEffect(() => {
+    if (phase === 'animating' && !hasPlayedSoundRef.current) {
+      hasPlayedSoundRef.current = true;
+      playConfirmationChime();
+    } else if (phase === 'idle') {
+      hasPlayedSoundRef.current = false;
+    }
+  }, [phase]);
+
   const isExiting = phase === 'exiting';
 
   const rawName = variant === 'pasar' ? (clientName || 'Cliente') : (clientName || subtitle || 'Cliente');
@@ -38,9 +51,9 @@ export function ConfirmActionStage({
         maxWidth: '92vw',
         padding: '28px 24px',
         borderRadius: '28px',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-        border: '1px solid rgba(226, 232, 240, 0.9)',
+        backgroundColor: 'var(--aureus-bg-surface)',
+        boxShadow: '0 25px 50px -12px rgba(37, 42, 49, 0.24)',
+        border: '1px solid var(--aureus-border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -86,6 +99,24 @@ export function ConfirmActionStage({
       {variant === 'eliminar_prestamo_atrasado' && (
         <EliminarPrestamoAtrasadoStageContent clientName={cleanClient} detailPill={detailPill} isPlural={isPlural} />
       )}
+      {variant === 'retirar_lista_negra' && (
+        <RetirarListaNegraStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'restaurar_cliente' && (
+        <RestaurarClienteStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'restaurar_prestamo' && (
+        <RestaurarPrestamoStageContent clientName={cleanClient} detailPill={detailPill} isPlural={isPlural} />
+      )}
+      {variant === 'nuevo_cliente' && (
+        <NuevoClienteStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'renovar_prestamo' && (
+        <RenovarPrestamoStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'arreglo_pago' && (
+        <ArregloPagoStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
     </div>
   );
 }
@@ -105,7 +136,7 @@ function PagoStageContent({ clientName, amount }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#D6E7D6',
+          backgroundColor: 'var(--aureus-green-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -118,7 +149,7 @@ function PagoStageContent({ clientName, amount }) {
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #8FB89A',
+            border: '2.5px solid #94C2B2',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -127,20 +158,20 @@ function PagoStageContent({ clientName, amount }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #D6E7D6',
+            border: '1.5px solid var(--aureus-border-gold)',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Círculo interior #0A3323 */}
+        {/* Círculo interior Verde financiero #397D67 */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            backgroundColor: '#0A3323',
-            boxShadow: '0 8px 20px rgba(10, 51, 35, 0.28)',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 8px 20px rgba(57, 125, 103, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -158,7 +189,7 @@ function PagoStageContent({ clientName, amount }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#8FB89A"
+              stroke="#94C2B2"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -170,11 +201,11 @@ function PagoStageContent({ clientName, amount }) {
               }}
             />
 
-            {/* Check ancho y nítido en #D6E7D6 (500ms con delay 180ms) */}
+            {/* Check ancho y nítido en blanco */}
             <path
               d="M22 37.5 L31.5 47 L50.5 26.5"
               fill="none"
-              stroke="#D6E7D6"
+              stroke="#FFFFFF"
               strokeWidth="5.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -193,7 +224,7 @@ function PagoStageContent({ clientName, amount }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#0A3323',
+          color: 'var(--aureus-green-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -206,7 +237,7 @@ function PagoStageContent({ clientName, amount }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -216,18 +247,18 @@ function PagoStageContent({ clientName, amount }) {
         {clientName}
       </div>
 
-      {/* Píldora inferior en Verde Dólar */}
+      {/* Píldora inferior en Verde financiero Aureus */}
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#0A3323',
-          border: '1px solid #8FB89A',
-          color: '#D6E7D6',
+          backgroundColor: '#397D67',
+          border: '1px solid var(--aureus-green-border)',
+          color: '#FFFFFF',
           fontSize: '15px',
           fontWeight: 800,
           padding: '6px 18px',
           borderRadius: '9999px',
-          boxShadow: '0 4px 12px rgba(10, 51, 35, 0.2)',
+          boxShadow: '0 4px 12px rgba(57, 125, 103, 0.22)',
           animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
         }}
       >
@@ -250,20 +281,20 @@ function PasarStageContent({ clientName, subtitle }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FEF3C7',
+          backgroundColor: 'var(--aureus-gold-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '18px'
         }}
       >
-        {/* Onda cálida expansiva */}
+        {/* Onda cálida expansiva Dorado Aureus */}
         <span
           style={{
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FDE68A',
+            border: '2.5px solid #D5C295',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -272,20 +303,20 @@ function PasarStageContent({ clientName, subtitle }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FEF3C7',
+            border: '1.5px solid #F7F2E4',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Círculo interior #D97706 */}
+        {/* Círculo interior Dorado Aureus #B69A55 */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            backgroundColor: '#D97706',
-            boxShadow: '0 8px 20px rgba(217, 119, 6, 0.28)',
+            background: 'linear-gradient(135deg, #9E8342 0%, #B69A55 100%)',
+            boxShadow: '0 8px 20px rgba(182, 154, 85, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -303,7 +334,7 @@ function PasarStageContent({ clientName, subtitle }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#FEF3C7"
+              stroke="#F7F2E4"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -334,7 +365,7 @@ function PasarStageContent({ clientName, subtitle }) {
               y1="36"
               x2="36"
               y2="26"
-              stroke="#FEF3C7"
+              stroke="#F7F2E4"
               strokeWidth="3.2"
               strokeLinecap="round"
               style={{
@@ -366,7 +397,7 @@ function PasarStageContent({ clientName, subtitle }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#92400E',
+          color: 'var(--aureus-text-primary)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -379,7 +410,7 @@ function PasarStageContent({ clientName, subtitle }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -389,13 +420,13 @@ function PasarStageContent({ clientName, subtitle }) {
         {clientName}
       </div>
 
-      {/* Píldora inferior en Ámbar con la nueva fecha */}
+      {/* Píldora inferior en Dorado Aureus con la nueva fecha */}
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FEF3C7',
-          border: '1px solid #FCD34D',
-          color: '#92400E',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1px solid var(--aureus-border-gold)',
+          color: 'var(--aureus-gold-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -423,7 +454,7 @@ function NoPagoStageContent({ clientName }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FFE4E6',
+          backgroundColor: 'var(--aureus-red-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -437,7 +468,7 @@ function NoPagoStageContent({ clientName }) {
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FECDD3',
+            border: '2.5px solid #E6ABA8',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -446,20 +477,20 @@ function NoPagoStageContent({ clientName }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FFE4E6',
+            border: '1.5px solid #FCEEE9',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Círculo interior #E11D48 */}
+        {/* Círculo interior Rojo alerta #C65D58 */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            backgroundColor: '#E11D48',
-            boxShadow: '0 8px 20px rgba(225, 29, 72, 0.28)',
+            background: 'linear-gradient(135deg, #9D4440 0%, #C65D58 100%)',
+            boxShadow: '0 8px 20px rgba(198, 93, 88, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -477,7 +508,7 @@ function NoPagoStageContent({ clientName }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#FECDD3"
+              stroke="#FCEEE9"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -529,7 +560,7 @@ function NoPagoStageContent({ clientName }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#9F1239',
+          color: 'var(--aureus-red-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -542,7 +573,7 @@ function NoPagoStageContent({ clientName }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -552,13 +583,13 @@ function NoPagoStageContent({ clientName }) {
         {clientName}
       </div>
 
-      {/* Píldora inferior en Rojo Suave */}
+      {/* Píldora inferior en Rojo alerta suave */}
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FFE4E6',
-          border: '1px solid #FDA4AF',
-          color: '#BE123C',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1px solid var(--aureus-red-border)',
+          color: 'var(--aureus-red-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -586,20 +617,20 @@ function EditarClienteStageContent({ clientName }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#CCFBF1',
+          backgroundColor: 'var(--aureus-gold-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '18px'
         }}
       >
-        {/* Onda expansiva doble en #5EEAD4 */}
+        {/* Onda expansiva doble en Dorado Aureus */}
         <span
           style={{
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #5EEAD4',
+            border: '2.5px solid #D5C295',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -608,20 +639,20 @@ function EditarClienteStageContent({ clientName }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #5EEAD4',
+            border: '1.5px solid #F7F2E4',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Núcleo interior 72x72px con gradiente Turquesa Ejecutivo */}
+        {/* Núcleo interior 72x72px Dorado Aureus */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #115E59 0%, #0D9488 100%)',
-            boxShadow: '0 8px 20px rgba(13, 148, 136, 0.28)',
+            background: 'linear-gradient(135deg, #9E8342 0%, #B69A55 100%)',
+            boxShadow: '0 8px 20px rgba(182, 154, 85, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -639,7 +670,7 @@ function EditarClienteStageContent({ clientName }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#5EEAD4"
+              stroke="#F7F2E4"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -656,14 +687,14 @@ function EditarClienteStageContent({ clientName }) {
               cx="31"
               cy="27"
               r="6.2"
-              fill="rgba(204, 251, 241, 0.18)"
-              stroke="#CCFBF1"
+              fill="rgba(247, 242, 228, 0.18)"
+              stroke="#F7F2E4"
               strokeWidth="2.8"
             />
             <path
               d="M20 46.5 C20 40.2 24.8 36.8 31 36.8 C35.2 36.8 38.6 38.4 40.5 41.5"
               fill="none"
-              stroke="#CCFBF1"
+              stroke="#F7F2E4"
               strokeWidth="2.8"
               strokeLinecap="round"
               strokeDasharray="50"
@@ -713,7 +744,7 @@ function EditarClienteStageContent({ clientName }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#115E59',
+          color: 'var(--aureus-text-primary)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -726,7 +757,7 @@ function EditarClienteStageContent({ clientName }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -740,9 +771,9 @@ function EditarClienteStageContent({ clientName }) {
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#CCFBF1',
-          border: '1px solid #99F6E4',
-          color: '#0F766E',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1px solid var(--aureus-border-gold)',
+          color: 'var(--aureus-gold-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -758,8 +789,8 @@ function EditarClienteStageContent({ clientName }) {
 }
 
 /**
- * VARIANTE 5 — Confirmar "Enviar a Lista Negra" (Rojo Escudo Profundo / Granate)
- * Círculo exterior 88x88px en #FEE2E2, onda doble en #FCA5A5 y núcleo con gradiente #450A0A -> #991B1B.
+ * VARIANTE 5 — Confirmar "Enviar a Lista Negra" (Gris Pizarra / Carbón Ejecutivo)
+ * Círculo exterior 88x88px en #E2E8F0, onda doble en rgba(51, 65, 85, 0.22) y núcleo con gradiente #0F172A -> #334155.
  */
 function ListaNegraStageContent({ clientName }) {
   return (
@@ -770,7 +801,8 @@ function ListaNegraStageContent({ clientName }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FEE2E2',
+          backgroundColor: 'var(--aureus-bg-elevated)',
+          border: '1.5px solid #E5E0D5',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -778,13 +810,13 @@ function ListaNegraStageContent({ clientName }) {
           animation: 'cfStampShake 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards'
         }}
       >
-        {/* Onda expansiva doble en #FCA5A5 */}
+        {/* Onda expansiva doble en Grafito */}
         <span
           style={{
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FCA5A5',
+            border: '2.5px solid rgba(37, 42, 49, 0.22)',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -793,20 +825,20 @@ function ListaNegraStageContent({ clientName }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FCA5A5',
+            border: '1.5px solid rgba(37, 42, 49, 0.14)',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Núcleo interior 72x72px con gradiente Granate Profundo */}
+        {/* Núcleo interior 72x72px con gradiente Grafito Ejecutivo */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #450A0A 0%, #991B1B 100%)',
-            boxShadow: '0 8px 20px rgba(153, 27, 27, 0.32)',
+            background: 'linear-gradient(135deg, #252A31 0%, #4A5058 100%)',
+            boxShadow: '0 12px 28px rgba(37, 42, 49, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -821,7 +853,7 @@ function ListaNegraStageContent({ clientName }) {
             {/* Contorno del Escudo Ejecutivo trazado de arriba hacia abajo (520ms) */}
             <path
               d="M36 16.5 L52 23 V35 C52 45.8 44.8 53.2 36 56.5 C27.2 53.2 20 45.8 20 35 V23 L36 16.5 Z"
-              fill="rgba(254, 202, 202, 0.15)"
+              fill="rgba(241, 245, 249, 0.12)"
               stroke="#FFFFFF"
               strokeWidth="3.3"
               strokeLinecap="round"
@@ -839,7 +871,7 @@ function ListaNegraStageContent({ clientName }) {
               y1="26.5"
               x2="36"
               y2="38.5"
-              stroke="#FCA5A5"
+              stroke="#CBD5E1"
               strokeWidth="4.2"
               strokeLinecap="round"
               strokeDasharray="24"
@@ -863,7 +895,7 @@ function ListaNegraStageContent({ clientName }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#7F1D1D',
+          color: 'var(--aureus-text-primary)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -876,7 +908,7 @@ function ListaNegraStageContent({ clientName }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -890,9 +922,9 @@ function ListaNegraStageContent({ clientName }) {
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FEE2E2',
-          border: '1px solid #FECACA',
-          color: '#991B1B',
+          backgroundColor: 'var(--aureus-bg-elevated)',
+          border: '1px solid var(--aureus-border-subtle)',
+          color: 'var(--aureus-text-secondary)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -908,8 +940,8 @@ function ListaNegraStageContent({ clientName }) {
 }
 
 /**
- * VARIANTE 6 — Confirmar "Eliminar Cliente" hacia la Papelera (Terracota / Carmesí de Archivo)
- * Círculo exterior 88x88px en #FFEDD5, onda doble en #FDBA74 y núcleo con gradiente #9A3412 -> #EA580C.
+ * VARIANTE 6 — Confirmar "Eliminar Cliente" hacia la Papelera (Rojo Carmesí de Eliminación)
+ * Círculo exterior 88x88px en #FEE2E2, borde 1.5px solid #FCA5A5, onda doble en rgba(220, 38, 38, 0.24) y núcleo #991B1B -> #DC2626.
  */
 function EliminarClienteStageContent({ clientName }) {
   return (
@@ -920,20 +952,21 @@ function EliminarClienteStageContent({ clientName }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FFEDD5',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1.5px solid var(--aureus-red-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '18px'
         }}
       >
-        {/* Onda expansiva doble en #FDBA74 */}
+        {/* Onda expansiva doble en Rojo Alerta */}
         <span
           style={{
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FDBA74',
+            border: '2.5px solid rgba(198, 93, 88, 0.28)',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -942,20 +975,20 @@ function EliminarClienteStageContent({ clientName }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FDBA74',
+            border: '1.5px solid rgba(198, 93, 88, 0.16)',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
 
-        {/* Núcleo interior 72x72px con gradiente Terracota de Archivo */}
+        {/* Núcleo interior 72x72px con gradiente Rojo Alerta */}
         <div
           style={{
             position: 'relative',
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #9A3412 0%, #EA580C 100%)',
-            boxShadow: '0 8px 20px rgba(234, 88, 12, 0.28)',
+            background: 'linear-gradient(135deg, #9D4440 0%, #C65D58 100%)',
+            boxShadow: '0 12px 28px rgba(198, 93, 88, 0.30)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -973,7 +1006,7 @@ function EliminarClienteStageContent({ clientName }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#FDBA74"
+              stroke="#E6ABA8"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -992,7 +1025,7 @@ function EliminarClienteStageContent({ clientName }) {
               width="12"
               height="10"
               rx="2"
-              fill="#FFEDD5"
+              fill="#FCEEE9"
               style={{
                 transformOrigin: '36px 23px',
                 animation: 'cfCardIntoTrash 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards'
@@ -1009,7 +1042,7 @@ function EliminarClienteStageContent({ clientName }) {
               <path
                 d="M31 26 V22 C31 20.8 32 20 33.2 20 H38.8 C40 20 41 20.8 41 22 V26"
                 fill="none"
-                stroke="#FDBA74"
+                stroke="#E6ABA8"
                 strokeWidth="2.6"
                 strokeLinecap="round"
               />
@@ -1027,7 +1060,7 @@ function EliminarClienteStageContent({ clientName }) {
             {/* Cuerpo de la Papelera */}
             <path
               d="M25.5 29.5 L27.5 51 C27.7 52.8 29 54 31 54 H41 C43 54 44.3 52.8 44.5 51 L46.5 29.5"
-              fill="rgba(255, 237, 213, 0.16)"
+              fill="rgba(252, 238, 233, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
@@ -1045,7 +1078,7 @@ function EliminarClienteStageContent({ clientName }) {
               y1="35"
               x2="33.5"
               y2="47.5"
-              stroke="#FDBA74"
+              stroke="#E6ABA8"
               strokeWidth="2.4"
               strokeLinecap="round"
             />
@@ -1054,7 +1087,7 @@ function EliminarClienteStageContent({ clientName }) {
               y1="35"
               x2="38.5"
               y2="47.5"
-              stroke="#FDBA74"
+              stroke="#E6ABA8"
               strokeWidth="2.4"
               strokeLinecap="round"
             />
@@ -1067,7 +1100,7 @@ function EliminarClienteStageContent({ clientName }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#9A3412',
+          color: 'var(--aureus-red-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -1080,7 +1113,7 @@ function EliminarClienteStageContent({ clientName }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1094,9 +1127,9 @@ function EliminarClienteStageContent({ clientName }) {
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FFEDD5',
-          border: '1px solid #FED7AA',
-          color: '#9A3412',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1px solid var(--aureus-red-border)',
+          color: 'var(--aureus-red-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1124,8 +1157,8 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FEE2E2',
-          border: '1.5px solid #FCA5A5',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1.5px solid var(--aureus-red-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1138,7 +1171,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FCA5A5',
+            border: '2.5px solid #E6ABA8',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -1147,7 +1180,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FEE2E2',
+            border: '1.5px solid #FCEEE9',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
@@ -1158,8 +1191,8 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #7F1D1D 0%, #DC2626 100%)',
-            boxShadow: '0 12px 28px rgba(185, 28, 28, 0.32)',
+            background: 'linear-gradient(135deg, #9D4440 0%, #C65D58 100%)',
+            boxShadow: '0 12px 28px rgba(198, 93, 88, 0.32)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -1177,7 +1210,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#FCA5A5"
+              stroke="#E6ABA8"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -1193,7 +1226,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
             <path
               d="M31 24 V20.5 C31 19.5 32 18.8 33.2 18.8 H38.8 C40 18.8 41 19.5 41 20.5 V24"
               fill="none"
-              stroke="#FCA5A5"
+              stroke="#E6ABA8"
               strokeWidth="2.5"
               strokeLinecap="round"
             />
@@ -1210,7 +1243,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
             {/* Cuerpo de la papelera blanca */}
             <path
               d="M25.5 28 L27.5 51.5 C27.7 53.2 29 54.5 31 54.5 H41 C43 54.5 44.3 53.2 44.5 51.5 L46.5 28"
-              fill="rgba(254, 226, 226, 0.16)"
+              fill="rgba(252, 238, 233, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
@@ -1260,7 +1293,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
         style={{
           fontSize: '17.5px',
           fontWeight: 900,
-          color: '#7F1D1D',
+          color: 'var(--aureus-red-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -1273,7 +1306,7 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1287,9 +1320,9 @@ function EliminarDefinitivoStageContent({ clientName, detailPill }) {
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FEF2F2',
-          border: '1px solid #FECACA',
-          color: '#991B1B',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1px solid var(--aureus-red-border)',
+          color: 'var(--aureus-red-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1317,8 +1350,8 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#D6E7D6',
-          border: '1.5px solid #8FB89A',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1330,7 +1363,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #8FB89A',
+            border: '2.5px solid #94C2B2',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -1339,7 +1372,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #D6E7D6',
+            border: '1.5px solid var(--aureus-border-gold)',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
@@ -1350,8 +1383,8 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #0A3323 0%, #1B4D37 100%)',
-            boxShadow: '0 12px 28px rgba(10, 51, 35, 0.28)',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -1369,7 +1402,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
               cy="36"
               r="31"
               fill="none"
-              stroke="#8FB89A"
+              stroke="#94C2B2"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -1388,7 +1421,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
               width="30"
               height="21"
               rx="4"
-              fill="rgba(214, 231, 214, 0.16)"
+              fill="rgba(230, 242, 238, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="2.8"
               strokeDasharray="110"
@@ -1402,23 +1435,23 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
               cy="32.5"
               r="4.5"
               fill="none"
-              stroke="#D6E7D6"
+              stroke="#E6F2EE"
               strokeWidth="2.2"
             />
 
-            {/* Insignia Check en #D6E7D6 trazada progresivamente */}
+            {/* Insignia Check en Verde financiero y Dorado */}
             <circle
               cx="47"
               cy="44"
               r="10"
-              fill="#0A3323"
-              stroke="#8FB89A"
+              fill="#B69A55"
+              stroke="#FFFFFF"
               strokeWidth="2"
             />
             <path
               d="M42.5 44 L45.8 47.2 L52 40.5"
               fill="none"
-              stroke="#D6E7D6"
+              stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1437,7 +1470,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
         style={{
           fontSize: '18px',
           fontWeight: 900,
-          color: '#0A3323',
+          color: 'var(--aureus-green-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -1450,7 +1483,7 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1464,9 +1497,9 @@ function NuevoPrestamoStageContent({ clientName, detailPill }) {
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#D6E7D6',
-          border: '1px solid #8FB89A',
-          color: '#0A3323',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1494,8 +1527,8 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FEF3C7',
-          border: '1.5px solid #FCD34D',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1.5px solid var(--aureus-border-gold)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1507,7 +1540,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FCD34D',
+            border: '2.5px solid #D5C295',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -1516,7 +1549,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FEF3C7',
+            border: '1.5px solid #F7F2E4',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
@@ -1527,8 +1560,8 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #78350F 0%, #D97706 100%)',
-            boxShadow: '0 12px 28px rgba(180, 83, 9, 0.28)',
+            background: 'linear-gradient(135deg, #9E8342 0%, #B69A55 100%)',
+            boxShadow: '0 12px 28px rgba(182, 154, 85, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -1545,7 +1578,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
               cy="36"
               r="31"
               fill="none"
-              stroke="#FDE68A"
+              stroke="#F7F2E4"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -1564,9 +1597,9 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
                 animation: 'cfCardIntoTrash 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards'
               }}
             >
-              <rect x="29" y="15" width="14" height="12" rx="2" fill="#FEF3C7" />
-              <circle cx="36" cy="21" r="3.5" fill="none" stroke="#92400E" strokeWidth="1.6" />
-              <polyline points="36,19 36,21 37.8,21" fill="none" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round" />
+              <rect x="29" y="15" width="14" height="12" rx="2" fill="#F7F2E4" />
+              <circle cx="36" cy="21" r="3.5" fill="none" stroke="#7D652E" strokeWidth="1.6" />
+              <polyline points="36,19 36,21 37.8,21" fill="none" stroke="#7D652E" strokeWidth="1.5" strokeLinecap="round" />
             </g>
 
             {/* Tapa con cierre elástico */}
@@ -1579,7 +1612,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
               <path
                 d="M31 27 V23 C31 21.8 32 21 33.2 21 H38.8 C40 21 41 21.8 41 23 V27"
                 fill="none"
-                stroke="#FDE68A"
+                stroke="#F7F2E4"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
@@ -1589,7 +1622,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
             {/* Cuerpo de la papelera */}
             <path
               d="M25.5 30 L27.5 51.5 C27.7 53.2 29 54.5 31 54.5 H41 C43 54.5 44.3 53.2 44.5 51.5 L46.5 30"
-              fill="rgba(254, 243, 199, 0.16)"
+              fill="rgba(247, 242, 228, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
@@ -1600,8 +1633,8 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
                 animation: 'cfStrokeDraw 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards'
               }}
             />
-            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#FDE68A" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#FDE68A" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#F7F2E4" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#F7F2E4" strokeWidth="2.4" strokeLinecap="round" />
           </svg>
         </div>
       </div>
@@ -1610,19 +1643,19 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
         style={{
           fontSize: '17.5px',
           fontWeight: 900,
-          color: '#78350F',
+          color: 'var(--aureus-text-primary)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
       >
-        {isPlural ? 'Préstamos pendientes eliminados' : 'Préstamo pendiente eliminado'}
+        {isPlural ? 'Préstamos enviados a papelera' : 'Préstamo enviado a papelera'}
       </div>
 
       <div
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1635,9 +1668,9 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FFFBEB',
-          border: '1px solid #FDE68A',
-          color: '#92400E',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1px solid var(--aureus-border-gold)',
+          color: 'var(--aureus-gold-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1646,7 +1679,7 @@ function EliminarPrestamoPendienteStageContent({ clientName, detailPill, isPlura
           animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
         }}
       >
-        {detailPill || 'Cobros pendientes retirados'}
+        {detailPill || 'En Papelera por 30 días'}
       </div>
     </>
   );
@@ -1665,8 +1698,8 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#D6E7D6',
-          border: '1.5px solid #8FB89A',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1678,7 +1711,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #8FB89A',
+            border: '2.5px solid #94C2B2',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -1687,7 +1720,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #D6E7D6',
+            border: '1.5px solid #E6F2EE',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
@@ -1698,8 +1731,8 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1B4D37 0%, #2E6B4F 100%)',
-            boxShadow: '0 12px 28px rgba(27, 77, 55, 0.28)',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -1716,7 +1749,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
               cy="36"
               r="31"
               fill="none"
-              stroke="#8FB89A"
+              stroke="#94C2B2"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -1735,8 +1768,8 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
                 animation: 'cfCardIntoTrash 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards'
               }}
             >
-              <rect x="29" y="15" width="14" height="12" rx="2" fill="#D6E7D6" />
-              <polyline points="33,21 35.2,23.2 39.5,18.8" fill="none" stroke="#0A3323" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="29" y="15" width="14" height="12" rx="2" fill="#E6F2EE" />
+              <polyline points="33,21 35.2,23.2 39.5,18.8" fill="none" stroke="#397D67" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </g>
 
             {/* Tapa con cierre elástico */}
@@ -1749,7 +1782,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
               <path
                 d="M31 27 V23 C31 21.8 32 21 33.2 21 H38.8 C40 21 41 21.8 41 23 V27"
                 fill="none"
-                stroke="#D6E7D6"
+                stroke="#E6F2EE"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
@@ -1759,7 +1792,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
             {/* Cuerpo de la papelera */}
             <path
               d="M25.5 30 L27.5 51.5 C27.7 53.2 29 54.5 31 54.5 H41 C43 54.5 44.3 53.2 44.5 51.5 L46.5 30"
-              fill="rgba(214, 231, 214, 0.16)"
+              fill="rgba(230, 242, 238, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
@@ -1770,8 +1803,8 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
                 animation: 'cfStrokeDraw 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards'
               }}
             />
-            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#D6E7D6" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#D6E7D6" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#E6F2EE" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#E6F2EE" strokeWidth="2.4" strokeLinecap="round" />
           </svg>
         </div>
       </div>
@@ -1780,7 +1813,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
         style={{
           fontSize: '17.5px',
           fontWeight: 900,
-          color: '#0A3323',
+          color: 'var(--aureus-green-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -1792,7 +1825,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1805,9 +1838,9 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#D6E7D6',
-          border: '1px solid #8FB89A',
-          color: '#0A3323',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1816,7 +1849,7 @@ function EliminarPrestamoRegistradoStageContent({ clientName, detailPill, isPlur
           animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
         }}
       >
-        {detailPill || 'Préstamo pagado eliminado'}
+        {detailPill || 'En Papelera por 30 días'}
       </div>
     </>
   );
@@ -1835,8 +1868,8 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
           width: '88px',
           height: '88px',
           borderRadius: '50%',
-          backgroundColor: '#FFE4E6',
-          border: '1.5px solid #FDA4AF',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1.5px solid var(--aureus-red-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1849,7 +1882,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
             position: 'absolute',
             inset: '-6px',
             borderRadius: '50%',
-            border: '2.5px solid #FDA4AF',
+            border: '2.5px solid #E6ABA8',
             animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         />
@@ -1858,7 +1891,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
             position: 'absolute',
             inset: '-12px',
             borderRadius: '50%',
-            border: '1.5px solid #FFE4E6',
+            border: '1.5px solid #FCEEE9',
             animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
           }}
         />
@@ -1869,8 +1902,8 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
             width: '72px',
             height: '72px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #881337 0%, #E11D48 100%)',
-            boxShadow: '0 12px 28px rgba(190, 18, 60, 0.30)',
+            background: 'linear-gradient(135deg, #9D4440 0%, #C65D58 100%)',
+            boxShadow: '0 12px 28px rgba(198, 93, 88, 0.30)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -1887,7 +1920,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
               cy="36"
               r="31"
               fill="none"
-              stroke="#FECDD3"
+              stroke="#E6ABA8"
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeDasharray="195"
@@ -1899,16 +1932,16 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
               }}
             />
 
-            {/* Documento con insignia de alerta de atraso (!) que cae en la papelera */}
+            {/* Documento con insignia de alerta de atraso que cae en la papelera */}
             <g
               style={{
                 transformOrigin: '36px 22px',
                 animation: 'cfCardIntoTrash 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards'
               }}
             >
-              <rect x="29" y="15" width="14" height="12" rx="2" fill="#FFE4E6" />
-              <line x1="36" y1="17.5" x2="36" y2="22" stroke="#9F1239" strokeWidth="2.2" strokeLinecap="round" />
-              <circle cx="36" cy="24.5" r="1.2" fill="#9F1239" />
+              <rect x="29" y="15" width="14" height="12" rx="2" fill="#FCEEE9" />
+              <line x1="36" y1="17.5" x2="36" y2="22" stroke="#8F3D39" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="36" cy="24.5" r="1.2" fill="#8F3D39" />
             </g>
 
             {/* Tapa con cierre elástico */}
@@ -1921,7 +1954,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
               <path
                 d="M31 27 V23 C31 21.8 32 21 33.2 21 H38.8 C40 21 41 21.8 41 23 V27"
                 fill="none"
-                stroke="#FECDD3"
+                stroke="#FCEEE9"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
@@ -1931,7 +1964,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
             {/* Cuerpo de la papelera */}
             <path
               d="M25.5 30 L27.5 51.5 C27.7 53.2 29 54.5 31 54.5 H41 C43 54.5 44.3 53.2 44.5 51.5 L46.5 30"
-              fill="rgba(255, 228, 230, 0.16)"
+              fill="rgba(252, 238, 233, 0.16)"
               stroke="#FFFFFF"
               strokeWidth="3.2"
               strokeLinecap="round"
@@ -1942,8 +1975,8 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
                 animation: 'cfStrokeDraw 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards'
               }}
             />
-            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#FECDD3" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#FECDD3" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="33" y1="36" x2="33.5" y2="48" stroke="#FCEEE9" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="39" y1="36" x2="38.5" y2="48" stroke="#FCEEE9" strokeWidth="2.4" strokeLinecap="round" />
           </svg>
         </div>
       </div>
@@ -1952,7 +1985,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
         style={{
           fontSize: '17.5px',
           fontWeight: 900,
-          color: '#881337',
+          color: 'var(--aureus-red-text)',
           letterSpacing: '-0.01em',
           lineHeight: 1.25
         }}
@@ -1964,7 +1997,7 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
         style={{
           fontSize: '14px',
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--aureus-text-secondary)',
           marginTop: '6px',
           lineHeight: 1.35,
           maxWidth: '100%',
@@ -1977,9 +2010,9 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
       <div
         style={{
           marginTop: '14px',
-          backgroundColor: '#FFF1F2',
-          border: '1px solid #FECDD3',
-          color: '#9F1239',
+          backgroundColor: 'var(--aureus-red-light)',
+          border: '1px solid var(--aureus-red-border)',
+          color: 'var(--aureus-red-text)',
           fontSize: '12.5px',
           fontWeight: 800,
           padding: '6px 14px',
@@ -1988,7 +2021,963 @@ function EliminarPrestamoAtrasadoStageContent({ clientName, detailPill, isPlural
           animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
         }}
       >
-        {detailPill || 'Deuda atrasada eliminada'}
+        {detailPill || 'En Papelera por 30 días'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 12 — Confirmar "Sí, Retirar" en Lista Negra
+ * Paleta: Verde Dólar Ejecutivo con escudo ShieldCheck y trazo de levantamiento de restricción
+ */
+function RetirarListaNegraStageContent({ clientName, detailPill }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid rgba(57, 125, 103, 0.28)',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid var(--aureus-border-gold)',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <circle
+              cx="36"
+              cy="36"
+              r="31"
+              fill="none"
+              stroke="#94C2B2"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeDasharray="195"
+              strokeDashoffset="195"
+              style={{
+                transformOrigin: '36px 36px',
+                transform: 'rotate(-90deg)',
+                animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            />
+
+            {/* Escudo ejecutivo trazado en blanco */}
+            <path
+              d="M36 18 L50 23.5 V34.5 C50 43.8 44 50.8 36 53.5 C28 50.8 22 43.8 22 34.5 V23.5 L36 18 Z"
+              fill="rgba(230, 242, 238, 0.16)"
+              stroke="#FFFFFF"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="130"
+              strokeDashoffset="130"
+              style={{
+                animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            />
+
+            {/* Check luminoso indicando restricción levantada */}
+            <path
+              d="M28.5 36.2 L33.8 41.5 L44 30.5"
+              fill="none"
+              stroke="#E6F2EE"
+              strokeWidth="3.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="60"
+              strokeDashoffset="60"
+              style={{
+                animation: 'cfStrokeDraw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-green-text)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        Retirado de Lista Negra
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Restaurado a Clientes'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 13 — Confirmar "Restaurar Cliente" en Papelera
+ * Paleta: Verde Dólar de Reactivación con arco de retorno giratorio y silueta verificada
+ */
+function RestaurarClienteStageContent({ clientName, detailPill }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid rgba(57, 125, 103, 0.28)',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid var(--aureus-border-gold)',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            {/* Arco circular giratorio de restauración (360deg suave) */}
+            <g
+              style={{
+                transformOrigin: '36px 36px',
+                animation: 'cfRefreshSpin 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            >
+              <path
+                d="M21 31 A16 16 0 1 1 22 44"
+                fill="none"
+                stroke="#E6F2EE"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+              />
+              <polyline
+                points="17.5,27 20.8,32.2 26.2,30"
+                fill="none"
+                stroke="#E6F2EE"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            {/* Silueta de usuario con check central blanco */}
+            <circle
+              cx="36"
+              cy="30"
+              r="5.2"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+            />
+            <path
+              d="M27.5 46 C27.5 40.8 31.3 38.2 36 38.2 C38 38.2 39.8 38.7 41.2 39.6"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            <path
+              d="M39 44.5 L42.2 47.5 L48.5 40.8"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="40"
+              strokeDashoffset="40"
+              style={{
+                animation: 'cfStrokeDraw 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-green-text)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        Cliente restaurado
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Activo nuevamente en Clientes'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 14 — Confirmar "Nuevo Cliente" en ClientFormModal.jsx
+ * Paleta: Verde Dólar Ejecutivo con silueta UserPlus en blanco y check en #D6E7D6
+ */
+function NuevoClienteStageContent({ clientName, detailPill }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid #94C2B2',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid var(--aureus-border-gold)',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <circle
+              cx="36"
+              cy="36"
+              r="31"
+              fill="none"
+              stroke="#94C2B2"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeDasharray="195"
+              strokeDashoffset="195"
+              style={{
+                transformOrigin: '36px 36px',
+                transform: 'rotate(-90deg)',
+                animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            />
+
+            {/* Silueta de nuevo cliente trazada en blanco */}
+            <circle
+              cx="32"
+              cy="28"
+              r="6.2"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.8"
+              strokeDasharray="45"
+              strokeDashoffset="45"
+              style={{
+                animation: 'cfStrokeDraw 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            />
+            <path
+              d="M21 48 C21 41.5 25.8 38.5 32 38.5 C36.2 38.5 39.2 39.8 41 42"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeDasharray="60"
+              strokeDashoffset="60"
+              style={{
+                animation: 'cfStrokeDraw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards'
+              }}
+            />
+
+            {/* Check de confirmación */}
+            <path
+              d="M40.5 41.5 L44.5 45.5 L53 36.5"
+              fill="none"
+              stroke="#E6F2EE"
+              strokeWidth="3.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="50"
+              strokeDashoffset="50"
+              style={{
+                animation: 'cfStrokeDraw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-green-text)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        Cliente registrado
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Agregado a tu lista de clientes'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 15 — Confirmar Renovación de Préstamo
+ * Paleta: Azul / Índigo Ejecutivo con dos flechas circulares girando y check blanco
+ */
+function RenovarPrestamoStageContent({ clientName, detailPill }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1.5px solid var(--aureus-border-gold)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid #D5C295',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid #F7F2E4',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #9E8342 0%, #B69A55 100%)',
+            boxShadow: '0 12px 28px rgba(182, 154, 85, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            {/* Dos flechas circulares de renovación girando con fluidez */}
+            <g
+              style={{
+                transformOrigin: '36px 36px',
+                animation: 'cfRefreshSpin 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            >
+              <path
+                d="M21 33 A15 15 0 0 1 48.5 27.5"
+                fill="none"
+                stroke="#F7F2E4"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+              />
+              <polyline
+                points="44,28.5 49.5,28 49,22.5"
+                fill="none"
+                stroke="#F7F2E4"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M51 39 A15 15 0 0 1 23.5 44.5"
+                fill="none"
+                stroke="#F7F2E4"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+              />
+              <polyline
+                points="28,43.5 22.5,44 23,49.5"
+                fill="none"
+                stroke="#F7F2E4"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            {/* Check central en blanco */}
+            <path
+              d="M28.5 36.2 L33.8 41.5 L44 30.5"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="60"
+              strokeDashoffset="60"
+              style={{
+                animation: 'cfStrokeDraw 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-text-primary)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        Préstamo renovado
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1px solid var(--aureus-border-gold)',
+          color: 'var(--aureus-gold-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Nuevas cuotas programadas'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 16 — Confirmar Arreglo de Pago
+ * Paleta: Ámbar / Dorado Ejecutivo con calendario CalendarCheck verificado en blanco
+ */
+function ArregloPagoStageContent({ clientName, detailPill }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1.5px solid var(--aureus-border-gold)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid #D5C295',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid #F7F2E4',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #9E8342 0%, #B69A55 100%)',
+            boxShadow: '0 12px 28px rgba(182, 154, 85, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <circle
+              cx="36"
+              cy="36"
+              r="31"
+              fill="none"
+              stroke="#F7F2E4"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeDasharray="195"
+              strokeDashoffset="195"
+              style={{
+                transformOrigin: '36px 36px',
+                transform: 'rotate(-90deg)',
+                animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            />
+
+            {/* Calendario de acuerdo en blanco */}
+            <rect
+              x="21"
+              y="24"
+              width="30"
+              height="26"
+              rx="5"
+              fill="rgba(255, 255, 255, 0.14)"
+              stroke="#FFFFFF"
+              strokeWidth="2.6"
+            />
+            <line x1="21" y1="32" x2="51" y2="32" stroke="#FFFFFF" strokeWidth="2.4" />
+            <line x1="29" y1="20" x2="29" y2="26" stroke="#F7F2E4" strokeWidth="2.8" strokeLinecap="round" />
+            <line x1="43" y1="20" x2="43" y2="26" stroke="#F7F2E4" strokeWidth="2.8" strokeLinecap="round" />
+
+            {/* Check progresivo dentro del calendario */}
+            <path
+              d="M29.5 41 L34 45.2 L43 36.2"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="50"
+              strokeDashoffset="50"
+              style={{
+                animation: 'cfStrokeDraw 0.48s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-text-primary)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        Arreglo registrado
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-gold-light)',
+          border: '1px solid var(--aureus-border-gold)',
+          color: 'var(--aureus-gold-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Cuota especial aplicada'}
+      </div>
+    </>
+  );
+}
+
+/**
+ * VARIANTE 17 — Confirmar "Restaurar préstamo" desde Papelera
+ * Paleta: Verde Dólar Ejecutivo (#397D67 / gradiente #2D6654 -> #397D67)
+ */
+function RestaurarPrestamoStageContent({ clientName, detailPill, isPlural }) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1.5px solid var(--aureus-green-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: '2.5px solid rgba(57, 125, 103, 0.28)',
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: '1.5px solid var(--aureus-border-gold)',
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2D6654 0%, #397D67 100%)',
+            boxShadow: '0 12px 28px rgba(57, 125, 103, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <g
+              style={{
+                transformOrigin: '36px 36px',
+                animation: 'cfRefreshSpin 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            >
+              <path
+                d="M21 31 A16 16 0 1 1 22 44"
+                fill="none"
+                stroke="#E6F2EE"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+              />
+              <polyline
+                points="17.5,27 20.8,32.2 26.2,30"
+                fill="none"
+                stroke="#E6F2EE"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+
+            <rect
+              x="27"
+              y="26"
+              width="18"
+              height="20"
+              rx="3.5"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+            />
+            <path
+              d="M32 36.5 L35.2 39.5 L41.5 32.8"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="40"
+              strokeDashoffset="40"
+              style={{
+                animation: 'cfStrokeDraw 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards'
+              }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: 'var(--aureus-green-text)',
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        {isPlural ? 'Préstamos restaurados' : 'Préstamo restaurado'}
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {clientName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {detailPill || 'Activo nuevamente en Préstamos'}
       </div>
     </>
   );

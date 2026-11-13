@@ -15,6 +15,7 @@ import {
   UserX
 } from 'lucide-react';
 import { ConfirmActionStage } from '../Modals/ConfirmActionStage';
+import { playConfirmationChime } from '../../utils/confirmationSound';
 
 export function ConfirmModal({
   isOpen,
@@ -28,6 +29,8 @@ export function ConfirmModal({
   subtitle = '',
   detailPill = '',
   stageVariant = null, // 'lista_negra' | 'eliminar_cliente' | 'eliminar_definitivo' | 'editar_cliente' | 'nuevo_prestamo' | null
+  isPlural = false,
+  children = null,
   onCancel,
   onConfirm
 }) {
@@ -50,6 +53,8 @@ export function ConfirmModal({
       ? 'lista_negra'
       : iconType === 'trash' || iconType === 'delete'
       ? 'eliminar_cliente'
+      : iconType === 'banknote' || iconType === 'loan'
+      ? 'nuevo_prestamo'
       : null);
 
   const handleConfirmAction = () => {
@@ -74,6 +79,7 @@ export function ConfirmModal({
       return;
     }
 
+    playConfirmationChime();
     setIsConfirming(true);
     setTimeout(async () => {
       try {
@@ -107,6 +113,7 @@ export function ConfirmModal({
           clientName={clientName || subtitle}
           subtitle={subtitle || clientName}
           detailPill={detailPill}
+          isPlural={isPlural}
         />
       </div>
     );
@@ -143,11 +150,11 @@ export function ConfirmModal({
       case 'loan':
         return {
           icon: <Banknote size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#ecfdf5',
-            color: '#059669',
-            borderColor: 'rgba(167, 243, 208, 0.8)'
+            backgroundColor: 'var(--aureus-green-light)',
+            color: 'var(--aureus-green-text)',
+            borderColor: 'var(--aureus-green-border)'
           }
         };
 
@@ -155,11 +162,11 @@ export function ConfirmModal({
       case 'refresh':
         return {
           icon: <RefreshCw size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-blue-50 text-blue-600 border border-blue-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#eff6ff',
-            color: '#2563eb',
-            borderColor: 'rgba(191, 219, 254, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
 
@@ -167,22 +174,22 @@ export function ConfirmModal({
       case 'handshake':
         return {
           icon: <Handshake size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-indigo-50 text-indigo-600 border border-indigo-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#eef2ff',
-            color: '#4f46e5',
-            borderColor: 'rgba(199, 210, 254, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
 
       case 'calendar-check':
         return {
           icon: <CalendarCheck size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-indigo-50 text-indigo-600 border border-indigo-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#eef2ff',
-            color: '#4f46e5',
-            borderColor: 'rgba(199, 210, 254, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
 
@@ -190,11 +197,11 @@ export function ConfirmModal({
       case 'blacklist':
         return {
           icon: <ShieldAlert size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fef2f2',
-            color: '#dc2626',
-            borderColor: 'rgba(254, 202, 202, 0.8)'
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            color: 'var(--aureus-text-secondary)',
+            borderColor: 'var(--aureus-border-subtle)'
           }
         };
 
@@ -202,11 +209,11 @@ export function ConfirmModal({
       case 'delete':
         return {
           icon: <Trash2 size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fef2f2',
-            color: '#dc2626',
-            borderColor: 'rgba(254, 202, 202, 0.8)'
+            backgroundColor: 'var(--aureus-red-light)',
+            color: 'var(--aureus-red-text)',
+            borderColor: 'var(--aureus-red-border)'
           }
         };
 
@@ -214,11 +221,11 @@ export function ConfirmModal({
       case 'payment':
         return {
           icon: <CheckCircle2 size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#ecfdf5',
-            color: '#059669',
-            borderColor: 'rgba(167, 243, 208, 0.8)'
+            backgroundColor: 'var(--aureus-green-light)',
+            color: 'var(--aureus-green-text)',
+            borderColor: 'var(--aureus-green-border)'
           }
         };
 
@@ -226,11 +233,11 @@ export function ConfirmModal({
       case 'pass':
         return {
           icon: <CalendarClock size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fffbeb',
-            color: '#d97706',
-            borderColor: 'rgba(253, 230, 138, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
 
@@ -238,11 +245,11 @@ export function ConfirmModal({
       case 'no-pay':
         return {
           icon: <XCircle size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fef2f2',
-            color: '#dc2626',
-            borderColor: 'rgba(254, 202, 202, 0.8)'
+            backgroundColor: 'var(--aureus-red-light)',
+            color: 'var(--aureus-red-text)',
+            borderColor: 'var(--aureus-red-border)'
           }
         };
 
@@ -250,11 +257,11 @@ export function ConfirmModal({
       case 'duplicate':
         return {
           icon: <UserX size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fef2f2',
-            color: '#dc2626',
-            borderColor: 'rgba(254, 202, 202, 0.8)'
+            backgroundColor: 'var(--aureus-red-light)',
+            color: 'var(--aureus-red-text)',
+            borderColor: 'var(--aureus-red-border)'
           }
         };
 
@@ -262,22 +269,22 @@ export function ConfirmModal({
       case 'incomplete':
         return {
           icon: <ClipboardList size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fffbeb',
-            color: '#d97706',
-            borderColor: 'rgba(253, 230, 138, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
 
       default:
         return {
           icon: <AlertCircle size={28} strokeWidth={2} className="shrink-0" />,
-          containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
+          containerClass: '',
           containerStyle: {
-            backgroundColor: '#fffbeb',
-            color: '#d97706',
-            borderColor: 'rgba(253, 230, 138, 0.8)'
+            backgroundColor: 'var(--aureus-gold-light)',
+            color: 'var(--aureus-gold-text)',
+            borderColor: 'var(--aureus-border-gold)'
           }
         };
     }
@@ -287,9 +294,17 @@ export function ConfirmModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
-      <div className="modal-container confirm-modal-compact">
+      <div
+        className="modal-container confirm-modal-compact"
+        style={{
+          maxHeight: 'calc(100dvh - 32px)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+      >
         {/* Encabezado */}
-        <div className="modal-header">
+        <div className="modal-header" style={{ flexShrink: 0 }}>
           <div className="modal-title-group">
             <h3 id="confirm-modal-title" className="modal-title">
               {title}
@@ -306,7 +321,7 @@ export function ConfirmModal({
         </div>
 
         {/* Cuerpo con icono semántico y pregunta */}
-        <div className="modal-body">
+        <div className="modal-body" style={{ overflowY: 'auto', minHeight: 0, flex: '1 1 auto' }}>
           <div className="confirmation-prompt-box">
             <div
               className={`prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center ${containerClass} ${animClass}`}
@@ -329,11 +344,12 @@ export function ConfirmModal({
             <p className="prompt-text">
               {question}
             </p>
+            {children}
           </div>
         </div>
 
         {/* Acciones */}
-        <div className="modal-actions">
+        <div className="modal-actions" style={{ flexShrink: 0 }}>
           <button
             type="button"
             disabled={isConfirming || confirmPhase !== 'idle'}
@@ -348,7 +364,9 @@ export function ConfirmModal({
             disabled={isConfirming || confirmPhase !== 'idle'}
             onClick={handleConfirmAction}
             className={
-              confirmVariant === 'danger'
+              confirmVariant === 'slate' || stageVariant === 'lista_negra' || iconType === 'shield' || iconType === 'blacklist'
+                ? 'modal-btn-slate'
+                : confirmVariant === 'danger'
                 ? 'modal-btn-danger'
                 : confirmVariant === 'primary'
                 ? 'modal-btn-dark-primary'

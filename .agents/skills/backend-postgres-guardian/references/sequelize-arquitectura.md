@@ -20,20 +20,22 @@ Se asume **Sequelize v6** con `sequelize-cli`.
 
 ## 1. Concepto y flujo
 
-Sequelize es un ORM basado en promesas: trabajas con clases y métodos de JavaScript y él genera el SQL.
+Sequelize es un ORM basado en promesas: trabajas con clases y métodos de JavaScript y él genera el SQL. Se integra en la arquitectura por capas de Express:
 
 ```
-Ruta → Controlador → Modelo → Base de datos
+Ruta → Middleware → Controlador → Servicio (opcional) → Modelo → Base de datos
 ```
 
 | Capa | Responsabilidad única |
 |---|---|
-| Ruta | Define la URL y el verbo HTTP; decide qué controlador responde |
-| Controlador | Recibe la petición, aplica la lógica y envía la respuesta |
-| Modelo | Representa una tabla: campos, tipos, validaciones y relaciones |
-| Migración | Crea y modifica la estructura de la BD de forma versionada y reversible |
+| Ruta | Define la URL y el verbo HTTP (`express.Router()`); decide qué controlador responde |
+| Middleware | Intercepta peticiones para autenticación (`JWT`), validación de tipos y control de acceso |
+| Controlador | Traduce HTTP: extrae `req.params`, `req.query`, `req.body`, convierte tipos (`Number`) y responde con `res.json()` |
+| Servicio | Lógica de negocio pura y reutilizable, totalmente agnóstica de Express (sin `req` ni `res`) |
+| Modelo | Representa una tabla en Sequelize: campos, tipos, validaciones y relaciones |
+| Migración | Crea y modifica la estructura de la BD de forma versionada y reversible en PostgreSQL |
 
-Flujo de ejemplo: `POST /usuarios → router.post → ctrl.crear → Usuario.create → INSERT INTO`.
+Flujo de ejemplo: `POST /usuarios → router.post → authMiddleware → ctrl.crear → usuarioService.crear → Usuario.create → INSERT INTO`.
 
 ## 2. Instalación y estructura
 
@@ -197,41 +199,92 @@ Reglas:
 const { Usuario } = require('../models');
 
 exports.listar = async (req, res) => {
-  const usuarios = await Usuario.findAll();
-  res.json(usuarios);
+  try {
+    const usuarios = await Usuario.findAll();
+    res.json(usuarios);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al listar usuarios' });
+  }
+};
+
+exports.obtener = async (req, res) => {
+  try {
+    // req.params siempre llega como string: convertir a número
+    const id = Number(req.params.id);
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(usuario);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener usuario' });
+  }
 };
 
 exports.crear = async (req, res) => {
   try {
-    const usuario = await Usuario.create(req.body);
-    res.status(201).json(usuario);
+    const { nombre, email } = req.body; // Whitelist contra Mass Assignment
+    const usuario = await Usuario.create({ nombre, email });
+    res.status(201).json(usuario); // 201 Created canónico
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
+exports.actualizar = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const { nombre, email } = req.body;
+    await usuario.update({ nombre, email });
+    res.json(usuario);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+exports.eliminar = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const usuario = await Usuario.findByPk(id);
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    await usuario.destroy();
+    res.sendStatus(204); // 204 No Content canónico (sin cuerpo)
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 ```
 
-- `req`: `req.params`, `req.query`, `req.body`. `res`: `res.status()`, `res.json()`.
-- `try/catch` captura errores de validación y responde con un código claro.
+- **Objetos `req` y `res`:**
+  - `req.params`: Parámetros de ruta dinámicos (`/:id`). **¡Llegan como texto!** Obligatorio convertir con `Number(req.params.id)`.
+  - `req.query`: Parámetros de consulta (`?page=2`). Llegan como texto; convertir si se usan como números.
+  - `req.body`: Cuerpo en formato JSON. Requiere `app.use(express.json())`.
+  - `res.json(data)`, `res.status(code)`, `res.sendStatus(204)`.
+- `try/catch` captura errores de validación y responde con un código HTTP apropiado.
 
 Métodos del modelo para un CRUD completo:
 
 | Método | Ejemplo | Devuelve |
 |---|---|---|
 | `findAll` | `Usuario.findAll({ where: { activo: true } })` | Arreglo |
-| `findByPk` | `Usuario.findByPk(req.params.id)` | Registro o `null` |
+| `findByPk` | `Usuario.findByPk(id)` | Registro o `null` |
 | `findOne` | `Usuario.findOne({ where: { email } })` | Primero que coincide |
 | `create` | `Usuario.create(datos)` | Registro creado |
 | `update` | `usuario.update(datos)` | Registro actualizado |
 | `destroy` | `usuario.destroy()` | Elimina el registro |
 
-## 10. Rutas
+## 10. Rutas y Orden de Coincidencia (Matching)
 
 ```js
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/usuarioController');
 
+// ⚠️ REGLA DE ORO DE ORDEN: Express prueba rutas de arriba a abajo.
+// Las rutas fijas/específicas DEBEN ir ANTES de las rutas con segmentos dinámicos (:id).
+router.get('/reporte', ctrl.generarReporte); // Específica ANTES de :id
 router.get('/', ctrl.listar);
 router.get('/:id', ctrl.obtener);
 router.post('/', ctrl.crear);
@@ -241,43 +294,76 @@ router.delete('/:id', ctrl.eliminar);
 module.exports = router;
 ```
 
-| Verbo | URL | Acción |
-|---|---|---|
-| GET | `/usuarios` | listar |
-| GET | `/usuarios/:id` | obtener |
-| POST | `/usuarios` | crear |
-| PUT | `/usuarios/:id` | actualizar |
-| DELETE | `/usuarios/:id` | eliminar |
+| Verbo | URL | Acción | Código Exitoso |
+|---|---|---|---|
+| GET | `/usuarios` | listar | `200 OK` |
+| GET | `/usuarios/:id` | obtener | `200 OK` (o `404`) |
+| POST | `/usuarios` | crear | `201 Created` |
+| PUT | `/usuarios/:id` | actualizar | `200 OK` (o `404`) |
+| DELETE | `/usuarios/:id` | eliminar | `204 No Content` |
 
-## 11. app.js
+## 11. Configuración de Express (`src/app.js`) y Punto de Entrada (`src/index.js`)
 
+Se desacopla la configuración de la app del arranque del puerto de red:
+
+### `src/app.js` (Configuración sin listen)
 ```js
 const express = require('express');
-const { sequelize } = require('./models');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const usuariosRouter = require('./routes/usuarios');
 
 const app = express();
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
+
+// Montaje modular de routers con prefijo
 app.use('/usuarios', usuariosRouter);
 
-sequelize.authenticate()
-  .then(() => app.listen(3000, () => console.log('API en el puerto 3000')))
-  .catch((err) => console.error('Sin conexión a la BD:', err));
+// Manejador 404 (Ruta no encontrada) al final de las rutas
+app.use((req, res) => {
+  res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// Manejador centralizado de errores (firma de 4 parámetros obligatoria)
+app.use((err, req, res, next) => {
+  console.error('[Error no controlado]:', err);
+  res.status(err.status || 500).json({ error: err.message || 'Error interno del servidor' });
+});
+
+module.exports = app;
 ```
 
-Al agregar una entidad nueva: registrar su router aquí (`app.use('/entidad', router)`). En este proyecto `app.js` está en `src/app.js`, usa `cors` con `exposedHeaders: ['x-access-token']` y monta `/auth` (pública) antes de las rutas protegidas. Plantilla: `assets/templates/backend/src/app.template.js`.
+### `src/index.js` (Punto de entrada del servidor)
+```js
+require('dotenv').config();
+const app = require('./app');
+const { sequelize } = require('./models');
+
+const PUERTO = process.env.PUERTO || process.env.PORT || 3000;
+
+sequelize.authenticate()
+  .then(() => {
+    app.listen(PUERTO, () => console.log(`API en el puerto ${PUERTO}`));
+  })
+  .catch((err) => console.error('Sin conexión a la BD:', err.message));
+```
 
 ## 12. Mejoras sobre los ejemplos del curso
 
 Los ejemplos del curso son didácticos. Al escribir código real, mantén la **misma estructura** pero aplica estas mejoras (menciónalas brevemente al usuario como sugerencia, sin imponerlas si va contra una consigna de la tarea):
 
-1. **Whitelist de campos** en `crear`/`actualizar`: `const { nombre, email } = req.body;` en vez de `Usuario.create(req.body)`.
-2. **`obtener` y `actualizar`/`eliminar` devuelven 404** si `findByPk` da `null`.
-3. **Diferenciar errores:** `SequelizeValidationError` → 400; `SequelizeUniqueConstraintError` → 409; `SequelizeForeignKeyConstraintError` → 409 o 400; el resto → 500 (sin filtrar detalles internos).
-4. **`try/catch` también en `listar`** y en todo handler `async`. Alternativa: un wrapper `asyncHandler` + middleware de errores.
-5. **`DELETE` responde 204** sin cuerpo (o 200 con mensaje).
-6. **Paginación** (`limit`/`offset`) en listados que pueden crecer.
-7. **`include` con cuidado:** trae solo lo necesario (`attributes`), evita N+1 usando `include` en una sola consulta.
-8. **Transacciones** cuando una operación escribe en varias tablas (ej.: crear cita + recetar medicamentos).
-9. **`sequelize.sync()` no se usa** para crear tablas; solo migraciones.
-10. **Rutas protegidas** con `router.use(authMiddleware)` y validaciones (`requerir`, `tipos`, `verificarRelacion`) en las rutas; listados con `include` de los datos relacionados. Ver `auth-seguridad.md`.
+1. **Capa de Servicios (`services/`):** Para reglas de negocio complejas, desacopla la lógica del controlador en un servicio puro (sin `req`/`res`).
+2. **Whitelist de campos** en `crear`/`actualizar`: `const { nombre, email } = req.body;` en vez de `Usuario.create(req.body)` para mitigar Mass Assignment.
+3. **Conversión explícita de tipos:** `Number(req.params.id)` ya que los parámetros siempre llegan como string.
+4. **`obtener`, `actualizar` y `eliminar` devuelven 404** si `findByPk` da `null`.
+5. **Diferenciar errores:** `SequelizeValidationError` → 400; `SequelizeUniqueConstraintError` → 409; `SequelizeForeignKeyConstraintError` → 409 o 400; el resto → 500 (sin filtrar detalles internos).
+6. **`try/catch` también en `listar`** y en todo handler `async`.
+7. **`DELETE` responde 204** sin cuerpo (`res.sendStatus(204)`).
+8. **Manejador 404 y manejador centralizado de errores con 4 parámetros** al final de `app.js`.
+9. **Paginación** (`limit`/`offset`) en listados que pueden crecer.
+10. **`include` con cuidado:** trae solo lo necesario (`attributes`), evita N+1 usando `include` en una sola consulta.
+11. **Transacciones** cuando una operación escribe en varias tablas (ej.: crear cita + recetar medicamentos).
+12. **`sequelize.sync()` no se usa** para crear tablas; solo migraciones.
+13. **Rutas protegidas** con `router.use(authMiddleware)` y validaciones (`requerir`, `tipos`, `verificarRelacion`) en las rutas; listados con `include` de los datos relacionados. Ver `auth-seguridad.md`.

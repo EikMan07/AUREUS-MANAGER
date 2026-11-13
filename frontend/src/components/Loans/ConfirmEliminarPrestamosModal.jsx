@@ -109,14 +109,36 @@ export function ConfirmEliminarPrestamosModal({
   const samplePagadosP = Number(sampleLoan?.periodos_pagados || 0);
   const sampleAtrasos = Number(sampleLoan?.periodos_atrasados_acumulados || 0);
 
-  const isLoanRegistrado =
+  const rawSaldo =
+    targetLoan?.saldo_por_pagar !== undefined && targetLoan?.saldo_por_pagar !== null
+      ? Number(targetLoan.saldo_por_pagar)
+      : targetLoan?.saldo_pendiente !== undefined && targetLoan?.saldo_pendiente !== null
+      ? Number(targetLoan.saldo_pendiente)
+      : sampleLoan?.saldo_por_pagar !== undefined && sampleLoan?.saldo_por_pagar !== null
+      ? Number(sampleLoan.saldo_por_pagar)
+      : sampleLoan?.saldo_pendiente !== undefined && sampleLoan?.saldo_pendiente !== null
+      ? Number(sampleLoan.saldo_pendiente)
+      : 0;
+
+  const isPaidOrRegistrado =
     category === 'REGISTRADOS' ||
     sampleEstado === 'CANCELADO' ||
     sampleEstado === 'LIQUIDADO' ||
     sampleEstado === 'PAGADO' ||
     sampleEstado === 'REGISTRADO' ||
-    (sampleMonto > 0 && sampleSaldo <= 0) ||
+    rawSaldo <= 0 ||
     (sampleTotalP > 0 && samplePagadosP >= sampleTotalP);
+
+  const saldoReal = isPaidOrRegistrado ? 0 : Math.max(0, rawSaldo);
+  const totalPagadoReal = Number(
+    targetLoan?.total_pagado ??
+    targetLoan?.monto_total_pagado ??
+    targetLoan?.monto_total_financiar ??
+    targetLoan?.monto_prestado ??
+    0
+  );
+
+  const isLoanRegistrado = isPaidOrRegistrado;
 
   const isLoanAtrasado =
     !isLoanRegistrado &&
@@ -216,7 +238,8 @@ export function ConfirmEliminarPrestamosModal({
         style={{
           width: '100%',
           maxWidth: '520px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--aureus-bg-surface)',
+          border: '1px solid var(--aureus-border-subtle)',
           borderRadius: '20px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
           overflow: 'hidden',
@@ -230,11 +253,11 @@ export function ConfirmEliminarPrestamosModal({
         <div
           style={{
             padding: '18px 20px',
-            borderBottom: '1px solid #f1f5f9',
+            borderBottom: '1px solid var(--aureus-border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: '#ffffff'
+            backgroundColor: 'var(--aureus-bg-surface)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -244,11 +267,12 @@ export function ConfirmEliminarPrestamosModal({
                 width: '42px',
                 height: '42px',
                 borderRadius: '12px',
-                backgroundColor: '#ffe4e6',
+                backgroundColor: 'var(--aureus-red-light)',
+                border: '1px solid var(--aureus-red-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#e11d48'
+                color: 'var(--aureus-red-text)'
               }}
             >
               <Trash2 size={20} strokeWidth={2.2} className={isDeleting ? 'cf-anim-trash-drop' : ''} />
@@ -259,7 +283,7 @@ export function ConfirmEliminarPrestamosModal({
                   margin: 0,
                   fontSize: '17px',
                   fontWeight: 800,
-                  color: '#0f172a',
+                  color: 'var(--aureus-text-primary)',
                   letterSpacing: '-0.2px'
                 }}
               >
@@ -269,7 +293,7 @@ export function ConfirmEliminarPrestamosModal({
                 style={{
                   margin: '2px 0 0 0',
                   fontSize: '12px',
-                  color: '#64748b',
+                  color: 'var(--aureus-text-muted)',
                   fontWeight: 500
                 }}
               >
@@ -286,9 +310,9 @@ export function ConfirmEliminarPrestamosModal({
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              color: '#64748b',
+              backgroundColor: 'var(--aureus-bg-elevated)',
+              border: '1px solid var(--aureus-border-subtle)',
+              color: 'var(--aureus-text-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -313,8 +337,8 @@ export function ConfirmEliminarPrestamosModal({
           {/* Mensaje descriptivo en lenguaje natural */}
           <div
             style={{
-              backgroundColor: '#fff1f2',
-              border: '1px solid #fecdd3',
+              backgroundColor: 'var(--aureus-red-light)',
+              border: '1px solid var(--aureus-red-border)',
               borderRadius: '12px',
               padding: '12px 14px',
               display: 'flex',
@@ -322,19 +346,23 @@ export function ConfirmEliminarPrestamosModal({
               gap: '10px'
             }}
           >
-            <AlertTriangle size={18} color="#e11d48" style={{ shrink: 0, marginTop: '2px' }} />
+            <AlertTriangle size={18} color="var(--aureus-red-text)" style={{ shrink: 0, marginTop: '2px' }} />
             <p
               style={{
                 margin: 0,
                 fontSize: '12.5px',
-                color: '#9f1239',
+                color: 'var(--aureus-red-text)',
                 lineHeight: 1.5,
                 fontWeight: 600
               }}
             >
               {countToDelete === 1
-                ? `¿Estás seguro de que deseas eliminar este préstamo de ${clientDisplayName}? Esta acción borrará sus cobros programados y no eliminará al cliente de tu lista de clientes.`
-                : `¿Estás seguro de que deseas eliminar los ${countToDelete} préstamos seleccionados? Esta acción borrará sus cobros programados y no eliminará al cliente de tu lista de clientes.`}
+                ? isPaidOrRegistrado
+                  ? `¿Deseas mover este préstamo finalizado de ${clientDisplayName} a la papelera por 30 días? El cliente permanecerá activo en tu directorio.`
+                  : `¿Deseas mover este préstamo de ${clientDisplayName} a la papelera por 30 días? Se retirarán sus cobros programados pero el cliente permanecerá activo.`
+                : isPaidOrRegistrado
+                ? `¿Deseas mover los ${countToDelete} préstamos finalizados seleccionados a la papelera por 30 días? El cliente permanecerá activo en tu directorio.`
+                : `¿Deseas mover los ${countToDelete} préstamos seleccionados a la papelera por 30 días? Se retirarán sus cobros programados pero el cliente permanecerá activo.`}
             </p>
           </div>
 
@@ -342,8 +370,8 @@ export function ConfirmEliminarPrestamosModal({
           {!isBatchMode && !isMultiLoanClient && targetLoan && (
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '14px',
                 padding: '14px',
                 display: 'flex',
@@ -352,39 +380,56 @@ export function ConfirmEliminarPrestamosModal({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                   Cliente
                 </span>
-                <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                <strong style={{ fontSize: '13px', color: 'var(--aureus-text-primary)' }}>
                   {clientDisplayName}
                 </strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                   Monto prestado
                 </span>
-                <strong style={{ fontSize: '14px', color: '#0f172a', fontWeight: 800 }}>
+                <strong style={{ fontSize: '14px', color: 'var(--aureus-text-primary)', fontWeight: 800 }}>
                   {formatColones(targetLoan.monto_prestado)}
                 </strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                   Cuota
                 </span>
-                <strong style={{ fontSize: '13px', color: '#059669', fontWeight: 800 }}>
+                <strong style={{ fontSize: '13px', color: 'var(--aureus-green-text)', fontWeight: 800 }}>
                   {formatColones(targetLoan.cuota)}
                 </strong>
               </div>
 
+              {isPaidOrRegistrado && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
+                    Total pagado
+                  </span>
+                  <strong style={{ fontSize: '13px', color: 'var(--aureus-text-primary)', fontWeight: 800 }}>
+                    {formatColones(totalPagadoReal)}
+                  </strong>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                   Saldo pendiente
                 </span>
-                <strong style={{ fontSize: '13px', color: '#e11d48', fontWeight: 800 }}>
-                  {formatColones(targetLoan.saldo_por_pagar || targetLoan.monto_total_financiar)}
-                </strong>
+                {isPaidOrRegistrado ? (
+                  <strong style={{ fontSize: '13px', color: 'var(--aureus-green-text)', fontWeight: 800 }}>
+                    ₡0
+                  </strong>
+                ) : (
+                  <strong style={{ fontSize: '13px', color: 'var(--aureus-red-text)', fontWeight: 800 }}>
+                    {`₡${saldoReal.toLocaleString('en-US')}`}
+                  </strong>
+                )}
               </div>
             </div>
           )}
@@ -393,7 +438,7 @@ export function ConfirmEliminarPrestamosModal({
           {isMultiLoanClient && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--aureus-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Préstamos de este cliente
                 </span>
                 <button
@@ -402,7 +447,7 @@ export function ConfirmEliminarPrestamosModal({
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#e11d48',
+                    color: 'var(--aureus-red-text)',
                     fontSize: '11px',
                     fontWeight: 800,
                     cursor: 'pointer',
@@ -416,6 +461,21 @@ export function ConfirmEliminarPrestamosModal({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
                 {clientLoans.map((loanItem) => {
                   const isChecked = selectedIds.includes(loanItem.id);
+                  const itemRawSaldo =
+                    loanItem?.saldo_por_pagar !== undefined && loanItem?.saldo_por_pagar !== null
+                      ? Number(loanItem.saldo_por_pagar)
+                      : loanItem?.saldo_pendiente !== undefined && loanItem?.saldo_pendiente !== null
+                      ? Number(loanItem.saldo_pendiente)
+                      : 0;
+                  const itemEstado = String(loanItem?.estado || '').toUpperCase();
+                  const isItemPaid =
+                    itemEstado === 'CANCELADO' ||
+                    itemEstado === 'LIQUIDADO' ||
+                    itemEstado === 'PAGADO' ||
+                    itemEstado === 'REGISTRADO' ||
+                    itemRawSaldo <= 0;
+                  const itemSaldoReal = isItemPaid ? 0 : Math.max(0, itemRawSaldo);
+
                   return (
                     <div
                       key={loanItem.id}
@@ -423,8 +483,8 @@ export function ConfirmEliminarPrestamosModal({
                       style={{
                         padding: '10px 12px',
                         borderRadius: '12px',
-                        backgroundColor: isChecked ? '#fff1f2' : '#ffffff',
-                        border: isChecked ? '1.5px solid #e11d48' : '1px solid #e2e8f0',
+                        backgroundColor: isChecked ? 'var(--aureus-red-light)' : 'var(--aureus-bg-elevated)',
+                        border: isChecked ? '1.5px solid #C65D58' : '1px solid var(--aureus-border-subtle)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -435,7 +495,7 @@ export function ConfirmEliminarPrestamosModal({
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#0f172a' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                             {formatColones(loanItem.monto_prestado)}
                           </span>
                           <span
@@ -444,19 +504,22 @@ export function ConfirmEliminarPrestamosModal({
                               fontWeight: 800,
                               padding: '2px 6px',
                               borderRadius: '6px',
-                              backgroundColor: loanItem.estado === 'ATRASADO' ? '#fee2e2' : '#D6E7D6',
-                              color: loanItem.estado === 'ATRASADO' ? '#e11d48' : '#0A3323'
+                              backgroundColor: loanItem.estado === 'ATRASADO' ? 'var(--aureus-red-light)' : 'var(--aureus-green-light)',
+                              color: loanItem.estado === 'ATRASADO' ? 'var(--aureus-red-text)' : 'var(--aureus-green-text)'
                             }}
                           >
                             {loanItem.estado === 'ATRASADO'
                               ? 'Atrasado'
-                              : loanItem.estado === 'CANCELADO' || loanItem.estado === 'LIQUIDADO' || Number(loanItem.saldo_por_pagar) <= 0
+                              : isItemPaid
                               ? 'Registrado'
                               : 'Pendiente'}
                           </span>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
-                          Cuota: <strong style={{ color: '#059669' }}>{formatColones(loanItem.cuota)}</strong> · Saldo: <strong style={{ color: '#0f172a' }}>{formatColones(loanItem.saldo_por_pagar || loanItem.monto_total_financiar)}</strong>
+                        <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
+                          Cuota: <strong style={{ color: 'var(--aureus-green-text)' }}>{formatColones(loanItem.cuota)}</strong> · Saldo:{' '}
+                          <strong style={{ color: isItemPaid ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)', fontWeight: 800 }}>
+                            {isItemPaid ? '₡0' : `₡${itemSaldoReal.toLocaleString('en-US')}`}
+                          </strong>
                         </div>
                       </div>
 
@@ -466,8 +529,8 @@ export function ConfirmEliminarPrestamosModal({
                           width: '20px',
                           height: '20px',
                           borderRadius: '50%',
-                          border: isChecked ? '1.5px solid #e11d48' : '2px solid #cbd5e1',
-                          backgroundColor: isChecked ? '#e11d48' : 'transparent',
+                          border: isChecked ? '1.5px solid #C65D58' : '2px solid var(--aureus-border-subtle)',
+                          backgroundColor: isChecked ? '#C65D58' : 'transparent',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -487,7 +550,7 @@ export function ConfirmEliminarPrestamosModal({
           {/* CASO 3: Modo Lote desde la barra de Selección */}
           {isBatchMode && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--aureus-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Préstamos a eliminar
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
@@ -501,8 +564,8 @@ export function ConfirmEliminarPrestamosModal({
                       style={{
                         padding: '9px 12px',
                         borderRadius: '10px',
-                        backgroundColor: isChecked ? '#fff1f2' : '#ffffff',
-                        border: isChecked ? '1.5px solid #e11d48' : '1px solid #e2e8f0',
+                        backgroundColor: isChecked ? 'var(--aureus-red-light)' : 'var(--aureus-bg-elevated)',
+                        border: isChecked ? '1.5px solid #C65D58' : '1px solid var(--aureus-border-subtle)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -511,11 +574,11 @@ export function ConfirmEliminarPrestamosModal({
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                           {clientName}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
-                          Monto: <strong style={{ color: '#0f172a' }}>{formatColones(bLoan.monto_prestado)}</strong> · Cuota: <strong style={{ color: '#059669' }}>{formatColones(bLoan.cuota)}</strong>
+                        <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
+                          Monto: <strong style={{ color: 'var(--aureus-text-primary)' }}>{formatColones(bLoan.monto_prestado)}</strong> · Cuota: <strong style={{ color: 'var(--aureus-green-text)' }}>{formatColones(bLoan.cuota)}</strong>
                         </div>
                       </div>
 
@@ -524,8 +587,8 @@ export function ConfirmEliminarPrestamosModal({
                           width: '18px',
                           height: '18px',
                           borderRadius: '50%',
-                          border: isChecked ? '1.5px solid #e11d48' : '2px solid #cbd5e1',
-                          backgroundColor: isChecked ? '#e11d48' : 'transparent',
+                          border: isChecked ? '1.5px solid #C65D58' : '2px solid var(--aureus-border-subtle)',
+                          backgroundColor: isChecked ? '#C65D58' : 'transparent',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -546,8 +609,8 @@ export function ConfirmEliminarPrestamosModal({
         <div
           style={{
             padding: '14px 20px',
-            borderTop: '1px solid #f1f5f9',
-            backgroundColor: '#ffffff',
+            borderTop: '1px solid var(--aureus-border-subtle)',
+            backgroundColor: 'var(--aureus-bg-surface)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
@@ -561,9 +624,9 @@ export function ConfirmEliminarPrestamosModal({
             style={{
               padding: '10px 18px',
               borderRadius: '12px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#f8fafc',
-              color: '#334155',
+              border: '1px solid var(--aureus-border-subtle)',
+              backgroundColor: 'var(--aureus-bg-elevated)',
+              color: 'var(--aureus-text-primary)',
               fontSize: '13px',
               fontWeight: 700,
               cursor: isDeleting ? 'not-allowed' : 'pointer',

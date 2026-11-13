@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { sanitizeUserFacingMessage } from '../../services/apiClient';
 import {
   AlertCircle,
   ShieldAlert,
@@ -13,19 +14,19 @@ import {
 } from 'lucide-react';
 
 /**
- * Modal de Alerta / Aviso Ejecutivo de Cobro-Firme
+ * Modal de Alerta / Aviso Ejecutivo de Aureus Manager
  * Reemplazo 100% formal para window.alert() del navegador.
  *
  * Cada acción cuenta con su propio icono semántico contextual y círculo de color:
- * - 'clipboard' / 'incomplete': ClipboardList en ámbar (bg-amber-50 text-amber-600 border border-amber-200/80)
- * - 'user-x' / 'duplicate': UserX en rojo (bg-red-50 text-red-600 border border-red-200/80)
- * - 'shield' / 'blacklist': ShieldAlert en rojo (bg-red-50 text-red-600 border border-red-200/80)
- * - 'trash': Trash2 en rojo (bg-red-50 text-red-600 border border-red-200/80)
- * - 'banknote' / 'loan': Banknote en verde esmeralda (bg-emerald-50 text-emerald-600 border border-emerald-200/80)
- * - 'renew' / 'refresh': RefreshCw en azul (bg-blue-50 text-blue-600 border border-blue-200/80)
- * - 'agreement' / 'handshake': Handshake en índigo (bg-indigo-50 text-indigo-600 border border-indigo-200/80)
- * - 'success' / 'check': CheckCircle2 en verde esmeralda (bg-emerald-50 text-emerald-600 border border-emerald-200/80)
- * - 'alert' / default: Alerta ejecutiva ámbar o roja según gravedad
+ * - 'clipboard' / 'incomplete': ClipboardList en dorado Aureus (#F7F2E4 / #9E8342)
+ * - 'user-x' / 'duplicate': UserX en rojo alerta (#FCEEE9 / #C65D58)
+ * - 'shield' / 'blacklist': ShieldAlert en rojo alerta (#FCEEE9 / #C65D58)
+ * - 'trash': Trash2 en rojo alerta (#FCEEE9 / #C65D58)
+ * - 'banknote' / 'loan': Banknote en verde financiero (#E6F2EE / #397D67)
+ * - 'renew' / 'refresh': RefreshCw en dorado Aureus (#F7F2E4 / #B69A55)
+ * - 'agreement' / 'handshake': Handshake en dorado Aureus (#F7F2E4 / #B69A55)
+ * - 'success' / 'check': CheckCircle2 en verde financiero (#E6F2EE / #397D67)
+ * - 'alert' / default: Alerta ejecutiva en dorado Aureus o rojo alerta según gravedad
  */
 export function AlertModal({
   isOpen,
@@ -69,64 +70,64 @@ export function AlertModal({
     if (iconType === 'clipboard' || iconType === 'incomplete') {
       return {
         icon: <ClipboardList size={28} strokeWidth={2} />,
-        containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
-        containerStyle: { backgroundColor: '#fffbeb', color: '#d97706', borderColor: 'rgba(253, 230, 138, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-gold-light)', color: 'var(--aureus-gold-text)', borderColor: 'var(--aureus-border-gold)' }
       };
     }
 
     if (iconType === 'user-x' || iconType === 'duplicate') {
       return {
         icon: <UserX size={28} strokeWidth={2} />,
-        containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
-        containerStyle: { backgroundColor: '#fef2f2', color: '#dc2626', borderColor: 'rgba(254, 202, 202, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-red-light)', color: 'var(--aureus-red-text)', borderColor: 'var(--aureus-red-border)' }
       };
     }
 
     if (iconType === 'shield' || iconType === 'blacklist') {
       return {
         icon: <ShieldAlert size={28} strokeWidth={2} />,
-        containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
-        containerStyle: { backgroundColor: '#fef2f2', color: '#dc2626', borderColor: 'rgba(254, 202, 202, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-red-light)', color: 'var(--aureus-red-text)', borderColor: 'var(--aureus-red-border)' }
       };
     }
 
     if (iconType === 'trash' || iconType === 'delete') {
       return {
         icon: <Trash2 size={28} strokeWidth={2} />,
-        containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
-        containerStyle: { backgroundColor: '#fef2f2', color: '#dc2626', borderColor: 'rgba(254, 202, 202, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-red-light)', color: 'var(--aureus-red-text)', borderColor: 'var(--aureus-red-border)' }
       };
     }
 
     if (iconType === 'banknote' || iconType === 'loan') {
       return {
         icon: <Banknote size={28} strokeWidth={2} />,
-        containerClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200/80',
-        containerStyle: { backgroundColor: '#ecfdf5', color: '#059669', borderColor: 'rgba(167, 243, 208, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-green-light)', color: 'var(--aureus-green-text)', borderColor: 'var(--aureus-green-border)' }
       };
     }
 
     if (iconType === 'renew' || iconType === 'refresh') {
       return {
         icon: <RefreshCw size={28} strokeWidth={2} />,
-        containerClass: 'bg-blue-50 text-blue-600 border border-blue-200/80',
-        containerStyle: { backgroundColor: '#eff6ff', color: '#2563eb', borderColor: 'rgba(191, 219, 254, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-gold-light)', color: 'var(--aureus-gold-text)', borderColor: 'var(--aureus-border-gold)' }
       };
     }
 
     if (iconType === 'agreement' || iconType === 'handshake') {
       return {
         icon: <Handshake size={28} strokeWidth={2} />,
-        containerClass: 'bg-indigo-50 text-indigo-600 border border-indigo-200/80',
-        containerStyle: { backgroundColor: '#eef2ff', color: '#4f46e5', borderColor: 'rgba(199, 210, 254, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-gold-light)', color: 'var(--aureus-gold-text)', borderColor: 'var(--aureus-border-gold)' }
       };
     }
 
     if (iconType === 'check' || iconType === 'success') {
       return {
         icon: <CheckCircle2 size={28} strokeWidth={2} />,
-        containerClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200/80',
-        containerStyle: { backgroundColor: '#ecfdf5', color: '#059669', borderColor: 'rgba(167, 243, 208, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-green-light)', color: 'var(--aureus-green-text)', borderColor: 'var(--aureus-green-border)' }
       };
     }
 
@@ -134,40 +135,40 @@ export function AlertModal({
     if (lowerTitle.includes('duplicad') || lowerTitle.includes('cédula ya') || lowerTitle.includes('teléfono ya')) {
       return {
         icon: <UserX size={28} strokeWidth={2} />,
-        containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
-        containerStyle: { backgroundColor: '#fef2f2', color: '#dc2626', borderColor: 'rgba(254, 202, 202, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-red-light)', color: 'var(--aureus-red-text)', borderColor: 'var(--aureus-red-border)' }
       };
     }
 
     if (lowerTitle.includes('incomplet') || lowerTitle.includes('obligator') || lowerTitle.includes('faltan') || lowerTitle.includes('datos')) {
       return {
         icon: <ClipboardList size={28} strokeWidth={2} />,
-        containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
-        containerStyle: { backgroundColor: '#fffbeb', color: '#d97706', borderColor: 'rgba(253, 230, 138, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-gold-light)', color: 'var(--aureus-gold-text)', borderColor: 'var(--aureus-border-gold)' }
       };
     }
 
     if (lowerTitle.includes('error') || lowerTitle.includes('falló') || lowerTitle.includes('no se pudo')) {
       return {
         icon: <AlertCircle size={28} strokeWidth={2} />,
-        containerClass: 'bg-red-50 text-red-600 border border-red-200/80',
-        containerStyle: { backgroundColor: '#fef2f2', color: '#dc2626', borderColor: 'rgba(254, 202, 202, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-red-light)', color: 'var(--aureus-red-text)', borderColor: 'var(--aureus-red-border)' }
       };
     }
 
     if (lowerTitle.includes('guardado') || lowerTitle.includes('éxito') || lowerTitle.includes('correcto')) {
       return {
         icon: <CheckCircle2 size={28} strokeWidth={2} />,
-        containerClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200/80',
-        containerStyle: { backgroundColor: '#ecfdf5', color: '#059669', borderColor: 'rgba(167, 243, 208, 0.8)' }
+        containerClass: '',
+        containerStyle: { backgroundColor: 'var(--aureus-green-light)', color: 'var(--aureus-green-text)', borderColor: 'var(--aureus-green-border)' }
       };
     }
 
     // Fallback general formal
     return {
       icon: <AlertCircle size={28} strokeWidth={2} />,
-      containerClass: 'bg-amber-50 text-amber-600 border border-amber-200/80',
-      containerStyle: { backgroundColor: '#fffbeb', color: '#d97706', borderColor: 'rgba(253, 230, 138, 0.8)' }
+      containerClass: '',
+      containerStyle: { backgroundColor: 'var(--aureus-gold-light)', color: 'var(--aureus-gold-text)', borderColor: 'var(--aureus-border-gold)' }
     };
   };
 
@@ -201,11 +202,11 @@ export function AlertModal({
           position: 'relative',
           width: '100%',
           maxWidth: '384px',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'var(--aureus-bg-surface)',
           borderRadius: '16px',
-          border: '1px solid #E2E8F0',
+          border: '1px solid var(--aureus-border-subtle)',
           padding: '24px 20px 20px 20px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.12)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -231,7 +232,7 @@ export function AlertModal({
             right: '14px',
             background: 'transparent',
             border: 'none',
-            color: '#94A3B8',
+            color: 'var(--aureus-text-muted)',
             width: '28px',
             height: '28px',
             borderRadius: '8px',
@@ -268,13 +269,13 @@ export function AlertModal({
 
         {/* Título claro en negrita */}
         <h3 id="alert-modal-title" className="alert-modal-title">
-          {title}
+          {sanitizeUserFacingMessage(title, 'Aviso')}
         </h3>
 
         {/* Mensaje limpio */}
         {message && (
           <p id="alert-modal-desc" className="alert-modal-message">
-            {message}
+            {sanitizeUserFacingMessage(message)}
           </p>
         )}
 

@@ -32,6 +32,7 @@ import {
   formatShortSpanishDate,
   getInitials,
   formatFullName,
+  formatPhone,
   matchesClientSearch
 } from '../../utils/formatters';
 
@@ -618,9 +619,9 @@ export function NewLoanModal({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: '#D6E7D6',
-                  color: '#0A3323',
-                  border: '1px solid #8FB89A'
+                  backgroundColor: 'var(--aureus-green-light)',
+                  color: 'var(--aureus-green-text)',
+                  border: '1px solid var(--aureus-green-border)'
                 }}
               >
                 <Banknote size={28} strokeWidth={2} className="shrink-0" />
@@ -726,7 +727,7 @@ export function NewLoanModal({
               ) : (
                 /* Input buscador sin placeholder: solo despliega resultados al escribir >= 1 carácter */
                 <>
-                  <div className={`client-select-input-wrapper ${fieldErrors.cliente ? redInputClasses : ''}`}>
+                  <div className={`client-select-input-wrapper cf-search-pill ${fieldErrors.cliente ? redInputClasses : ''}`}>
                     <Search size={16} strokeWidth={2} className="select-search-icon" />
                     <input
                       type="text"
@@ -793,7 +794,7 @@ export function NewLoanModal({
                               </span>
                               <span className="dropdown-item-cedula">
                                 {c.cedula ? `Cédula ${c.cedula}` : 'Sin cédula'}
-                                {c.telefono ? ` · ${c.telefono}` : ''}
+                                {c.telefono ? ` · ${formatPhone(c.telefono)}` : ''}
                                 {c.ubicacion ? ` · ${c.ubicacion}` : ''}
                               </span>
                             </div>
@@ -820,10 +821,10 @@ export function NewLoanModal({
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                 gap: '4px',
-                backgroundColor: '#f1f5f9',
+                backgroundColor: 'var(--aureus-bg-muted)',
                 padding: '4px',
                 borderRadius: '14px',
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--aureus-border-subtle)',
               }}
             >
               {[
@@ -844,10 +845,10 @@ export function NewLoanModal({
                       fontSize: '13px',
                       fontWeight: 800,
                       cursor: 'pointer',
-                      backgroundColor: activo ? '#0A3323' : 'transparent',
-                      color: activo ? '#ffffff' : '#475569',
-                      border: activo ? '1px solid #1B4D37' : 'none',
-                      boxShadow: activo ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                      backgroundColor: activo ? '#B69A55' : 'transparent',
+                      color: activo ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                      border: activo ? '1px solid #B69A55' : 'none',
+                      boxShadow: activo ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                       transition: 'all 0.2s ease',
                     }}
                   >
@@ -863,7 +864,7 @@ export function NewLoanModal({
                 margin: 0,
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 paddingLeft: '4px',
               }}
             >
@@ -972,8 +973,8 @@ export function NewLoanModal({
           {modoRegistro === 'AVANZADO' && (
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '14px',
                 padding: '14px',
                 display: 'flex',
@@ -998,7 +999,7 @@ export function NewLoanModal({
                       fontWeight: 800,
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase',
-                      color: '#475569',
+                      color: 'var(--aureus-text-secondary)',
                     }}
                   >
                     CUOTAS YA PAGADAS
@@ -1008,7 +1009,7 @@ export function NewLoanModal({
                       fontFamily: 'inherit',
                       fontSize: '11px',
                       fontWeight: 700,
-                      color: '#64748b',
+                      color: 'var(--aureus-text-muted)',
                     }}
                   >
                     {cuotasPendientesPorCobrar} pendientes
@@ -1020,8 +1021,8 @@ export function NewLoanModal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    border: '1px solid var(--aureus-border-subtle)',
                     borderRadius: '12px',
                     padding: '4px',
                     height: '46px',
@@ -1043,8 +1044,8 @@ export function NewLoanModal({
                       height: '38px',
                       borderRadius: '8px',
                       border: 'none',
-                      backgroundColor: periodosNum <= 0 || cuotasPagadas <= 0 ? '#f1f5f9' : '#e2e8f0',
-                      color: periodosNum <= 0 || cuotasPagadas <= 0 ? '#94a3b8' : '#0f172a',
+                      backgroundColor: periodosNum <= 0 || cuotasPagadas <= 0 ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-elevated)',
+                      color: periodosNum <= 0 || cuotasPagadas <= 0 ? 'var(--aureus-text-muted)' : 'var(--aureus-text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1071,7 +1072,7 @@ export function NewLoanModal({
                         fontFamily: 'inherit',
                         fontSize: '15px',
                         fontWeight: 900,
-                        color: '#0f172a',
+                        color: 'var(--aureus-text-primary)',
                       }}
                     >
                       {cuotasPagadas} de {periodosNum || 0}
@@ -1081,7 +1082,7 @@ export function NewLoanModal({
                         fontFamily: 'inherit',
                         fontSize: '13px',
                         fontWeight: 700,
-                        color: '#64748b',
+                        color: 'var(--aureus-text-muted)',
                       }}
                     >
                       pagadas
@@ -1106,12 +1107,12 @@ export function NewLoanModal({
                       border: 'none',
                       backgroundColor:
                         periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)
-                          ? '#f1f5f9'
-                          : '#0A3323',
+                          ? 'var(--aureus-bg-muted)'
+                          : '#B69A55',
                       color:
                         periodosNum <= 0 || cuotasPagadas >= Math.max(0, periodosNum - 1)
-                          ? '#94a3b8'
-                          : '#ffffff',
+                          ? 'var(--aureus-text-muted)'
+                          : '#FFFFFF',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1139,8 +1140,8 @@ export function NewLoanModal({
               >
                 <div
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e2e8f0',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    border: '1px solid var(--aureus-border-subtle)',
                     borderRadius: '10px',
                     padding: '8px 10px',
                     display: 'flex',
@@ -1152,7 +1153,7 @@ export function NewLoanModal({
                       fontFamily: 'inherit',
                       fontSize: '10px',
                       fontWeight: 800,
-                      color: '#059669',
+                      color: 'var(--aureus-green-text)',
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
                       marginBottom: '2px',
@@ -1165,7 +1166,7 @@ export function NewLoanModal({
                       fontFamily: 'inherit',
                       fontSize: '14px',
                       fontWeight: 800,
-                      color: '#047857',
+                      color: 'var(--aureus-green-text)',
                     }}
                   >
                     {formatColones(saldoPagadoPapel)}
@@ -1174,8 +1175,8 @@ export function NewLoanModal({
 
                 <div
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e2e8f0',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    border: '1px solid var(--aureus-border-subtle)',
                     borderRadius: '10px',
                     padding: '8px 10px',
                     display: 'flex',
@@ -1187,7 +1188,7 @@ export function NewLoanModal({
                       fontFamily: 'inherit',
                       fontSize: '10px',
                       fontWeight: 800,
-                      color: '#3b82f6',
+                      color: 'var(--aureus-gold-text)',
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
                       marginBottom: '2px',
@@ -1200,7 +1201,7 @@ export function NewLoanModal({
                       fontFamily: 'inherit',
                       fontSize: '14px',
                       fontWeight: 800,
-                      color: '#1d4ed8',
+                      color: 'var(--aureus-text-primary)',
                     }}
                   >
                     {formatColones(saldoRestantePorCobrar)}
@@ -1212,7 +1213,7 @@ export function NewLoanModal({
               {schedulePreview.primerCobroTexto !== '—' && (
                 <div
                   style={{
-                    backgroundColor: '#f1f5f9',
+                    backgroundColor: 'var(--aureus-bg-muted)',
                     borderRadius: '8px',
                     padding: '6px 10px',
                     display: 'flex',
@@ -1222,8 +1223,8 @@ export function NewLoanModal({
                     fontSize: '11px',
                   }}
                 >
-                  <span style={{ color: '#475569', fontWeight: 600 }}>Primer cobro por cobrar:</span>
-                  <span style={{ color: '#0f172a', fontWeight: 800 }}>
+                  <span style={{ color: 'var(--aureus-text-secondary)', fontWeight: 600 }}>Primer cobro por cobrar:</span>
+                  <span style={{ color: 'var(--aureus-text-primary)', fontWeight: 800 }}>
                     Cobro {cuotasPagadas + 1} ({schedulePreview.primerCobroTexto})
                   </span>
                 </div>

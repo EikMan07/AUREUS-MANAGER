@@ -1,6 +1,8 @@
 import React from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
 export function EstadoClientesDonut({ distribucion }) {
+  const { isDark } = useTheme();
   const total = distribucion?.totalClientesActivos || 0;
   const alDia = distribucion?.clientesAlDia || { cantidad: 0, porcentaje: 0 };
   const pasados = distribucion?.pasadosEstaSemana || { cantidad: 0, porcentaje: 0 };
@@ -24,11 +26,11 @@ export function EstadoClientesDonut({ distribucion }) {
   return (
     <div
       style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #e2e8f0',
+        backgroundColor: 'var(--aureus-bg-surface)',
+        border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
         padding: '16px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--aureus-card-shadow)',
         boxSizing: 'border-box',
         width: '100%',
         marginBottom: '16px',
@@ -40,7 +42,7 @@ export function EstadoClientesDonut({ distribucion }) {
           style={{
             fontSize: '16px',
             fontWeight: 800,
-            color: '#0f172a',
+            color: 'var(--aureus-text-primary)',
             margin: 0,
             lineHeight: 1.2,
           }}
@@ -51,7 +53,7 @@ export function EstadoClientesDonut({ distribucion }) {
           style={{
             fontSize: '12px',
             fontWeight: 600,
-            color: '#64748b',
+            color: 'var(--aureus-text-muted)',
             margin: '3px 0 0 0',
           }}
         >
@@ -94,7 +96,7 @@ export function EstadoClientesDonut({ distribucion }) {
               cy="80"
               r={radius}
               fill="transparent"
-              stroke="#F1F5F9"
+              stroke={isDark ? '#1D2E44' : '#F1F5F9'}
               strokeWidth={strokeWidth}
             />
 
@@ -105,7 +107,7 @@ export function EstadoClientesDonut({ distribucion }) {
                 cy="80"
                 r={radius}
                 fill="transparent"
-                stroke="#059669"
+                stroke="#397D67"
                 strokeWidth={strokeWidth}
                 strokeDasharray={`${lenAlDia} ${circumference}`}
                 strokeDashoffset={offsetAlDia}
@@ -137,7 +139,7 @@ export function EstadoClientesDonut({ distribucion }) {
                 cy="80"
                 r={radius}
                 fill="transparent"
-                stroke="#DC2626"
+                stroke="#C65D58"
                 strokeWidth={strokeWidth}
                 strokeDasharray={`${lenAtrasados} ${circumference}`}
                 strokeDashoffset={offsetAtrasados}
@@ -166,7 +168,7 @@ export function EstadoClientesDonut({ distribucion }) {
               style={{
                 fontSize: '32px',
                 fontWeight: 900,
-                color: '#0f172a',
+                color: 'var(--aureus-text-primary)',
                 lineHeight: 1,
               }}
             >
@@ -176,7 +178,7 @@ export function EstadoClientesDonut({ distribucion }) {
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 marginTop: '4px',
@@ -196,50 +198,53 @@ export function EstadoClientesDonut({ distribucion }) {
           gap: '8px',
           marginTop: '14px',
           paddingTop: '12px',
-          borderTop: '1px solid #f1f5f9',
+          borderTop: '1px solid var(--aureus-border-subtle)',
         }}
       >
+        {/* Ítem 1: Clientes al día */}
         {/* Ítem 1: Clientes al día */}
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '6px 10px',
             padding: '10px 12px',
             borderRadius: '12px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #f1f5f9',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <span
               style={{
                 width: '10px',
                 height: '10px',
                 borderRadius: '9999px',
-                backgroundColor: '#059669',
+                backgroundColor: '#397D67',
                 flexShrink: 0,
                 display: 'inline-block',
               }}
             />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
               Clientes al día
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: 'auto' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)', whiteSpace: 'nowrap' }}>
               {alDia.cantidad === 1 ? '1 cliente' : `${alDia.cantidad} clientes`}
             </span>
             <span
               style={{
                 fontSize: '11px',
                 fontWeight: 800,
-                color: '#047857',
-                backgroundColor: '#ecfdf5',
+                color: 'var(--aureus-green-text)',
+                backgroundColor: 'var(--aureus-green-light)',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                border: '1px solid #a7f3d0',
+                border: '1px solid var(--aureus-green-border)',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -252,43 +257,45 @@ export function EstadoClientesDonut({ distribucion }) {
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '6px 10px',
             padding: '10px 12px',
             borderRadius: '12px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #f1f5f9',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <span
               style={{
                 width: '10px',
                 height: '10px',
                 borderRadius: '9999px',
-                backgroundColor: '#d97706',
+                backgroundColor: '#B69A55',
                 flexShrink: 0,
                 display: 'inline-block',
               }}
             />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
               Pasados de día esta semana
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: 'auto' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)', whiteSpace: 'nowrap' }}>
               {pasados.cantidad === 1 ? '1 cliente' : `${pasados.cantidad} clientes`}
             </span>
             <span
               style={{
                 fontSize: '11px',
                 fontWeight: 800,
-                color: '#b45309',
-                backgroundColor: '#fffbeb',
+                color: 'var(--aureus-gold-text)',
+                backgroundColor: 'var(--aureus-gold-light)',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                border: '1px solid #fde68a',
+                border: '1px solid var(--aureus-border-gold)',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -301,43 +308,45 @@ export function EstadoClientesDonut({ distribucion }) {
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '6px 10px',
             padding: '10px 12px',
             borderRadius: '12px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #f1f5f9',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <span
               style={{
                 width: '10px',
                 height: '10px',
                 borderRadius: '9999px',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#C65D58',
                 flexShrink: 0,
                 display: 'inline-block',
               }}
             />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
               Atrasados y arreglo de pago
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: 'auto' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)', whiteSpace: 'nowrap' }}>
               {atrasados.cantidad === 1 ? '1 cliente' : `${atrasados.cantidad} clientes`}
             </span>
             <span
               style={{
                 fontSize: '11px',
                 fontWeight: 800,
-                color: '#b91c1c',
-                backgroundColor: '#fef2f2',
+                color: 'var(--aureus-red-text)',
+                backgroundColor: 'var(--aureus-red-light)',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                border: '1px solid #fecaca',
+                border: '1px solid var(--aureus-red-border)',
                 whiteSpace: 'nowrap',
               }}
             >

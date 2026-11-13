@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="aureusBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E2936" />
+      <stop offset="100%" stop-color="#101823" />
+    </linearGradient>
+    <linearGradient id="shieldGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E4C678" />
+      <stop offset="50%" stop-color="#C8A555" />
+      <stop offset="100%" stop-color="#9A7934" />
+    </linearGradient>
+    <linearGradient id="goldBright" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAECB8" />
+      <stop offset="55%" stop-color="#E2BF6B" />
+      <stop offset="100%" stop-color="#C59F49" />
+    </linearGradient>
+    <linearGradient id="goldMid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E6C574" />
+      <stop offset="100%" stop-color="#AF8939" />
+    </linearGradient>
+    <linearGradient id="goldDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A88234" />
+      <stop offset="100%" stop-color="#76571B" />
+    </linearGradient>
+    <linearGradient id="goldShadowDeep" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8A6824" />
+      <stop offset="100%" stop-color="#5E4414" />
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="496" height="496" rx="112" fill="url(#aureusBg)" stroke="#C6A456" stroke-width="10" stroke-opacity="0.6" />
+
+  <g fill="none" stroke="url(#shieldGold)" stroke-width="13" stroke-linecap="butt" stroke-linejoin="miter">
+    <polyline points="200,104 110,136 110,296" />
+    <polyline points="312,104 402,136 402,296" />
+    <polyline points="184,394 256,442 328,394" />
+  </g>
+
+  <g stroke-linejoin="round">
+    <polygon points="256,60 256,160 206,282 184,306" fill="url(#goldDark)" />
+    <polygon points="256,60 184,306 108,376 218,128" fill="url(#goldBright)" />
+    <polygon points="256,60 108,376 178,376 206,282" fill="url(#goldMid)" />
+
+    <polygon points="256,60 256,160 322,336 368,342" fill="url(#goldShadowDeep)" />
+    <polygon points="256,60 368,342 404,376 300,128" fill="url(#goldBright)" />
+    <polygon points="322,336 368,342 404,376 332,376" fill="url(#goldDark)" />
+
+    <polygon points="184,306 334,234 306,266 154,344" fill="url(#goldBright)" />
+    <polygon points="154,344 306,266 312,286 178,376 108,376" fill="url(#goldDark)" />
+  </g>
+</svg>

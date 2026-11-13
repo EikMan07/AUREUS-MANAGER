@@ -1,6 +1,9 @@
 // Servicio compartido de consulta al padrón de Hacienda CR.
 // Lo usan tanto el endpoint /api/hacienda/:cedula como el OCR /api/ocr/cedula.
 
+const haciendaCache = new Map();
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 horas
+
 export function toTitleCase(str = '') {
   return str
     .toLowerCase()
@@ -33,7 +36,13 @@ export function parseOfficialFullName(rawFullName = '') {
  * Consulta Hacienda CR por cédula de 9 dígitos.
  * @returns {Promise<{status: 'ok'|'not_found'|'error'|'timeout', nombre?: string, apellidos?: string}>}
  */
-export async function fetchHaciendaByCedula(cleanCedula, timeoutMs = 4500) {
+export async function fetchHaciendaByCedula(cleanCedula, timeoutMs = 10000) {
+  // Verificar memoria caché primero para respuesta instantánea (<1ms)
+  const cached = haciendaCache.get(cleanCedula);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.data;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -45,16 +54,40 @@ export async function fetchHaciendaByCedula(cleanCedula, timeoutMs = 4500) {
     });
 
     if (!response.ok) {
-      return { status: response.status === 404 ? 'not_found' : 'error' };
+      const errResult = { status: response.status === 404 ? 'not_found' : 'error' };
+      if (response.status === 404) {
+        haciendaCache.set(cleanCedula, { data: errResult, timestamp: Date.now() });
+      }
+      return errResult;
     }
 
     const data = await response.json();
     if (!data || !data.nombre) {
-      return { status: 'not_found' };
+      const notFoundResult = { status: 'not_found' };
+      haciendaCache.set(cleanCedula, { data: notFoundResult, timestamp: Date.now() });
+      return notFoundResult;
     }
 
     const { nombre, apellidos } = parseOfficialFullName(data.nombre);
-    return { status: 'ok', nombre, apellidos };
+    const situacionObj = data?.situacion || {};
+    const morosoRaw = String(situacionObj.moroso || 'NO').toUpperCase().trim();
+    const omisoRaw = String(situacionObj.omiso || 'NO').toUpperCase().trim();
+    const esMoroso = morosoRaw === 'SI' || morosoRaw === 'SÍ' || morosoRaw === 'TRUE';
+    const estadoTributario = String(situacionObj.estado || 'Inscrito').trim();
+
+    const okResult = {
+      status: 'ok',
+      nombre,
+      apellidos,
+      nombreOficial: data.nombre,
+      esMoroso,
+      omiso: omisoRaw === 'SI' || omisoRaw === 'SÍ' || omisoRaw === 'TRUE',
+      estadoHacienda: estadoTributario,
+      situacion: situacionObj
+    };
+
+    haciendaCache.set(cleanCedula, { data: okResult, timestamp: Date.now() });
+    return okResult;
   } catch (err) {
     if (err.name === 'AbortError') return { status: 'timeout' };
     console.error('[Hacienda] Error de consulta:', err.message);

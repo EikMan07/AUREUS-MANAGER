@@ -1,6 +1,6 @@
 /* ==========================================================================
-   COBRO-FIRME — MICRO-ANIMACIONES Y CONFIRMACIONES VISUALES SUTILES
-   Paleta Oficial Verde Dólar Ejecutivo · Aceleración GPU (transform, opacity)
+   AUREUS MANAGER — MICRO-ANIMACIONES Y CONFIRMACIONES VISUALES SUTILES
+   Paleta Oficial Aureus Manager (Modo Claro) · Aceleración GPU (transform, opacity)
    Zero Emojis · Zero Slashes/Paréntesis en UI · Estricto Tema Claro
    ========================================================================== */
 
@@ -38,7 +38,7 @@ button:hover:not(:disabled):not(.no-hover-lift),
   transform: translateY(-1px);
 }
 
-button:active:not(:disabled),
+button:active:not(:disabled):not(.no-hover-lift),
 .btn-primary:active:not(:disabled),
 .btn-new-client:active:not(:disabled),
 .btn-save-client:active:not(:disabled),
@@ -54,17 +54,60 @@ button:active:not(:disabled),
 }
 
 /* 2. Efecto de Foco Ejecutivo en Buscadores e Inputs */
-input:focus,
+input:not(.directory-search-input):not(.segmented-tabs-search-input):not(.client-select-native-input):not(.cf-search-input):focus,
 select:focus,
 textarea:focus,
-.directory-search-bar:focus-within,
-.directory-search-input:focus,
-.input-currency-wrapper:focus-within,
-.form-input-currency:focus {
+.input-currency-wrapper:focus-within {
   outline: none;
-  border-color: #4E8F6F !important;
-  box-shadow: 0 0 0 3px rgba(214, 231, 214, 0.65) !important;
+  border-color: #B69A55 !important;
+  box-shadow: 0 0 0 3px rgba(182, 154, 85, 0.22) !important;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* El input interno jamás debe dibujar un rectángulo dentro del buscador ni de campos compuestos */
+.search-bar input,
+.search-bar input:focus,
+.search-bar input:focus-visible,
+.search-input-wrapper input,
+.search-input-wrapper input:focus,
+.search-input-wrapper input:focus-visible,
+.cf-search-pill input,
+.cf-search-pill input:focus,
+.cf-search-pill input:focus-visible,
+.directory-search-bar input,
+.directory-search-bar input:focus,
+.directory-search-bar input:focus-visible,
+.directory-search-input,
+.directory-search-input:focus,
+.directory-search-input:focus-visible,
+.segmented-tabs-search-input,
+.segmented-tabs-search-input:focus,
+.segmented-tabs-search-input:focus-visible,
+.client-select-native-input,
+.client-select-native-input:focus,
+.client-select-native-input:focus-visible,
+.cf-phone-field-wrapper input,
+.cf-phone-field-wrapper input:focus,
+.cf-phone-field-wrapper input:focus-visible,
+input[style*="background: transparent"]:focus,
+input[style*="background-color: transparent"]:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+/* Remarcado Verde Dólar ÚNICAMENTE al contenedor exterior redondeado (:focus-within) */
+.cf-search-pill:focus-within,
+.search-bar:focus-within,
+.search-input-wrapper:focus-within,
+.directory-search-bar:focus-within,
+.segmented-tabs-search-active:focus-within,
+.client-select-input-wrapper:focus-within:not(.form-input-error),
+.cf-phone-field-wrapper:focus-within:not(.has-error) {
+  border-color: #B69A55 !important;
+  box-shadow: 0 0 0 3px rgba(182, 154, 85, 0.22) !important;
+  background-color: var(--aureus-bg-surface, #ffffff) !important;
 }
 
 /* 3. Animaciones de Entrada en Modales y Desplegables */
@@ -112,15 +155,15 @@ textarea:focus,
 @keyframes cfCheckPop {
   0% {
     transform: scale(0.92);
-    box-shadow: 0 0 0 0 rgba(78, 143, 111, 0.45);
+    box-shadow: 0 0 0 0 rgba(57, 125, 103, 0.45);
   }
   45% {
     transform: scale(1.09);
-    box-shadow: 0 0 0 10px rgba(214, 231, 214, 0);
+    box-shadow: 0 0 0 10px rgba(230, 242, 238, 0);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(214, 231, 214, 0);
+    box-shadow: 0 0 0 0 rgba(230, 242, 238, 0);
   }
 }
 
@@ -178,15 +221,15 @@ textarea:focus,
 @keyframes cfShieldSeal {
   0% {
     transform: translateY(-5px) scale(1.12);
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+    box-shadow: 0 0 0 0 rgba(198, 93, 88, 0.5);
   }
   48% {
     transform: translateY(2px) scale(0.96);
-    box-shadow: 0 0 0 8px rgba(254, 202, 202, 0);
+    box-shadow: 0 0 0 8px rgba(252, 238, 233, 0);
   }
   100% {
     transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 0 rgba(254, 202, 202, 0);
+    box-shadow: 0 0 0 0 rgba(252, 238, 233, 0);
   }
 }
 
@@ -378,6 +421,38 @@ textarea:focus,
   }
 }
 
+/* 5.12. Giro circular de restauración (Variante Restaurar Cliente) */
+@keyframes cfRestoreSpin {
+  0% {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.8);
+  }
+  65% {
+    opacity: 1;
+    transform: rotate(15deg) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+/* 5.13. Rotación fluida de renovación (Variante Renovar Préstamo) */
+@keyframes cfRefreshSpin {
+  0% {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.75);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(372deg) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(360deg) scale(1);
+  }
+}
+
 /* Contenedor del escenario central */
 .confirm-action-stage-wrapper.stage-entering {
   animation: cfStagePopIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -390,3 +465,95 @@ textarea:focus,
 }
 
 
+
+/* ==========================================================================
+   6. MICRO-INTERACCIONES AUREUS MANAGER (INSPIRED BY REACT BITS PRO)
+   Shimmers dorados, elevación sutil en tarjetas y accesibilidad reducida
+   ========================================================================== */
+
+@keyframes aureusShimmerSweep {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+
+.btn-new-client,
+.btn-save-client,
+.btn-modal-primary-full {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-new-client::after,
+.btn-save-client::after,
+.btn-modal-primary-full::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.btn-new-client:hover::after,
+.btn-save-client:hover::after,
+.btn-modal-primary-full:hover::after {
+  animation: aureusShimmerSweep 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.white-summary-card:hover,
+.client-card:hover,
+.loan-card-container:hover {
+  transform: translateY(-2px);
+  border-color: #D5C295;
+  box-shadow: 0 8px 20px -6px rgba(37, 42, 49, 0.08), 0 2px 6px -2px rgba(182, 154, 85, 0.14);
+}
+
+@keyframes aureusAbsorbPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(182, 154, 85, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(182, 154, 85, 0);
+  }
+}
+
+.cf-hamburger-fixed-btn,
+.cf-hamburger-fixed-btn:hover,
+.cf-hamburger-fixed-btn:active {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  border-radius: 14px !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-new-client:hover::after,
+  .btn-save-client:hover::after,
+  .btn-modal-primary-full:hover::after {
+    animation: none !important;
+  }
+  .white-summary-card:hover,
+  .client-card:hover,
+  .loan-card-container:hover {
+    transform: none !important;
+  }
+  .cf-hamburger-pulse-ring {
+    animation: none !important;
+  }
+}

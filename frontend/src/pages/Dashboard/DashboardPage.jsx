@@ -13,6 +13,7 @@ import { CalendarModal } from '../../components/Modals/CalendarModal';
 import { AlertModal } from '../../components/Modals/AlertModal';
 import { NotificacionesModal } from '../../components/NotificacionesModal';
 import { CompartirCobrosModal } from '../../components/Modals/CompartirCobrosModal';
+import { SenecaAssistantModal } from '../../components/Seneca/SenecaAssistantModal';
 import { BottomNav } from '../../components/Navigation/BottomNav';
 import { ClientsDirectory } from '../../components/Clients/ClientsDirectory';
 import { LoansDirectory } from '../../components/Loans/LoansDirectory';
@@ -20,6 +21,7 @@ import { ResumenDashboard } from '../../components/Resumen/ResumenDashboard';
 import { ListaNegraDashboard } from '../../components/ListaNegra/ListaNegraDashboard';
 import { PapeleraDashboard } from '../../components/Papelera/PapeleraDashboard';
 import { dbService, purgeLegacyDemoData } from '../../services/db';
+import { sanitizeUserFacingMessage } from '../../services/apiClient';
 import {
   getDayNameFromKey,
   getCostaRicaNow,
@@ -47,6 +49,9 @@ import {
   Share2
 } from 'lucide-react';
 
+const ACTIVE_MODULE_STORAGE_KEY = 'aureus_last_active_module';
+const VALID_ACTIVE_MODULES = ['cobros', 'clientes', 'prestamos', 'resumen', 'lista-negra', 'papelera'];
+
 export function DashboardPage() {
   const [clients, setClients] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -58,7 +63,20 @@ export function DashboardPage() {
     diasConPendientesSinCerrar: []
   });
   const [activeTab, setActiveTab] = useState('pendientes');
-  const [activeModule, setActiveModule] = useState('cobros'); // Cobros, Clientes, Préstamos, Resumen, Lista Negra, Papelera
+  const [activeModule, setActiveModule] = useState(() => {
+    try {
+      const saved =
+        sessionStorage.getItem(ACTIVE_MODULE_STORAGE_KEY) ||
+        localStorage.getItem(ACTIVE_MODULE_STORAGE_KEY);
+      const normalized = saved === 'lista_negra' ? 'lista-negra' : saved;
+      if (normalized && VALID_ACTIVE_MODULES.includes(normalized)) {
+        return normalized;
+      }
+    } catch {
+      // Ignorar errores de acceso a storage
+    }
+    return 'cobros';
+  }); // Cobros, Clientes, Préstamos, Resumen, Lista Negra, Papelera
   const [isLoading, setIsLoading] = useState(true);
 
   // Estados de fecha sincronizados con Costa Rica (America/Costa_Rica, UTC-6)
@@ -72,6 +90,7 @@ export function DashboardPage() {
   const [noPayModalState, setNoPayModalState] = useState({ isOpen: false, client: null });
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isCompartirModalOpen, setIsCompartirModalOpen] = useState(false);
+  const [isSenecaOpen, setIsSenecaOpen] = useState(false);
   const [vistaUsuarioId, setVistaUsuarioId] = useState(null);
   const [compartidosActivosDia, setCompartidosActivosDia] = useState([]);
   const [esVistaDelegada, setEsVistaDelegada] = useState(false);
@@ -80,6 +99,18 @@ export function DashboardPage() {
   const [isNotificacionesLoading, setIsNotificacionesLoading] = useState(false);
   // Almacén en memoria persistente de IDs revisados durante la sesión + localStorage
   const revisadasIdsSetRef = useRef(new Set());
+
+  // Persistencia inmediata del módulo activo para restaurarlo al regresar desde pantallas de error
+  useEffect(() => {
+    try {
+      if (activeModule && VALID_ACTIVE_MODULES.includes(activeModule)) {
+        sessionStorage.setItem(ACTIVE_MODULE_STORAGE_KEY, activeModule);
+        localStorage.setItem(ACTIVE_MODULE_STORAGE_KEY, activeModule);
+      }
+    } catch {
+      // Ignorar errores de escritura en storage
+    }
+  }, [activeModule]);
 
   // Carga inicial de IDs revisados desde localStorage
   useEffect(() => {
@@ -100,6 +131,31 @@ export function DashboardPage() {
     }
   }, []);
 
+  // Estado del layout del menú de navegación minimizable y acoplable (Abajo, Izquierda, Derecha)
+  const [navLayout, setNavLayout] = useState(() => {
+    try {
+      const savedDock = localStorage.getItem('cf_nav_dock_position');
+      const dockPosition = savedDock === 'left' || savedDock === 'right' || savedDock === 'bottom' ? savedDock : 'bottom';
+      const isMinimized = localStorage.getItem('cf_nav_minimized') === 'true';
+      return { dockPosition, isMinimized };
+    } catch {
+      return { dockPosition: 'bottom', isMinimized: false };
+    }
+  });
+
+  const handleNavLayoutChange = useCallback((nextLayout) => {
+    if (!nextLayout) return;
+    setNavLayout((prev) => {
+      if (
+        prev.dockPosition === nextLayout.dockPosition &&
+        prev.isMinimized === nextLayout.isMinimized
+      ) {
+        return prev;
+      }
+      return nextLayout;
+    });
+  }, []);
+
   // Estado del buscador integrado en la fila de pestañas de Cobros
   const [cobroSearchTerm, setCobroSearchTerm] = useState('');
   const [isCobroSearchOpen, setIsCobroSearchOpen] = useState(false);
@@ -116,8 +172,8 @@ export function DashboardPage() {
   const showAlert = useCallback(({ title, message, buttonText = 'Entendido', iconType = 'alert' }) => {
     setAlertModalState({
       isOpen: true,
-      title: title || 'Aviso',
-      message: message || '',
+      title: sanitizeUserFacingMessage(title, 'Aviso'),
+      message: message ? sanitizeUserFacingMessage(message) : '',
       buttonText,
       iconType
     });
@@ -281,12 +337,12 @@ export function DashboardPage() {
     if (typeof document === 'undefined') return;
 
     if (porRevisarCount > 0) {
-      document.title = `Cobro-Firme · ${porRevisarCount} ${porRevisarCount === 1 ? 'aviso por revisar' : 'avisos por revisar'}`;
+      document.title = `Aureus Manager · ${porRevisarCount} ${porRevisarCount === 1 ? 'aviso por revisar' : 'avisos por revisar'}`;
       if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
         navigator.setAppBadge(porRevisarCount).catch(() => {});
       }
     } else {
-      document.title = 'Cobro-Firme';
+      document.title = 'Aureus Manager';
       if (typeof navigator !== 'undefined' && 'clearAppBadge' in navigator) {
         navigator.clearAppBadge().catch(() => {});
       }
@@ -457,7 +513,7 @@ export function DashboardPage() {
   };
 
   // 1. Confirmar Pago contra PostgreSQL
-  const handleConfirmPayment = async (clientId, moratoriaAmount = 0, montoBaseCobrado = null) => {
+  const handleConfirmPayment = async (clientId, moratoriaAmount = 0, montoBaseCobrado = null, periodosPagadosHoy = null) => {
     try {
       const targetClient = paymentModalState.client;
       const cobroId = targetClient?.id || clientId;
@@ -466,7 +522,10 @@ export function DashboardPage() {
         : Number(targetClient?.cuotaDiaria || 0);
       await dbService.registrarPago(cobroId, {
         monto: montoACobrar,
-        moratoria: moratoriaAmount
+        monto_pagado: montoACobrar,
+        moratoria: moratoriaAmount,
+        monto_moratoria: moratoriaAmount,
+        periodos_pagados: periodosPagadosHoy
       });
       await Promise.all([loadCobros(currentDayInfo.dateISO), loadClients(), loadLoans(), loadNotificaciones()]);
       setPaymentModalState({ isOpen: false, client: null });
@@ -482,14 +541,16 @@ export function DashboardPage() {
   };
 
   // 2. Confirmar Pasar de Día contra PostgreSQL
-  const handleConfirmPass = async (clientId, newDayKey, newDateISO, newDateFullText) => {
+  const handleConfirmPass = async (clientId, newDayKey, newDateISO, newDateFullText, modoAcumulacion = 'ACUMULAR') => {
     try {
       const targetClient = passModalState.client;
       const cobroId = targetClient?.id || clientId;
       await dbService.pasarCobro(cobroId, {
-        nuevaFecha: newDateISO
+        nuevaFecha: newDateISO,
+        fecha_nueva: newDateISO,
+        modo_acumulacion: modoAcumulacion
       });
-      await Promise.all([loadCobros(currentDayInfo.dateISO), loadNotificaciones()]);
+      await Promise.all([loadCobros(currentDayInfo.dateISO), loadLoans(), loadNotificaciones()]);
       setPassModalState({ isOpen: false, client: null });
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al pasar cobro en PostgreSQL:', err.debugError || err);
@@ -508,7 +569,7 @@ export function DashboardPage() {
       const targetClient = noPayModalState.client;
       const cobroId = targetClient?.id || clientId;
       await dbService.registrarNoPago(cobroId);
-      await Promise.all([loadCobros(currentDayInfo.dateISO), loadNotificaciones()]);
+      await Promise.all([loadCobros(currentDayInfo.dateISO), loadLoans(), loadNotificaciones()]);
       setNoPayModalState({ isOpen: false, client: null });
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al registrar no pago en PostgreSQL:', err.debugError || err);
@@ -524,9 +585,21 @@ export function DashboardPage() {
   // --- OPERACIONES DE MÓDULO 2: CLIENTES CONTRA POSTGRESQL ---
   const handleAddClient = async (clientData) => {
     try {
-      await dbService.createClient(clientData);
+      const savedClient = await dbService.createClient(clientData);
+      setClients((prev) => {
+        const list = Array.isArray(prev) ? prev : [];
+        if (savedClient?.id) {
+          const index = list.findIndex((c) => c.id === savedClient.id);
+          if (index >= 0) {
+            const next = [...list];
+            next[index] = savedClient;
+            return next;
+          }
+        }
+        return [savedClient, ...list];
+      });
       await loadClients();
-      return { success: true };
+      return { success: true, client: savedClient, idempotentAction: savedClient?.idempotentAction };
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al agregar cliente:', err.debugError || err);
       const isPhoneDuplicate =
@@ -606,14 +679,15 @@ export function DashboardPage() {
     }
   };
 
-  // Sincronización general al registrar o sacar personas de Lista Negra
+  // Sincronización general al restaurar o actualizar registros desde Lista Negra / Papelera
   const handleSyncAfterListaNegra = useCallback(async () => {
     await Promise.all([
       loadClients(),
+      loadLoans(),
       loadCobros(currentDayInfo.dateISO),
-      loadLoans()
+      loadNotificaciones()
     ]);
-  }, [loadClients, loadCobros, loadLoans, currentDayInfo.dateISO]);
+  }, [loadClients, loadLoans, loadCobros, loadNotificaciones, currentDayInfo.dateISO]);
 
   const handleBlacklistClient = async (client) => {
     try {
@@ -635,7 +709,12 @@ export function DashboardPage() {
   const handleDeleteClient = async (client) => {
     try {
       await dbService.sendClientToTrash(client.id);
-      await Promise.all([loadClients(), loadCobros(currentDayInfo.dateISO)]);
+      await Promise.all([
+        loadClients(),
+        loadLoans(),
+        loadCobros(currentDayInfo.dateISO),
+        loadNotificaciones()
+      ]);
       return { success: true };
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al enviar cliente a papelera:', err.debugError || err);
@@ -664,7 +743,7 @@ export function DashboardPage() {
       console.error('[Diagnóstico técnico para desarrollador]: Error al crear préstamo:', err.debugError || err);
       showAlert({
         title: 'No se pudo crear el préstamo',
-        message: err.userMessage || 'Error al guardar el préstamo en el servidor.',
+        message: err.userMessage || 'No se pudo guardar el préstamo en este momento. Inténtalo nuevamente.',
         buttonText: 'Entendido',
         iconType: 'alert'
       });
@@ -679,12 +758,6 @@ export function DashboardPage() {
         loadLoans(),
         loadCobros(currentDayInfo.dateISO)
       ]);
-      showAlert({
-        title: 'Préstamo renovado',
-        message: 'La renovación del préstamo se guardó correctamente y el calendario fue actualizado.',
-        buttonText: 'Aceptar',
-        iconType: 'renew'
-      });
       return { success: true };
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al renovar préstamo:', err.debugError || err);
@@ -705,12 +778,6 @@ export function DashboardPage() {
         loadLoans(),
         loadCobros(currentDayInfo.dateISO)
       ]);
-      showAlert({
-        title: 'Arreglo registrado',
-        message: 'El acuerdo de pago y las cuotas reprogramadas se guardaron exitosamente.',
-        buttonText: 'Aceptar',
-        iconType: 'agreement'
-      });
       return { success: true };
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al registrar arreglo de pago:', err.debugError || err);
@@ -749,7 +816,7 @@ export function DashboardPage() {
   return (
     <div className="mobile-app-shell">
       <main className="mobile-screen-frame">
-        {/* Top Bar Superior Verde Dólar Ejecutivo Compacto */}
+        {/* Top Bar Superior Claro Ejecutivo Aureus Manager */}
         <Header
           title={
             activeModule === 'clientes'
@@ -764,30 +831,31 @@ export function DashboardPage() {
               ? 'Papelera'
               : 'Cobros'
           }
-          subtitle="COBRO-FIRME"
-          icon={
-            activeModule === 'clientes'
-              ? Users
-              : activeModule === 'prestamos'
-              ? Landmark
-              : activeModule === 'resumen'
-              ? BarChart3
-              : activeModule === 'lista-negra'
-              ? ShieldAlert
-              : activeModule === 'papelera'
-              ? Trash2
-              : Coins
-          }
           hasNotifications={porRevisarCount > 0}
           notificationCount={porRevisarCount}
           onOpenNotifications={() => {
             setIsNotificationCenterOpen(true);
             loadNotificaciones();
           }}
+          onOpenSeneca={() => setIsSenecaOpen(true)}
         />
 
-        {/* Contenido desplazable */}
-        <div className="main-scrollable-content">
+        {/* Contenido desplazable con espaciado dinámico para menú inferior o lateral */}
+        <div
+          className={[
+            'main-scrollable-content',
+            !navLayout.isMinimized && navLayout.dockPosition === 'bottom' ? 'has-bottom-dock' : '',
+            !navLayout.isMinimized && (navLayout.dockPosition === 'left' || navLayout.dockPosition === 'right') ? 'has-side-dock' : '',
+            !navLayout.isMinimized && navLayout.dockPosition === 'left' ? 'side-dock-left' : '',
+            !navLayout.isMinimized && navLayout.dockPosition === 'right' ? 'side-dock-right' : '',
+            navLayout.isMinimized ? 'is-nav-minimized' : ''
+          ].filter(Boolean).join(' ')}
+          data-dock-position={navLayout.dockPosition}
+          data-nav-minimized={navLayout.isMinimized ? 'true' : 'false'}
+          style={{
+            transition: 'padding 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
           {activeModule === 'clientes' ? (
             /* ==========================================
                MÓDULO 2: CLIENTES (PostgreSQL)
@@ -840,95 +908,67 @@ export function DashboardPage() {
                ========================================== */
             <>
               {/* Fecha Interactiva como Botón de Calendario + Flechas Semanales Fijas */}
-              <div className="current-date-display-row flex items-center justify-between gap-2 w-full">
+              <div className="current-date-display-row">
                 {/* Botón de Fecha Interactiva (Abre el Calendario) */}
                 <button
                   type="button"
                   onClick={() => setIsCalendarModalOpen(true)}
-                  className="btn-date-trigger flex items-center justify-between gap-1.5 px-2.5 sm:px-3.5 py-2.5 rounded-2xl border border-slate-200 bg-white shadow-2xs min-w-0 flex-1 hover:bg-slate-50 active:scale-[0.99] transition-all cursor-pointer"
+                  className="btn-date-trigger"
                   title="Abrir selector de calendario mensual"
                   aria-label={`Fecha actual: ${currentDayInfo.fullDate}. Toca para abrir el calendario.`}
                 >
-                  <div className="date-trigger-content flex items-center gap-2 min-w-0">
+                  <div className="date-trigger-content">
                     <CalendarIcon
-                      className="w-4 h-4 text-slate-600 shrink-0 date-trigger-icon"
+                      className="date-trigger-icon"
                       size={16}
                       strokeWidth={2}
                     />
-                    <span className="date-trigger-text text-xs sm:text-sm font-bold text-slate-900 whitespace-nowrap">
+                    <span className="date-trigger-text">
                       {currentDayInfo.fullDate}
                     </span>
                   </div>
                   <ChevronDown
-                    className="w-4 h-4 text-slate-500 shrink-0 date-trigger-chevron"
+                    className="date-trigger-chevron"
                     size={16}
                     strokeWidth={2.2}
                   />
                 </button>
 
                 {/* Controles de navegación semanal y botón compartir cobros */}
-                <div className="date-nav-controls-right flex items-center gap-1.5 shrink-0">
-                  {/* Flecha Izquierda: Retroceder 1 semana */}
-                  <button
-                    type="button"
-                    onClick={handlePrevWeek}
-                    className="btn-date-nav-arrow flex items-center justify-center text-slate-700 hover:bg-slate-50 shrink-0 shadow-2xs active:scale-95 transition-all cursor-pointer"
-                    style={{ width: '44px', height: '44px', borderRadius: '14px' }}
-                    title="Semana anterior"
-                    aria-label="Semana anterior"
-                  >
-                    <ChevronLeft size={18} strokeWidth={2.2} />
-                  </button>
+                <div className="date-nav-controls-right">
+                  <div className="date-nav-arrows-group">
+                    {/* Flecha Izquierda: Retroceder 1 semana */}
+                    <button
+                      type="button"
+                      onClick={handlePrevWeek}
+                      className="btn-date-nav-arrow"
+                      title="Semana anterior"
+                      aria-label="Semana anterior"
+                    >
+                      <ChevronLeft size={18} strokeWidth={2.2} />
+                    </button>
 
-                  {/* Flecha Derecha: Avanzar 1 semana */}
-                  <button
-                    type="button"
-                    onClick={handleNextWeek}
-                    className="btn-date-nav-arrow flex items-center justify-center text-slate-700 hover:bg-slate-50 shrink-0 shadow-2xs active:scale-95 transition-all cursor-pointer"
-                    style={{ width: '44px', height: '44px', borderRadius: '14px' }}
-                    title="Semana siguiente"
-                    aria-label="Semana siguiente"
-                  >
-                    <ChevronRight size={18} strokeWidth={2.2} />
-                  </button>
+                    {/* Flecha Derecha: Avanzar 1 semana */}
+                    <button
+                      type="button"
+                      onClick={handleNextWeek}
+                      className="btn-date-nav-arrow"
+                      title="Semana siguiente"
+                      aria-label="Semana siguiente"
+                    >
+                      <ChevronRight size={18} strokeWidth={2.2} />
+                    </button>
+                  </div>
 
                   {/* Botón: Compartir cobros del día */}
                   <button
                     type="button"
                     onClick={() => setIsCompartirModalOpen(true)}
+                    className="btn-share-cobros"
                     title="Compartir cobros del día"
                     aria-label="Compartir cobros del día"
-                    style={{
-                      height: '44px',
-                      padding: '0 14px',
-                      borderRadius: '14px',
-                      border: '1px solid #e2e8f0',
-                      outline: 'none',
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
-                      fontFamily: 'inherit',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '7px',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-                      flexShrink: 0,
-                      transition: 'all 0.18s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f8fafc';
-                      e.currentTarget.style.borderColor = '#cbd5e1';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#ffffff';
-                      e.currentTarget.style.borderColor = '#e2e8f0';
-                    }}
                   >
-                    <Share2 color="#0f172a" size={16} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                    <Share2 color="#FFFFFF" size={16} strokeWidth={2.2} style={{ flexShrink: 0 }} />
                     <span>Compartir</span>
                   </button>
                 </div>
@@ -942,10 +982,10 @@ export function DashboardPage() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '10px',
-                    background: 'linear-gradient(135deg, #0A3323 0%, #1B4D37 100%)',
-                    border: '1px solid rgba(143, 184, 154, 0.22)',
-                    boxShadow: '0 4px 16px rgba(10, 51, 35, 0.14)',
-                    color: '#ffffff',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    border: '1px solid var(--aureus-border-gold)',
+                    boxShadow: 'var(--aureus-card-shadow)',
+                    color: 'var(--aureus-text-primary)',
                     padding: '8px 14px',
                     borderRadius: '16px',
                     margin: '8px 0 4px 0',
@@ -953,7 +993,7 @@ export function DashboardPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflowX: 'auto' }}>
-                    <span style={{ color: '#94a3b8', fontWeight: 600, flexShrink: 0 }}>Viendo como:</span>
+                    <span style={{ color: 'var(--aureus-text-muted)', fontWeight: 700, flexShrink: 0 }}>Viendo como:</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -965,9 +1005,9 @@ export function DashboardPage() {
                         borderRadius: '10px',
                         fontSize: '11.5px',
                         fontWeight: 800,
-                        backgroundColor: vistaUsuarioId === null ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                        color: vistaUsuarioId === null ? '#064e3b' : '#f8fafc',
-                        border: 'none',
+                        backgroundColor: vistaUsuarioId === null ? '#B69A55' : 'var(--aureus-bg-elevated)',
+                        color: vistaUsuarioId === null ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                        border: vistaUsuarioId === null ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
                         transition: 'all 0.15s ease'
@@ -988,9 +1028,9 @@ export function DashboardPage() {
                           borderRadius: '10px',
                           fontSize: '11.5px',
                           fontWeight: 800,
-                          backgroundColor: vistaUsuarioId === c.usuario_id ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                          color: vistaUsuarioId === c.usuario_id ? '#064e3b' : '#f8fafc',
-                          border: 'none',
+                          backgroundColor: vistaUsuarioId === c.usuario_id ? '#B69A55' : 'var(--aureus-bg-elevated)',
+                          color: vistaUsuarioId === c.usuario_id ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                          border: vistaUsuarioId === c.usuario_id ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
                           transition: 'all 0.15s ease'
@@ -1003,13 +1043,13 @@ export function DashboardPage() {
                   {esVistaDelegada && (
                     <span
                       style={{
-                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                        color: '#10b981',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        backgroundColor: 'var(--aureus-gold-light)',
+                        color: 'var(--aureus-gold-text)',
+                        border: '1px solid var(--aureus-border-gold)',
                         padding: '2px 8px',
                         borderRadius: '8px',
                         fontSize: '11px',
-                        fontWeight: 700,
+                        fontWeight: 800,
                         flexShrink: 0
                       }}
                     >
@@ -1199,6 +1239,7 @@ export function DashboardPage() {
           isOpen={passModalState.isOpen}
           onClose={() => setPassModalState({ isOpen: false, client: null })}
           onConfirmPass={handleConfirmPass}
+          currentDateISO={currentDayInfo.dateISO}
         />
 
         <NoPayModal
@@ -1239,10 +1280,17 @@ export function DashboardPage() {
           onShowAlert={showAlert}
         />
 
-        {/* Barra de Navegación Inferior */}
+        {/* Agente IA 100% Informativo Séneca */}
+        <SenecaAssistantModal
+          isOpen={isSenecaOpen}
+          onClose={() => setIsSenecaOpen(false)}
+        />
+
+        {/* Barra de Navegación Minimizable y Arrastrable (Abajo, Izquierda, Derecha) */}
         <BottomNav
           activeModule={activeModule}
           onSelectModule={setActiveModule}
+          onLayoutChange={handleNavLayoutChange}
         />
       </main>
     </div>

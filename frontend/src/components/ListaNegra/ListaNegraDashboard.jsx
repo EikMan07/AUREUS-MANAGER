@@ -90,15 +90,6 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
       if (onClientRestored) {
         onClientRestored();
       }
-
-      if (onShowAlert) {
-        onShowAlert({
-          title: 'Retiro exitoso',
-          message: `${persona.nombre} fue retirado de la Lista Negra y restaurado al directorio de Clientes.`,
-          buttonText: 'Aceptar',
-          iconType: 'success'
-        });
-      }
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al retirar de Lista Negra:', err.debugError || err);
       if (onShowAlert) {
@@ -116,11 +107,11 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
 
   return (
     <div
+      className="lista-negra-dashboard-container"
       style={{
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'var(--aureus-bg-app)',
         minHeight: '100%',
-        padding: '16px',
-        paddingBottom: '96px',
+        padding: '2px 0 28px 0',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -135,17 +126,18 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
         style={{
           display: 'flex',
           flexDirection: 'row',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
+          gap: '10px 12px',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 180px' }}>
           <h2
             style={{
               fontSize: '20px',
-              fontWeight: 900,
-              color: '#0f172a',
+              fontWeight: 800,
+              color: 'var(--aureus-text-primary)',
               margin: 0,
               lineHeight: 1.2,
             }}
@@ -156,27 +148,15 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
             style={{
               fontSize: '12.5px',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'var(--aureus-text-muted)',
               marginTop: '4px',
             }}
           >
             Control de morosidad y restricciones
           </span>
-          <p
-            style={{
-              margin: '6px 0 0 0',
-              fontSize: '13px',
-              lineHeight: 1.5,
-              color: '#64748b',
-              fontWeight: 500,
-              maxWidth: '680px',
-            }}
-          >
-            Espacio para registrar y consultar a personas que no son buenas pagadoras o han incumplido con sus pagos, evitando otorgarles nuevos préstamos.
-          </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {/* Botón Refrescar */}
           <button
             type="button"
@@ -186,13 +166,13 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
               width: '38px',
               height: '38px',
               borderRadius: '12px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              backgroundColor: 'var(--aureus-bg-surface)',
+              border: '1px solid var(--aureus-border-subtle)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#475569',
+              color: 'var(--aureus-text-secondary)',
               cursor: isLoading ? 'default' : 'pointer',
               flexShrink: 0,
               padding: 0,
@@ -205,14 +185,14 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
               size={18}
               strokeWidth={2}
               style={{
-                color: isLoading ? '#dc2626' : '#475569',
+                color: isLoading ? '#B69A55' : 'var(--aureus-text-secondary)',
                 transition: 'transform 0.3s ease',
               }}
               className={isLoading ? 'animate-spin' : ''}
             />
           </button>
 
-          {/* Botón Registrar Nuevo en Lista Negra */}
+          {/* Botón Registrar Nuevo en Lista Negra (Gris Pizarra / Carbón Ejecutivo) */}
           <button
             type="button"
             onClick={() => handleOpenNuevoRegistro()}
@@ -220,10 +200,10 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
               height: '38px',
               padding: '0 14px',
               borderRadius: '12px',
-              backgroundColor: '#dc2626',
-              border: 'none',
+              backgroundColor: '#1E293B',
+              border: '1px solid #334155',
               outline: 'none',
-              boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.25)',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
@@ -233,7 +213,10 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
               cursor: 'pointer',
               flexShrink: 0,
               fontFamily: 'inherit',
+              transition: 'background-color 0.2s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1E293B'; }}
             title="Registrar persona en Lista Negra"
           >
             <Plus size={16} strokeWidth={2.4} />

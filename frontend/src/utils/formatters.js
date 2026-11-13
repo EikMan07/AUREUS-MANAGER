@@ -1,3 +1,5 @@
+import { parseStoredPhone, formatDigitsByGroups, normalizePhoneKey } from './phoneCountries.js';
+
 // Formatting utilities for Costa Rican Colones and financial dates
 // Sincronización precisa con huso horario de Costa Rica (America/Costa_Rica)
 
@@ -286,11 +288,44 @@ export function formatCedulaCR(value = '') {
   return cleanCedulaDigits(value);
 }
 
+export function formatPhone(value = '') {
+  if (!value) return '';
+  const parsed = parseStoredPhone(value);
+  if (!parsed.digits) return String(value).trim();
+  return `${parsed.country.code} ${parsed.formatted}`.trim();
+}
+
 export function formatTelefonoCR(value = '') {
-  const digits = (value || '').toString().replace(/\D/g, '').slice(0, 8);
-  if (!digits) return '';
-  if (digits.length <= 4) return digits;
-  return `${digits.slice(0, 4)}-${digits.slice(4, 8)}`;
+  return formatPhone(value);
+}
+
+export const normalizeName = (str) =>
+  String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export function namesMatchSamePerson(nomA, apeA, nomB, apeB) {
+  const nA = normalizeName(nomA);
+  const aA = normalizeName(apeA);
+  const nB = normalizeName(nomB);
+  const aB = normalizeName(apeB);
+  if (!nA || !nB) return false;
+  const fullA = `${nA} ${aA}`.trim();
+  const fullB = `${nB} ${aB}`.trim();
+  if (fullA === fullB) return true;
+  if (fullA.includes(fullB) || fullB.includes(fullA)) return true;
+  const firstTokenA = nA.split(' ')[0];
+  const firstTokenB = nB.split(' ')[0];
+  if (firstTokenA && firstTokenB && firstTokenA === firstTokenB) {
+    if (!aA || !aB) return true;
+    const firstApeA = aA.split(' ')[0];
+    const firstApeB = aB.split(' ')[0];
+    if (aA.includes(aB) || aB.includes(aA) || firstApeA === firstApeB) return true;
+  }
+  return false;
 }
 
 /**
@@ -309,7 +344,7 @@ export function normalizeSearchText(str = '') {
  * Evalúa en tiempo real si un cliente coincide con el término de búsqueda multi-criterio:
  * - Nombre y Apellidos
  * - Número de Cédula (con o sin guiones)
- * - Teléfono (con guion 8888-8888 o dígitos continuos 88888888)
+ * - Teléfono (con código de país ej. +506 8888-8888, con guion 8888-8888 o dígitos continuos 88888888)
  * - Ubicación (ej. Puntarenas, Chacarita, Barranca, etc. sin importar tildes o mayúsculas)
  * - Detalles
  */
@@ -317,13 +352,25 @@ export function matchesClientSearch(cliente, rawSearch = '') {
   const normalizedQuery = normalizeSearchText(rawSearch);
   if (!normalizedQuery) return true;
 
+  const rawTel = cliente?.telefono || cliente?.cliente_telefono || '';
+  const telefonoFormatted = formatPhone(rawTel);
+  const telefonoKey = normalizePhoneKey(rawTel);
+
+  const rawTelSec = cliente?.telefono_secundario || cliente?.cliente_telefono_secundario || '';
+  const telSecFormatted = formatPhone(rawTelSec);
+  const telSecKey = normalizePhoneKey(rawTelSec);
+  const telSecDigits = String(rawTelSec).replace(/\D/g, '');
+  const telSecNorm = normalizeSearchText(rawTelSec);
+  const telSecFormattedNorm = normalizeSearchText(telSecFormatted);
+
   const nombreNorm = normalizeSearchText(cliente?.nombre || cliente?.cliente_nombre);
   const apellidosNorm = normalizeSearchText(cliente?.apellidos || cliente?.cliente_apellidos);
   const nombreCompletoNorm = `${nombreNorm} ${apellidosNorm}`.trim();
   const cedulaNorm = normalizeSearchText(cliente?.cedula || cliente?.cliente_cedula);
   const cedulaDigits = cleanCedulaDigits(cliente?.cedula || cliente?.cliente_cedula);
-  const telefonoNorm = normalizeSearchText(cliente?.telefono || cliente?.cliente_telefono);
-  const telefonoDigits = String(cliente?.telefono || cliente?.cliente_telefono || '').replace(/\D/g, '');
+  const telefonoNorm = normalizeSearchText(rawTel);
+  const telefonoFormattedNorm = normalizeSearchText(telefonoFormatted);
+  const telefonoDigits = String(rawTel).replace(/\D/g, '');
   const ubicacionNorm = normalizeSearchText(cliente?.ubicacion || cliente?.cliente_ubicacion || cliente?.address);
   const detallesNorm = normalizeSearchText(cliente?.detalles || cliente?.cliente_detalles || cliente?.motivo);
 
@@ -332,7 +379,13 @@ export function matchesClientSearch(cliente, rawSearch = '') {
     cedulaNorm,
     cedulaDigits,
     telefonoNorm,
+    telefonoFormattedNorm,
+    telefonoKey,
     telefonoDigits,
+    telSecNorm,
+    telSecFormattedNorm,
+    telSecKey,
+    telSecDigits,
     ubicacionNorm,
     detallesNorm
   ].join(' ');
@@ -346,7 +399,7 @@ export function matchesClientSearch(cliente, rawSearch = '') {
     if (
       tokenDigits.length > 0 &&
       tokenDigits === token &&
-      (cedulaDigits.includes(tokenDigits) || telefonoDigits.includes(tokenDigits))
+      (cedulaDigits.includes(tokenDigits) || telefonoDigits.includes(tokenDigits) || (telSecDigits && telSecDigits.includes(tokenDigits)))
     ) {
       return true;
     }
@@ -355,7 +408,7 @@ export function matchesClientSearch(cliente, rawSearch = '') {
 
   if (allTokensMatch) return true;
 
-  if (queryDigits.length > 0 && (cedulaDigits.includes(queryDigits) || telefonoDigits.includes(queryDigits))) {
+  if (queryDigits.length > 0 && (cedulaDigits.includes(queryDigits) || telefonoDigits.includes(queryDigits) || (telSecDigits && telSecDigits.includes(queryDigits)))) {
     return true;
   }
 

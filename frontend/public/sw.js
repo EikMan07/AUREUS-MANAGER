@@ -1,19 +1,21 @@
 /* ==========================================================================
-   COBRO-FIRME — SERVICE WORKER PARA COMPUTADORA Y PWA WEB (sw.js)
+   AUREUS MANAGER — SERVICE WORKER PARA COMPUTADORA Y PWA WEB
    Soporte para Aplicación de Escritorio y Notificaciones Nativas en Segundo Plano
    ========================================================================== */
 
-const CACHE_NAME = 'cobro-firme-v1';
+const CACHE_NAME = 'aureus-manager-v3';
 
 // 1. Instalación inmediata
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// 2. Activación y toma de control inmediata de todos los clientes
+// 2. Activación, limpieza de cachés antiguos y toma de control inmediata de todos los clientes
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
       await self.clients.claim();
     })()
   );
@@ -25,12 +27,12 @@ self.addEventListener('message', (event) => {
 
   if (event.data.type === 'SHOW_WEB_NOTIFICATION') {
     const { title, options } = event.data.payload || {};
-    const notificationTitle = title || 'Cobro-Firme';
+    const notificationTitle = title || 'Aureus Manager';
     const notificationOptions = {
-      icon: '/icon-192.png',
-      badge: '/icon.svg',
+      icon: '/icon-192.png?v=aureus3',
+      badge: '/icon.svg?v=aureus3',
       vibrate: [100, 50, 100],
-      tag: options?.tag || 'cobro-firme-alert',
+      tag: options?.tag || 'aureus-manager-alert',
       renotify: true,
       requireInteraction: false,
       silent: false,
@@ -44,14 +46,14 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// 4. Clic en la notificación nativa de Windows / macOS
+// 4. Clic en la notificación nativa del sistema
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const notificationData = event.notification.data || {};
 
   event.waitUntil(
     (async () => {
-      // Buscar ventanas abiertas de Cobro-Firme
+      // Buscar ventanas abiertas de Aureus Manager
       const clientList = await self.clients.matchAll({
         type: 'window',
         includeUncontrolled: true
@@ -79,4 +81,3 @@ self.addEventListener('notificationclick', (event) => {
     })()
   );
 });
-

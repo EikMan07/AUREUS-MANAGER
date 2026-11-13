@@ -1,0 +1,179 @@
+.aureus-landing-root {
+  min-height: 100dvh;
+  width: 100%;
+  background-color: var(--aureus-bg-app);
+  color: var(--aureus-text-primary);
+  overflow-x: clip;
+  transition: background-color 0.22s ease, color 0.22s ease;
+}
+
+.aureus-landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 72px;
+  width: 100%;
+  background-color: var(--aureus-bg-surface);
+  border-bottom: 1px solid var(--aureus-border-subtle);
+  box-shadow: var(--aureus-card-shadow);
+  transition: background-color 0.22s ease, border-color 0.22s ease;
+}
+
+.aureus-landing-header-inner {
+  max-width: 1200px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.aureus-landing-nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.aureus-landing-nav-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--aureus-text-secondary);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.aureus-landing-nav-btn:hover {
+  background-color: var(--aureus-gold-light);
+  color: var(--aureus-gold-text);
+}
+
+.aureus-landing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 20px;
+  box-sizing: border-box;
+}
+
+.aureus-landing-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+}
+
+.aureus-landing-preview-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aureus-landing-preview-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.aureus-landing-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 20px;
+}
+
+.aureus-landing-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 18px;
+}
+
+.aureus-landing-seneca-examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: 14px;
+}
+
+.aureus-landing-enter-btn {
+  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+
+.aureus-landing-enter-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.aureus-landing-header-cta {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .aureus-landing-nav {
+    display: flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .aureus-landing-hero-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .aureus-landing-header {
+    height: 64px;
+  }
+
+  .aureus-landing-header-inner {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .aureus-landing-brand {
+    gap: 7px !important;
+    flex-shrink: 0;
+  }
+
+  .aureus-landing-brand-title {
+    font-size: 12.5px !important;
+  }
+
+  .aureus-landing-brand-sub {
+    font-size: 9.5px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .aureus-landing-theme-btn {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+  }
+
+  .aureus-landing-header-cta {
+    height: 34px;
+    padding: 0 9px;
+    gap: 4px !important;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+
+  .aureus-landing-container {
+    padding: 28px 14px;
+  }
+
+  .aureus-landing-preview-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import { getInitials, formatFullName, formatCedulaCR, formatTelefonoCR } from '../../utils/formatters';
+import { getInitials, formatFullName, formatCedulaCR, formatPhone } from '../../utils/formatters';
 
 export function ClientCard({ client, onOptionsClick }) {
   const initials = getInitials(client?.nombre, client?.apellidos);
@@ -8,7 +8,10 @@ export function ClientCard({ client, onOptionsClick }) {
 
   const rawCedula = (client?.cedula || '').toString().trim();
   const cedulaFormatted = rawCedula ? (formatCedulaCR(rawCedula) || rawCedula) : 'Sin cédula';
-  const telefonoFormatted = formatTelefonoCR(client?.telefono || '') || (client?.telefono || '');
+  const telefonoFormatted = formatPhone(client?.telefono || '') || (client?.telefono || '');
+  const telefonoSecundarioFormatted = client?.telefono_secundario
+    ? (formatPhone(client.telefono_secundario) || client.telefono_secundario)
+    : '';
   const cleanUbicacion = (client?.ubicacion || '').trim();
   const cleanDetalles = (client?.detalles || '').trim();
 
@@ -26,9 +29,15 @@ export function ClientCard({ client, onOptionsClick }) {
 
         {/* 2. Cédula (o "Sin cédula") y Teléfono en gris medio separados por punto medio */}
         <p className="client-meta-line">
-          <span>{cedulaFormatted}</span>
-          <span className="meta-separator">·</span>
-          <span>{telefonoFormatted}</span>
+          <span className="client-meta-token">{cedulaFormatted}</span>
+          <span className="meta-separator" aria-hidden="true">·</span>
+          <span className="client-meta-token">{telefonoFormatted}</span>
+          {telefonoSecundarioFormatted && (
+            <>
+              <span className="meta-separator" aria-hidden="true">·</span>
+              <span className="client-meta-token">{telefonoSecundarioFormatted}</span>
+            </>
+          )}
         </p>
 
         {/* 3. Ubicación escrita manualmente */}

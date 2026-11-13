@@ -113,12 +113,12 @@ export function NotificacionesModal({
             zIndex: 100000,
             maxWidth: '420px',
             width: 'calc(100% - 48px)',
-            background: 'linear-gradient(135deg, #0A3323 0%, #1B4D37 100%)',
-            border: '1px solid rgba(143, 184, 154, 0.28)',
-            color: '#ffffff',
+            backgroundColor: 'var(--aureus-bg-surface)',
+            border: '1px solid var(--aureus-border-gold)',
+            color: 'var(--aureus-text-primary)',
             borderRadius: '16px',
             padding: '16px',
-            boxShadow: '0 20px 45px rgba(10, 51, 35, 0.45)',
+            boxShadow: 'var(--aureus-card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
@@ -139,8 +139,9 @@ export function NotificacionesModal({
                   width: '28px',
                   height: '28px',
                   borderRadius: '8px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.22)',
-                  color: '#10b981',
+                  backgroundColor: 'var(--aureus-gold-light)',
+                  border: '1px solid var(--aureus-border-gold)',
+                  color: 'var(--aureus-gold-text)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -148,12 +149,12 @@ export function NotificacionesModal({
               >
                 <Bell size={16} strokeWidth={2.4} />
               </div>
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#f8fafc', letterSpacing: '0.03em' }}>
-                Cobro-Firme · Notificación
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)', letterSpacing: '0.02em' }}>
+                Aureus Manager · Notificación
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-muted)' }}>
                 Ahora
               </span>
               <button
@@ -165,7 +166,7 @@ export function NotificacionesModal({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: '#6E757F',
                   padding: 0,
                   cursor: 'pointer',
                   display: 'flex',
@@ -179,10 +180,10 @@ export function NotificacionesModal({
           </div>
 
           <div>
-            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
-              {toastData?.titulo || 'Notificación del Sistema'}
+            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#252A31' }}>
+              {toastData?.titulo || 'Aviso de Cobros'}
             </h4>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#cbd5e1', lineHeight: 1.4 }}>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#4A5058', lineHeight: 1.4 }}>
               {toastData?.mensaje}
             </p>
           </div>
@@ -192,19 +193,19 @@ export function NotificacionesModal({
               <span
                 style={{
                   display: 'inline-block',
-                  backgroundColor: '#2E6B4F',
-                  color: '#ffffff',
+                  backgroundColor: '#E6F2EE',
+                  border: '1px solid #94C2B2',
+                  color: '#397D67',
                   fontWeight: 900,
                   fontSize: '12.5px',
                   padding: '3px 9px',
                   borderRadius: '6px',
-                  boxShadow: '0 1px 3px rgba(10, 51, 35, 0.3)',
                   whiteSpace: 'nowrap'
                 }}
               >
                 ₡{Number(toastData.monto).toLocaleString('en-US')}
               </span>
-              <span style={{ fontSize: '11.5px', color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11.5px', color: '#B69A55', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 Ver en Cobros <ChevronRight size={14} />
               </span>
             </div>
@@ -235,9 +236,10 @@ export function NotificacionesModal({
             style={{
               width: '100%',
               maxWidth: 'var(--modal-max-width, 480px)',
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
               borderRadius: '20px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              boxShadow: 'var(--shadow-modal)',
+              border: '1px solid var(--aureus-border-subtle)',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -246,15 +248,15 @@ export function NotificacionesModal({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ENCABEZADO SUPERIOR VERDE DÓLAR EJECUTIVO LIMPIO */}
+            {/* ENCABEZADO SUPERIOR CLARO AUREUS MANAGER */}
             <div
               style={{
-                background: 'linear-gradient(135deg, #0A3323 0%, #1B4D37 100%)',
+                backgroundColor: 'var(--aureus-bg-surface)',
                 padding: '18px 20px',
-                color: '#ffffff',
+                color: 'var(--aureus-text-primary)',
                 position: 'relative',
-                borderBottom: '1px solid rgba(143, 184, 154, 0.22)',
-                boxShadow: '0 4px 16px rgba(10, 51, 35, 0.14)'
+                borderBottom: '1px solid var(--aureus-border-subtle)',
+                boxShadow: 'var(--aureus-card-shadow)'
               }}
             >
               <div
@@ -270,12 +272,12 @@ export function NotificacionesModal({
                       width: '36px',
                       height: '36px',
                       borderRadius: '10px',
-                      backgroundColor: 'rgba(214, 231, 214, 0.12)',
-                      border: '1px solid rgba(143, 184, 154, 0.28)',
+                      backgroundColor: 'var(--aureus-gold-light)',
+                      border: '1px solid var(--aureus-border-gold)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#D6E7D6'
+                      color: 'var(--aureus-gold-text)'
                     }}
                   >
                     <Bell size={20} strokeWidth={2.2} />
@@ -284,10 +286,10 @@ export function NotificacionesModal({
                     <h2
                       style={{
                         fontSize: '18px',
-                        fontWeight: 800,
+                        fontWeight: 900,
                         margin: 0,
                         lineHeight: 1.2,
-                        color: '#ffffff',
+                        color: 'var(--aureus-text-primary)',
                         letterSpacing: '-0.3px'
                       }}
                     >
@@ -297,8 +299,8 @@ export function NotificacionesModal({
                       style={{
                         fontSize: '12px',
                         margin: '3px 0 0 0',
-                        color: '#94a3b8',
-                        fontWeight: 500
+                        color: 'var(--aureus-text-muted)',
+                        fontWeight: 600
                       }}
                     >
                       {porRevisarList.length === 0
@@ -318,9 +320,9 @@ export function NotificacionesModal({
                     width: '34px',
                     height: '34px',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#e2e8f0',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
+                    border: '1px solid var(--aureus-border-subtle)',
+                    color: 'var(--aureus-text-secondary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -341,8 +343,8 @@ export function NotificacionesModal({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 16px',
-                backgroundColor: '#f8fafc',
-                borderBottom: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-muted)',
+                borderBottom: '1px solid var(--aureus-border-subtle)',
                 gap: '8px'
               }}
             >
@@ -356,10 +358,10 @@ export function NotificacionesModal({
                     borderRadius: '20px',
                     fontSize: '12px',
                     fontWeight: tabActiva === 'POR_REVISAR' ? 800 : 600,
-                    backgroundColor: tabActiva === 'POR_REVISAR' ? '#0A3323' : '#ffffff',
-                    color: tabActiva === 'POR_REVISAR' ? '#ffffff' : '#64748b',
-                    border: tabActiva === 'POR_REVISAR' ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                    boxShadow: tabActiva === 'POR_REVISAR' ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                    backgroundColor: tabActiva === 'POR_REVISAR' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                    color: tabActiva === 'POR_REVISAR' ? '#FFFFFF' : 'var(--aureus-text-muted)',
+                    border: tabActiva === 'POR_REVISAR' ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
+                    boxShadow: tabActiva === 'POR_REVISAR' ? '0 3px 8px rgba(182, 154, 85, 0.24)' : 'none',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -370,8 +372,8 @@ export function NotificacionesModal({
                   <span>Por revisar</span>
                   <span
                     style={{
-                      backgroundColor: tabActiva === 'POR_REVISAR' ? 'rgba(214, 231, 214, 0.25)' : '#e2e8f0',
-                      color: tabActiva === 'POR_REVISAR' ? '#ffffff' : '#475569',
+                      backgroundColor: tabActiva === 'POR_REVISAR' ? 'rgba(255, 255, 255, 0.25)' : 'var(--aureus-bg-elevated)',
+                      color: tabActiva === 'POR_REVISAR' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
                       padding: '1px 6px',
                       borderRadius: '10px',
                       fontSize: '11px',
@@ -390,10 +392,10 @@ export function NotificacionesModal({
                     borderRadius: '20px',
                     fontSize: '12px',
                     fontWeight: tabActiva === 'REVISADAS' ? 800 : 600,
-                    backgroundColor: tabActiva === 'REVISADAS' ? '#0A3323' : '#ffffff',
-                    color: tabActiva === 'REVISADAS' ? '#ffffff' : '#64748b',
-                    border: tabActiva === 'REVISADAS' ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                    boxShadow: tabActiva === 'REVISADAS' ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                    backgroundColor: tabActiva === 'REVISADAS' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                    color: tabActiva === 'REVISADAS' ? '#FFFFFF' : 'var(--aureus-text-muted)',
+                    border: tabActiva === 'REVISADAS' ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
+                    boxShadow: tabActiva === 'REVISADAS' ? '0 3px 8px rgba(182, 154, 85, 0.24)' : 'none',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -404,8 +406,8 @@ export function NotificacionesModal({
                   <span>Revisadas</span>
                   <span
                     style={{
-                      backgroundColor: tabActiva === 'REVISADAS' ? 'rgba(214, 231, 214, 0.25)' : '#e2e8f0',
-                      color: tabActiva === 'REVISADAS' ? '#ffffff' : '#475569',
+                      backgroundColor: tabActiva === 'REVISADAS' ? 'rgba(255, 255, 255, 0.25)' : 'var(--aureus-bg-elevated)',
+                      color: tabActiva === 'REVISADAS' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
                       padding: '1px 6px',
                       borderRadius: '10px',
                       fontSize: '11px',
@@ -426,19 +428,19 @@ export function NotificacionesModal({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    border: '1px solid var(--aureus-border-subtle)',
                     borderRadius: '8px',
                     padding: '5px 10px',
                     fontSize: '11px',
                     fontWeight: 700,
-                    color: '#334155',
+                    color: 'var(--aureus-text-primary)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <CheckCheck size={14} strokeWidth={2.2} color="#059669" />
+                  <CheckCheck size={14} strokeWidth={2.2} color="#397D67" />
                   <span>Marcar todas como revisadas</span>
                 </button>
               )}
@@ -483,12 +485,13 @@ export function NotificacionesModal({
                       width: '56px',
                       height: '56px',
                       borderRadius: '50%',
-                      backgroundColor: '#ecfdf5',
-                      color: '#10b981',
+                      backgroundColor: 'var(--aureus-green-light)',
+                      border: '1px solid var(--aureus-green-border)',
+                      color: 'var(--aureus-green-text)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)'
+                      boxShadow: '0 4px 12px rgba(57, 125, 103, 0.14)'
                     }}
                   >
                     <CheckCircle2 size={32} strokeWidth={2.2} />
@@ -498,7 +501,7 @@ export function NotificacionesModal({
                       margin: 0,
                       fontSize: '16px',
                       fontWeight: 800,
-                      color: '#0f172a'
+                      color: 'var(--aureus-text-primary)'
                     }}
                   >
                     {tabActiva === 'POR_REVISAR' ? 'Todo al día' : 'Sin notificaciones revisadas'}
@@ -507,7 +510,7 @@ export function NotificacionesModal({
                     style={{
                       margin: 0,
                       fontSize: '13px',
-                      color: '#64748b',
+                      color: 'var(--aureus-text-muted)',
                       lineHeight: 1.4,
                       maxWidth: '280px'
                     }}
@@ -543,32 +546,32 @@ export function NotificacionesModal({
                     : 'Atraso activo';
 
                   const badgeCategoryBg = isAnterior
-                    ? '#fef3c7'
+                    ? 'var(--aureus-gold-light)'
                     : isHoy
-                    ? '#e0f2fe'
+                    ? 'var(--aureus-green-light)'
                     : isPasado
-                    ? '#ede9fe'
-                    : '#fee2e2';
+                    ? 'var(--aureus-gold-light)'
+                    : 'var(--aureus-red-light)';
 
                   const badgeCategoryColor = isAnterior
-                    ? '#92400e'
+                    ? 'var(--aureus-gold-text)'
                     : isHoy
-                    ? '#0369a1'
+                    ? 'var(--aureus-green-text)'
                     : isPasado
-                    ? '#6d28d9'
-                    : '#991b1b';
+                    ? 'var(--aureus-gold-text)'
+                    : 'var(--aureus-red-text)';
 
                   return (
                     <div
                       key={notif.id}
                       onClick={() => handleCardClick(notif)}
                       style={{
-                        backgroundColor: '#ffffff',
+                        backgroundColor: 'var(--aureus-bg-elevated)',
                         border: isAnterior
-                          ? '1px solid #fde68a'
+                          ? '1px solid var(--aureus-border-gold)'
                           : isAtraso
-                          ? '1px solid #fecaca'
-                          : '1px solid #e2e8f0',
+                          ? '1px solid var(--aureus-red-border)'
+                          : '1px solid var(--aureus-border-subtle)',
                         borderRadius: '14px',
                         padding: '14px',
                         boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
@@ -637,7 +640,7 @@ export function NotificacionesModal({
                           margin: 0,
                           fontSize: '14px',
                           fontWeight: 800,
-                          color: '#0f172a',
+                          color: 'var(--aureus-text-primary)',
                           lineHeight: 1.3
                         }}
                       >
@@ -649,14 +652,14 @@ export function NotificacionesModal({
                         style={{
                           margin: 0,
                           fontSize: '12px',
-                          color: '#475569',
+                          color: 'var(--aureus-text-secondary)',
                           lineHeight: 1.4
                         }}
                       >
                         {notif.mensaje}
                       </p>
 
-                      {/* FILA INFERIOR: MONTO EN BADGE VERDE ESMERALDA Y BOTÓN / INSIGNIA DE REVISADA */}
+                      {/* FILA INFERIOR: MONTO EN BADGE VERDE Y BOTÓN / INSIGNIA DE REVISADA */}
                       <div
                         style={{
                           display: 'flex',
@@ -664,17 +667,16 @@ export function NotificacionesModal({
                           justifyContent: 'space-between',
                           marginTop: '4px',
                           paddingTop: '8px',
-                          borderTop: '1px dashed #f1f5f9',
+                          borderTop: '1px dashed var(--aureus-border-subtle)',
                           gap: '8px'
                         }}
                       >
-                        {/* MONTO A COBRAR EN VERDE ESMERALDA (#10b981) SIN PARÉNTESIS */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span
                             style={{
                               fontSize: '11px',
                               fontWeight: 600,
-                              color: '#64748b'
+                              color: 'var(--aureus-text-muted)'
                             }}
                           >
                             Monto:
@@ -682,13 +684,13 @@ export function NotificacionesModal({
                           <span
                             style={{
                               display: 'inline-block',
-                              backgroundColor: '#2E6B4F',
-                              color: '#ffffff',
+                              backgroundColor: 'var(--aureus-green-light)',
+                              border: '1px solid var(--aureus-green-border)',
+                              color: 'var(--aureus-green-text)',
                               fontWeight: 900,
                               fontSize: '12px',
                               padding: '2px 8px',
                               borderRadius: '6px',
-                              boxShadow: '0 1px 3px rgba(10, 51, 35, 0.25)',
                               whiteSpace: 'nowrap'
                             }}
                           >
@@ -705,19 +707,19 @@ export function NotificacionesModal({
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              backgroundColor: '#f1f5f9',
-                              border: '1px solid #cbd5e1',
+                              backgroundColor: 'var(--aureus-bg-surface)',
+                              border: '1px solid var(--aureus-border-subtle)',
                               borderRadius: '8px',
                               padding: '4px 9px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: '#334155',
+                              color: 'var(--aureus-text-primary)',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease'
                             }}
                             title="Marcar como revisada"
                           >
-                            <Check size={14} strokeWidth={2.4} color="#059669" />
+                            <Check size={14} strokeWidth={2.4} color="var(--aureus-green-text)" />
                             <span>Marcar como revisada</span>
                           </button>
                         ) : (
@@ -726,15 +728,15 @@ export function NotificacionesModal({
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              backgroundColor: '#f1f5f9',
-                              color: '#64748b',
+                              backgroundColor: 'var(--aureus-bg-muted)',
+                              color: 'var(--aureus-text-muted)',
                               padding: '3px 8px',
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: 700
                             }}
                           >
-                            <Check size={13} strokeWidth={2.2} color="#059669" />
+                            <Check size={13} strokeWidth={2.2} color="#397D67" />
                             <span>Revisada</span>
                           </span>
                         )}

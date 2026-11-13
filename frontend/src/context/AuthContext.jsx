@@ -1,86 +1,292 @@
 // src/context/AuthContext.jsx
-// Manejo de sesión y autenticación en memoria con React Context.
-// En esta etapa del proyecto, el Login no está activado y la sesión permanece SIEMPRE activa.
+// Manejo de sesión en memoria mediante cookie HttpOnly y token Anti-CSRF.
+// Jamás almacena credenciales ni tokens en localStorage o sessionStorage.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { apiFetch, configurarAuth } from '../services/apiClient.js';
+import {
+  configurarAuth,
+  setCsrfToken as setApiClientCsrfToken,
+  loginUsuario,
+  registrarUsuario,
+  obtenerSesionActual,
+  cerrarSesionUsuario,
+} from '../services/apiClient.js';
 
-// Usuario administrador por defecto permanente
-const ADMIN_DEFAULT = {
-  id: 'ca496c63-9976-4ec6-8360-58d0e180cce2',
-  usuario: 'admin',
-  rol: 'ADMINISTRADOR',
-  nombre_completo: 'Administrador Cobro-Firme'
-};
+const INACTIVIDAD_MS = 25 * 60 * 1000;
+const COOKIE_CONSENT_STORAGE_KEY = 'aureus_cookie_consent_v1';
+const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
 
 export const AuthContext = createContext(null);
 
+function readInitialCookieConsent() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY) === 'accepted';
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }) {
-  // Sesión permanente y activa en memoria
-  const [token, setTokenState] = useState('demo-session-token');
-  const [usuario, setUsuario] = useState(ADMIN_DEFAULT);
+  // Todos los Hooks declarados al inicio del proveedor
+  const [usuario, setUsuario] = useState(null);
+  const [csrfToken, setCsrfTokenState] = useState(null);
+  const [cargando, setCargando] = useState(true);
   const [mensajeSesion, setMensajeSesion] = useState('');
+  const [cookiesAceptadas, setCookiesAceptadas] = useState(readInitialCookieConsent);
 
-  const tokenRef = useRef('demo-session-token');
+  const csrfTokenRef = useRef(null);
+  const inactivityTimerRef = useRef(null);
 
-  const setToken = useCallback((nuevo) => {
-    const val = nuevo || 'demo-session-token';
-    tokenRef.current = val;
-    setTokenState(val);
+  const updateCsrfToken = useCallback((nuevoCsrf) => {
+    const val = nuevoCsrf || null;
+    csrfTokenRef.current = val;
+    setCsrfTokenState(val);
+    setApiClientCsrfToken(val);
   }, []);
 
-  // Desactivado: el Login aún NO ha sido solicitado ni diseñado.
-  // La sesión permanece SIEMPRE activa en el Dashboard.
-  const logout = useCallback((_motivo) => {
-    // No-op seguro para evitar que la aplicación pierda la sesión
-  }, []);
-
-  // Conectar con apiClient garantizando que ningún error 401 desautentique
-  useEffect(() => {
-    configurarAuth({
-      getToken: () => tokenRef.current || 'demo-session-token',
-      setToken,
-      onUnauthorized: () => {
-        // No desconectar al usuario bajo ninguna circunstancia
-      },
-    });
-  }, [setToken]);
-
-  // Sesión permanentemente fijada en true
-  const autenticado = true;
-  const isAuthenticated = true;
-
-  const login = useCallback(async (usuarioIdentificador, password) => {
-    const datos = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: { usuario: usuarioIdentificador, password }
-    });
-    setToken(datos.token);
-    if (datos.usuario) setUsuario(datos.usuario);
-    setMensajeSesion('');
-    return datos.usuario;
-  }, [setToken]);
-
-  const registro = useCallback(
-    (nombre_completo, usuarioNombre, correo, password) =>
-      apiFetch('/api/auth/registro', {
-        method: 'POST',
-        body: { nombre_completo, usuario: usuarioNombre, correo, password }
-      }),
+  const limpiarEstadoSesion = useCallback(
+    (motivo = '') => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+      csrfTokenRef.current = null;
+      setCsrfTokenState(null);
+      setApiClientCsrfToken(null);
+      setUsuario(null);
+      if (motivo === 'expirada') {
+        setMensajeSesion('Tu sesión expiró por inactividad. Inicia sesión de nuevo.');
+      } else {
+        setMensajeSesion('');
+      }
+      try {
+        sessionStorage.removeItem('aureus_entered_app');
+      } catch {
+        // Ignorar errores de storage
+      }
+    },
     []
   );
 
+  const aceptarCookiesSeguridad = useCallback(() => {
+    try {
+      window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, 'accepted');
+    } catch {
+      // Ignorar errores de storage
+    }
+    setCookiesAceptadas(true);
+  }, []);
+
+  const recargarPerfil = useCallback(async () => {
+    try {
+      const datos = await obtenerSesionActual();
+      if (datos?.usuario) {
+        setUsuario(datos.usuario);
+        if (datos.csrfToken) {
+          updateCsrfToken(datos.csrfToken);
+        }
+        setMensajeSesion('');
+        return datos.usuario;
+      }
+      setUsuario(null);
+      return null;
+    } catch {
+      setUsuario(null);
+      updateCsrfToken(null);
+      return null;
+    }
+  }, [updateCsrfToken]);
+
+  const logout = useCallback(async () => {
+    try {
+      await cerrarSesionUsuario();
+    } catch {
+      // Garantizar limpieza local aunque la petición falle
+    } finally {
+      limpiarEstadoSesion('manual');
+    }
+  }, [limpiarEstadoSesion]);
+
+  const login = useCallback(
+    async (arg1, arg2, arg3) => {
+      const payload =
+        arg1 && typeof arg1 === 'object'
+          ? {
+              identificador: arg1.identificador ?? arg1.usuario ?? arg1.correo,
+              password: arg1.password,
+              cookiesAceptadas:
+                arg1.cookiesAceptadas !== undefined ? Boolean(arg1.cookiesAceptadas) : cookiesAceptadas,
+            }
+          : {
+              identificador: arg1,
+              password: arg2,
+              cookiesAceptadas: arg3 !== undefined ? Boolean(arg3) : cookiesAceptadas,
+            };
+
+      const datos = await loginUsuario(payload);
+      if (datos?.csrfToken) {
+        updateCsrfToken(datos.csrfToken);
+      }
+      setUsuario(datos?.usuario || null);
+      setMensajeSesion('');
+      try {
+        sessionStorage.setItem('aureus_entered_app', 'true');
+      } catch {
+        // Ignorar errores de storage
+      }
+      return datos?.usuario || null;
+    },
+    [cookiesAceptadas, updateCsrfToken]
+  );
+
+  const registrar = useCallback(
+    async (arg1, arg2, arg3, arg4, arg5) => {
+      const payload =
+        arg1 && typeof arg1 === 'object'
+          ? {
+              nombre_completo: arg1.nombre_completo,
+              username: arg1.username ?? arg1.usuario,
+              correo: arg1.correo,
+              password: arg1.password,
+              cookiesAceptadas:
+                arg1.cookiesAceptadas !== undefined ? Boolean(arg1.cookiesAceptadas) : cookiesAceptadas,
+            }
+          : {
+              nombre_completo: arg1,
+              username: arg2,
+              correo: arg3,
+              password: arg4,
+              cookiesAceptadas: arg5 !== undefined ? Boolean(arg5) : cookiesAceptadas,
+            };
+
+      const datos = await registrarUsuario(payload);
+      if (datos?.csrfToken) {
+        updateCsrfToken(datos.csrfToken);
+      }
+      setUsuario(datos?.usuario || null);
+      setMensajeSesion('');
+      try {
+        sessionStorage.setItem('aureus_entered_app', 'true');
+      } catch {
+        // Ignorar errores de storage
+      }
+      return datos?.usuario || null;
+    },
+    [cookiesAceptadas, updateCsrfToken]
+  );
+
+  // Conectar apiClient y eventos globales de no autorización
+  useEffect(() => {
+    configurarAuth({
+      getCsrfToken: () => csrfTokenRef.current,
+      setCsrfToken: updateCsrfToken,
+      onUnauthorized: () => limpiarEstadoSesion('expirada'),
+    });
+
+    const handleGlobalUnauthorized = () => {
+      limpiarEstadoSesion('expirada');
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('aureus:unauthorized', handleGlobalUnauthorized);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('aureus:unauthorized', handleGlobalUnauthorized);
+      }
+    };
+  }, [updateCsrfToken, limpiarEstadoSesion]);
+
+  // Restauración de sesión al montar el proveedor
+  useEffect(() => {
+    let activo = true;
+
+    obtenerSesionActual()
+      .then((datos) => {
+        if (!activo) return;
+        if (datos?.usuario) {
+          setUsuario(datos.usuario);
+          if (datos.csrfToken) {
+            updateCsrfToken(datos.csrfToken);
+          }
+          setMensajeSesion('');
+        } else {
+          setUsuario(null);
+        }
+      })
+      .catch(() => {
+        if (!activo) return;
+        setUsuario(null);
+        updateCsrfToken(null);
+      })
+      .finally(() => {
+        if (activo) setCargando(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [updateCsrfToken]);
+
+  const autenticado = Boolean(usuario);
+
+  // Temporizador de inactividad de 25 minutos
+  useEffect(() => {
+    if (!autenticado || cargando) return undefined;
+
+    const reiniciarTemporizador = () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      inactivityTimerRef.current = setTimeout(() => {
+        cerrarSesionUsuario().catch(() => {});
+        limpiarEstadoSesion('expirada');
+      }, INACTIVIDAD_MS);
+    };
+
+    ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, reiniciarTemporizador, { passive: true }));
+    reiniciarTemporizador();
+
+    return () => {
+      ACTIVITY_EVENTS.forEach((ev) => window.removeEventListener(ev, reiniciarTemporizador));
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+    };
+  }, [autenticado, cargando, limpiarEstadoSesion]);
+
   const valor = useMemo(
     () => ({
-      usuario: usuario || ADMIN_DEFAULT,
-      token: token || 'demo-session-token',
-      autenticado: true,
-      isAuthenticated: true,
+      usuario,
+      csrfToken,
+      autenticado,
+      isAuthenticated: autenticado,
+      cargando,
+      loading: cargando,
+      cookiesAceptadas,
+      aceptarCookiesSeguridad,
       mensajeSesion,
       login,
-      registro,
-      logout
+      registrar,
+      registro: registrar,
+      logout,
+      recargarPerfil,
     }),
-    [usuario, token, mensajeSesion, login, registro, logout]
+    [
+      usuario,
+      csrfToken,
+      autenticado,
+      cargando,
+      cookiesAceptadas,
+      aceptarCookiesSeguridad,
+      mensajeSesion,
+      login,
+      registrar,
+      logout,
+      recargarPerfil,
+    ]
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
@@ -93,4 +299,3 @@ export const useAuth = () => {
 };
 
 export default AuthContext;
-

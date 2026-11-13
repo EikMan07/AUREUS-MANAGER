@@ -18,7 +18,7 @@ export const verificarRelacion = (Modelo, campo, etiqueta = 'El registro relacio
       next();
     } catch (error) {
       console.error(error);
-      res.status(500).json({ error: 'Error interno del servidor' });
+      res.status(500).json({ error: 'No fue posible completar la solicitud en este momento.' });
     }
   };
 

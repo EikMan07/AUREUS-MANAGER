@@ -31,7 +31,20 @@ export async function scanCedula(req, res) {
       cedula: card.cleanCedula,
       nombre: fromHacienda ? hacienda.nombre : card.nombre,
       apellidos: fromHacienda ? hacienda.apellidos : card.apellidos,
-      fuente: fromHacienda ? 'hacienda' : 'ocr'
+      fuente: fromHacienda ? 'hacienda' : 'ocr',
+      haciendaInfo: fromHacienda ? {
+        status: 'ok',
+        esMoroso: hacienda.esMoroso,
+        omiso: hacienda.omiso,
+        estadoHacienda: hacienda.estadoHacienda,
+        nombreOficial: hacienda.nombreOficial
+      } : {
+        status: hacienda.status === 'not_found' ? 'not_found' : 'error',
+        esMoroso: false,
+        omiso: false,
+        estadoHacienda: '',
+        nombreOficial: ''
+      }
     });
   } catch (err) {
     console.error('[OCR] Error procesando imagen:', err);

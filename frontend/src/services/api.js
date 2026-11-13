@@ -1,4 +1,12 @@
 import {
+  sanitizeUserFacingMessage,
+  getCsrfToken,
+  setCsrfToken,
+  notifyUnauthorized,
+  loginUsuario as apiLoginUsuario,
+  registrarUsuario as apiRegistrarUsuario,
+  obtenerSesionActual as apiObtenerSesionActual,
+  cerrarSesionUsuario as apiCerrarSesionUsuario,
   obtenerNotificaciones as apiObtenerNotificaciones,
   marcarNotificacionVista as apiMarcarNotificacionVista,
   getPersonasCompartir as apiGetPersonasCompartir,
@@ -8,17 +16,61 @@ import {
   compartirCobrosDia as apiCompartirCobrosDia,
   dejarDeCompartirDia as apiDejarDeCompartirDia,
   eliminarPrestamo as apiEliminarPrestamo,
-  eliminarPrestamosLote as apiEliminarPrestamosLote
+  eliminarPrestamosLote as apiEliminarPrestamosLote,
+  obtenerResumenSeneca as apiObtenerResumenSeneca,
+  consultarSeneca as apiConsultarSeneca,
+  consultarHistorialArchivoCliente as apiConsultarHistorialArchivoCliente
 } from './apiClient.js';
 
-// API Service for Cobro-Firme connected to Node/Express + PostgreSQL backend
+// API Service for Aureus Manager connected to Node/Express + PostgreSQL backend
 
 const API_BASE = '/api';
+const MUTABLE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /**
  * Parsea las respuestas de error HTTP del backend separando el mensaje formal
  * para el usuario (userMessage) de los detalles técnicos para desarrollador (debugError).
  */
+async function safeFetch(url, options = {}) {
+  try {
+    const metodo = (options.method || 'GET').toUpperCase();
+    const csrfToken = getCsrfToken();
+    const headers = {
+      ...(options.headers || {}),
+    };
+    if (MUTABLE_METHODS.has(metodo) && csrfToken && !headers['X-CSRF-Token']) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+
+    const res = await fetch(url, {
+      ...options,
+      method: metodo,
+      credentials: 'include',
+      headers,
+    });
+
+    const headerCsrf = res.headers.get('x-csrf-token');
+    if (headerCsrf) {
+      setCsrfToken(headerCsrf);
+    }
+
+    if (res.status === 401 && !String(url).includes('/auth/login') && !String(url).includes('/auth/registro')) {
+      notifyUnauthorized(url);
+    }
+
+    return res;
+  } catch (networkErr) {
+    const safeMsg = sanitizeUserFacingMessage(
+      networkErr?.message,
+      'No fue posible establecer la comunicación en este momento. Inténtalo nuevamente en unos segundos.'
+    );
+    const err = new Error(safeMsg);
+    err.userMessage = safeMsg;
+    err.debugError = networkErr?.message || 'Error de comunicación';
+    throw err;
+  }
+}
+
 async function parseErrorResponse(res, fallbackMessage) {
   let data = {};
   try {
@@ -52,10 +104,10 @@ async function parseErrorResponse(res, fallbackMessage) {
 
   const rawUserMessage = data.userMessage || data.error;
   const userMessage = (rawUserMessage && !isTechnical(rawUserMessage))
-    ? rawUserMessage
-    : fallbackMessage;
+    ? sanitizeUserFacingMessage(rawUserMessage, fallbackMessage)
+    : sanitizeUserFacingMessage('', fallbackMessage);
 
-  const debugError = data.debugError || data.error || res.statusText || 'Error de servidor';
+  const debugError = data.debugError || data.error || res.statusText || 'Error de solicitud';
 
   const err = new Error(userMessage);
   err.userMessage = userMessage;
@@ -68,7 +120,7 @@ async function parseErrorResponse(res, fallbackMessage) {
 export const api = {
   // Clientes
   async getClients() {
-    const res = await fetch(`${API_BASE}/clientes`);
+    const res = await safeFetch(`${API_BASE}/clientes`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar el listado de clientes.');
     }
@@ -76,7 +128,7 @@ export const api = {
   },
 
   async createClient(clientData) {
-    const res = await fetch(`${API_BASE}/clientes`, {
+    const res = await safeFetch(`${API_BASE}/clientes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clientData)
@@ -88,7 +140,7 @@ export const api = {
   },
 
   async updateClient(id, clientData) {
-    const res = await fetch(`${API_BASE}/clientes/${id}`, {
+    const res = await safeFetch(`${API_BASE}/clientes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(clientData)
@@ -100,7 +152,7 @@ export const api = {
   },
 
   async sendClientToTrash(id, motivo = '') {
-    const res = await fetch(`${API_BASE}/clientes/${id}/papelera`, {
+    const res = await safeFetch(`${API_BASE}/clientes/${id}/papelera`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ motivo })
@@ -112,7 +164,7 @@ export const api = {
   },
 
   async sendClientToBlacklist(id, motivo = '') {
-    const res = await fetch(`${API_BASE}/clientes/${id}/lista-negra`, {
+    const res = await safeFetch(`${API_BASE}/clientes/${id}/lista-negra`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ motivo })
@@ -129,7 +181,7 @@ export const api = {
     if (vistaUsuarioId) {
       url += `${url.includes('?') ? '&' : '?'}vista_usuario_id=${encodeURIComponent(vistaUsuarioId)}`;
     }
-    const res = await fetch(url);
+    const res = await safeFetch(url);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar la agenda de cobros.');
     }
@@ -137,7 +189,7 @@ export const api = {
   },
 
   async registrarPago(id, data = {}) {
-    const res = await fetch(`${API_BASE}/cobros/${id}/pago`, {
+    const res = await safeFetch(`${API_BASE}/cobros/${id}/pago`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -149,7 +201,7 @@ export const api = {
   },
 
   async pasarCobro(id, data = {}) {
-    const res = await fetch(`${API_BASE}/cobros/${id}/pasar`, {
+    const res = await safeFetch(`${API_BASE}/cobros/${id}/pasar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -161,7 +213,7 @@ export const api = {
   },
 
   async registrarNoPago(id) {
-    const res = await fetch(`${API_BASE}/cobros/${id}/no-pago`, {
+    const res = await safeFetch(`${API_BASE}/cobros/${id}/no-pago`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -174,7 +226,7 @@ export const api = {
 
   // Hacienda CR Proxy
   async lookupHacienda(cedula) {
-    const res = await fetch(`${API_BASE}/hacienda/${cedula}`);
+    const res = await safeFetch(`${API_BASE}/hacienda/${cedula}`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'Identificación no encontrada en el registro oficial.');
     }
@@ -183,7 +235,7 @@ export const api = {
 
   // Préstamos (Módulo 3)
   async getLoans() {
-    const res = await fetch(`${API_BASE}/prestamos`);
+    const res = await safeFetch(`${API_BASE}/prestamos`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudieron consultar los préstamos.');
     }
@@ -191,19 +243,19 @@ export const api = {
   },
 
   async createLoan(loanData) {
-    const res = await fetch(`${API_BASE}/prestamos`, {
+    const res = await safeFetch(`${API_BASE}/prestamos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(loanData)
     });
     if (!res.ok) {
-      throw await parseErrorResponse(res, 'No se pudo guardar el préstamo en el servidor.');
+      throw await parseErrorResponse(res, 'No se pudo guardar el préstamo en este momento. Inténtalo nuevamente.');
     }
     return await res.json();
   },
 
   async renewLoan(id, data) {
-    const res = await fetch(`${API_BASE}/prestamos/${id}/renovar`, {
+    const res = await safeFetch(`${API_BASE}/prestamos/${id}/renovar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -215,7 +267,7 @@ export const api = {
   },
 
   async paymentAgreement(id, data) {
-    const res = await fetch(`${API_BASE}/prestamos/${id}/arreglo`, {
+    const res = await safeFetch(`${API_BASE}/prestamos/${id}/arreglo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -230,7 +282,7 @@ export const api = {
     try {
       return await apiEliminarPrestamo(id);
     } catch (err) {
-      const res = await fetch(`${API_BASE}/prestamos/${id}`, { method: 'DELETE' });
+      const res = await safeFetch(`${API_BASE}/prestamos/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         throw await parseErrorResponse(res, 'No se pudo eliminar el préstamo en este momento.');
       }
@@ -242,7 +294,7 @@ export const api = {
     try {
       return await apiEliminarPrestamosLote(ids);
     } catch (err) {
-      const res = await fetch(`${API_BASE}/prestamos/eliminar-lote`, {
+      const res = await safeFetch(`${API_BASE}/prestamos/eliminar-lote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids })
@@ -256,7 +308,7 @@ export const api = {
 
   // Resumen y Estadísticas (Módulo 4)
   async getResumen() {
-    const res = await fetch(`${API_BASE}/resumen`);
+    const res = await safeFetch(`${API_BASE}/resumen`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo obtener el resumen de estadísticas.');
     }
@@ -265,7 +317,7 @@ export const api = {
 
   async getTendencia(tipo = 'DIA', cantidad = 7) {
     const queryParams = new URLSearchParams({ tipo, cantidad: String(cantidad) });
-    const res = await fetch(`${API_BASE}/resumen/tendencia?${queryParams.toString()}`);
+    const res = await safeFetch(`${API_BASE}/resumen/tendencia?${queryParams.toString()}`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar la tendencia de cobros.');
     }
@@ -274,7 +326,7 @@ export const api = {
 
   // Lista Negra (Módulo 5)
   async getListaNegra() {
-    const res = await fetch(`${API_BASE}/lista-negra`);
+    const res = await safeFetch(`${API_BASE}/lista-negra`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar la lista negra.');
     }
@@ -283,7 +335,7 @@ export const api = {
 
   async verificarPersona(queryStr) {
     const term = String(queryStr || '').trim();
-    const res = await fetch(`${API_BASE}/lista-negra/verificar?q=${encodeURIComponent(term)}`);
+    const res = await safeFetch(`${API_BASE}/lista-negra/verificar?q=${encodeURIComponent(term)}`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo verificar el registro.');
     }
@@ -292,7 +344,7 @@ export const api = {
 
   async consultarListaNegra(searchTerm) {
     const term = String(searchTerm || '').trim();
-    const res = await fetch(`${API_BASE}/lista-negra/verificar?q=${encodeURIComponent(term)}`);
+    const res = await safeFetch(`${API_BASE}/lista-negra/verificar?q=${encodeURIComponent(term)}`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar el registro en la lista negra.');
     }
@@ -300,7 +352,7 @@ export const api = {
   },
 
   async agregarListaNegra(data) {
-    const res = await fetch(`${API_BASE}/lista-negra`, {
+    const res = await safeFetch(`${API_BASE}/lista-negra`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -312,7 +364,7 @@ export const api = {
   },
 
   async sacarListaNegra(id) {
-    const res = await fetch(`${API_BASE}/lista-negra/${id}/sacar`, {
+    const res = await safeFetch(`${API_BASE}/lista-negra/${id}/sacar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -324,17 +376,18 @@ export const api = {
 
   // Papelera
   async getPapelera() {
-    const res = await fetch(`${API_BASE}/papelera`);
+    const res = await safeFetch(`${API_BASE}/papelera`);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar los clientes en la papelera.');
     }
     return await res.json();
   },
 
-  async restaurarClientePapelera(id) {
-    const res = await fetch(`${API_BASE}/papelera/${id}/restaurar`, {
+  async restaurarClientePapelera(id, options = {}) {
+    const res = await safeFetch(`${API_BASE}/papelera/${id}/restaurar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options || {})
     });
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo restaurar el cliente de la papelera.');
@@ -342,8 +395,29 @@ export const api = {
     return await res.json();
   },
 
+  async restaurarPrestamoPapelera(prestamoId) {
+    const res = await safeFetch(`${API_BASE}/papelera/prestamo/${prestamoId}/restaurar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      throw await parseErrorResponse(res, 'No se pudo restaurar el préstamo de la papelera.');
+    }
+    return await res.json();
+  },
+
+  async eliminarPrestamoDefinitivoPapelera(prestamoId) {
+    const res = await safeFetch(`${API_BASE}/papelera/prestamo/${prestamoId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) {
+      throw await parseErrorResponse(res, 'No se pudo eliminar definitivamente el préstamo.');
+    }
+    return await res.json();
+  },
+
   async eliminarClienteDefinitivo(id) {
-    const res = await fetch(`${API_BASE}/papelera/${id}`, {
+    const res = await safeFetch(`${API_BASE}/papelera/${id}`, {
       method: 'DELETE'
     });
     if (!res.ok) {
@@ -353,7 +427,7 @@ export const api = {
   },
 
   async vaciarPapelera() {
-    const res = await fetch(`${API_BASE}/papelera/vaciar`, {
+    const res = await safeFetch(`${API_BASE}/papelera/vaciar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -395,10 +469,27 @@ export const api = {
 
   async dejarDeCompartirDia(data) {
     return await apiDejarDeCompartirDia(data);
+  },
+
+  // Séneca y consultas informativas
+  async consultarHistorialArchivoCliente(params = {}) {
+    return await apiConsultarHistorialArchivoCliente(params);
+  },
+
+  async obtenerResumenSeneca() {
+    return await apiObtenerResumenSeneca();
+  },
+
+  async consultarSeneca(pregunta, historial = []) {
+    return await apiConsultarSeneca(pregunta, historial);
   }
 };
 
 export {
+  apiLoginUsuario as loginUsuario,
+  apiRegistrarUsuario as registrarUsuario,
+  apiObtenerSesionActual as obtenerSesionActual,
+  apiCerrarSesionUsuario as cerrarSesionUsuario,
   apiObtenerNotificaciones as obtenerNotificaciones,
   apiMarcarNotificacionVista as marcarNotificacionVista,
   apiGetPersonasCompartir as getPersonasCompartir,
@@ -406,5 +497,8 @@ export {
   apiEliminarPersonaCompartir as eliminarPersonaCompartir,
   apiGetResumenDiaCompartir as getResumenDiaCompartir,
   apiCompartirCobrosDia as compartirCobrosDia,
-  apiDejarDeCompartirDia as dejarDeCompartirDia
+  apiDejarDeCompartirDia as dejarDeCompartirDia,
+  apiObtenerResumenSeneca as obtenerResumenSeneca,
+  apiConsultarSeneca as consultarSeneca,
+  apiConsultarHistorialArchivoCliente as consultarHistorialArchivoCliente
 };

@@ -9,7 +9,7 @@ import {
   getCostaRicaNow
 } from '../../utils/formatters';
 
-export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
+export function PassDayModal({ client, isOpen, onClose, onConfirmPass, currentDateISO }) {
   // Todos los Hooks al inicio del componente antes de cualquier return condicional
   const [selectedYear, setSelectedYear] = useState(() => {
     const tmrw = getCostaRicaNow();
@@ -31,25 +31,39 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
   const [viewYear, setViewYear] = useState(selectedYear);
   const [viewMonth, setViewMonth] = useState(selectedMonth);
 
+  // Opción cuando se pasa a una semana futura: 'ACUMULAR' (por defecto) | 'CORRER'
+  const [modoAcumulacion, setModoAcumulacion] = useState('ACUMULAR');
+
   // Paso de Doble Verificación
   const [isVerifying, setIsVerifying] = useState(false);
   // Fase de confirmación central: 'idle' | 'animating' | 'exiting'
   const [confirmPhase, setConfirmPhase] = useState('idle');
 
-  // Al abrir el modal, resetear al día siguiente de hoy
+  // Al abrir el modal, iniciar en el día siguiente de la fecha del cobro o de hoy
   useEffect(() => {
     if (isOpen) {
-      const tmrw = getCostaRicaNow();
-      tmrw.setDate(tmrw.getDate() + 1);
-      setSelectedYear(tmrw.getFullYear());
-      setSelectedMonth(tmrw.getMonth());
-      setSelectedDay(tmrw.getDate());
-      setViewYear(tmrw.getFullYear());
-      setViewMonth(tmrw.getMonth());
+      const baseDate = getCostaRicaNow();
+      const rawCobroDate = client?.fechaCobroActual || client?.fecha_cobro_actual || currentDateISO;
+      if (rawCobroDate) {
+        const parts = String(rawCobroDate).slice(0, 10).split('-').map(Number);
+        if (parts.length === 3 && !parts.some(isNaN)) {
+          const cobroDateObj = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+          if (cobroDateObj.getTime() > baseDate.getTime()) {
+            baseDate.setFullYear(cobroDateObj.getFullYear(), cobroDateObj.getMonth(), cobroDateObj.getDate());
+          }
+        }
+      }
+      baseDate.setDate(baseDate.getDate() + 1);
+      setSelectedYear(baseDate.getFullYear());
+      setSelectedMonth(baseDate.getMonth());
+      setSelectedDay(baseDate.getDate());
+      setViewYear(baseDate.getFullYear());
+      setViewMonth(baseDate.getMonth());
+      setModoAcumulacion('ACUMULAR');
       setIsVerifying(false);
       setConfirmPhase('idle');
     }
-  }, [isOpen]);
+  }, [isOpen, client, currentDateISO]);
 
   if (!isOpen || !client) return null;
 
@@ -106,6 +120,27 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
   const dayISO = String(selectedDay).padStart(2, '0');
   const selectedDateISO = `${selectedYear}-${monthISO}-${dayISO}`;
 
+  // Calcular lunes de la semana ISO para detectar si la fecha elegida cae en otra semana futura
+  const getMondayISO = (dateStr) => {
+    if (!dateStr) return '';
+    const clean = String(dateStr).slice(0, 10);
+    const parts = clean.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return '';
+    const [y, m, d] = parts;
+    const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    const day = dt.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    dt.setUTCDate(dt.getUTCDate() + diff);
+    return dt.toISOString().slice(0, 10);
+  };
+
+  const todayCR = getCostaRicaNow();
+  const todayISO = `${todayCR.getFullYear()}-${String(todayCR.getMonth() + 1).padStart(2, '0')}-${String(todayCR.getDate()).padStart(2, '0')}`;
+  const fechaBaseCobro = client?.fechaCobroActual || client?.fecha_cobro_actual || currentDateISO || todayISO;
+  const mondayOriginal = getMondayISO(fechaBaseCobro);
+  const mondaySeleccionado = getMondayISO(selectedDateISO);
+  const esOtraSemana = Boolean(mondayOriginal && mondaySeleccionado && mondaySeleccionado > mondayOriginal);
+
   const handleInitialSubmit = () => {
     setIsVerifying(true);
   };
@@ -126,9 +161,10 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
     }, 1200);
 
     // Ejecutar la acción de reprogramación y cerrar tras completar el desvanecimiento (1480ms)
+    const modoSeleccionado = esOtraSemana ? modoAcumulacion : 'MISMA_SEMANA';
     setTimeout(async () => {
       try {
-        await onConfirmPass(client.id, selectedDayKey, selectedDateISO, selectedDateFullText);
+        await onConfirmPass(client.id, selectedDayKey, selectedDateISO, selectedDateFullText, modoSeleccionado);
       } finally {
         handleClose();
       }
@@ -278,16 +314,104 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
                   <strong className="preview-card-date">{selectedDateFullText}</strong>
                 </div>
               </div>
+
+              {/* Opciones cuando la fecha seleccionada cae en una semana posterior */}
+              {esOtraSemana && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    padding: '12px',
+                    borderRadius: '14px',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
+                    border: '1px solid var(--aureus-border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      color: 'var(--aureus-text-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    OPCIONES PARA LA SEMANA SIGUIENTE
+                  </span>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setModoAcumulacion('ACUMULAR')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border:
+                          modoAcumulacion === 'ACUMULAR'
+                            ? '1.5px solid #B69A55'
+                            : '1px solid var(--aureus-border-subtle)',
+                        backgroundColor:
+                          modoAcumulacion === 'ACUMULAR' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                        color: modoAcumulacion === 'ACUMULAR' ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      Acumular cuotas
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setModoAcumulacion('CORRER')}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        border:
+                          modoAcumulacion === 'CORRER'
+                            ? '1.5px solid #B69A55'
+                            : '1px solid var(--aureus-border-subtle)',
+                        backgroundColor:
+                          modoAcumulacion === 'CORRER' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                        color: modoAcumulacion === 'CORRER' ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      No acumular
+                    </button>
+                  </div>
+
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '11.5px',
+                      fontWeight: 600,
+                      color: 'var(--aureus-text-secondary)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {modoAcumulacion === 'ACUMULAR'
+                      ? 'Ese día se cobrará lo de esta semana más la semana siguiente. No volverá a salir en su día fijo de esa semana.'
+                      : 'Ese día solo se cobrará una cuota y las demás fechas se correrán una semana hacia adelante.'}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             /* Doble Verificación Paso 2 */
             <div className="confirmation-prompt-box">
               <div
-                className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center bg-amber-50 text-amber-600 border border-amber-200/80"
+                className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center"
                 style={{
-                  backgroundColor: '#fffbeb',
-                  color: '#d97706',
-                  borderColor: 'rgba(253, 230, 138, 0.8)',
+                  backgroundColor: 'var(--aureus-gold-light)',
+                  color: 'var(--aureus-gold-text)',
+                  borderColor: 'var(--aureus-border-gold)',
                   borderWidth: '1px',
                   borderStyle: 'solid'
                 }}
@@ -298,7 +422,19 @@ export function PassDayModal({ client, isOpen, onClose, onConfirmPass }) {
                 ¿Seguro que deseas pasar el cobro de <strong className="client-highlight">{nombreCliente}</strong> para el <strong className="amount-highlight">{selectedDateFullText}</strong>?
               </p>
               <div className="return-day-notice">
-                El cliente desaparecerá de hoy y se mostrará únicamente en esa fecha. Su día habitual seguirá registrado como <strong>{getDayNameFromKey(client.diaFijoOriginal)}</strong>.
+                {esOtraSemana && modoAcumulacion === 'ACUMULAR' ? (
+                  <>
+                    El cliente aparecerá únicamente el <strong>{selectedDateFullText}</strong> con la cuota acumulada, no volverá a salir en su día fijo de esa semana y retomará su día habitual <strong>{getDayNameFromKey(client.diaFijoOriginal)}</strong> en la semana subsiguiente.
+                  </>
+                ) : esOtraSemana && modoAcumulacion === 'CORRER' ? (
+                  <>
+                    El cliente aparecerá el <strong>{selectedDateFullText}</strong> por una sola cuota y las demás fechas pendientes se correrán una semana hacia adelante en su día habitual <strong>{getDayNameFromKey(client.diaFijoOriginal)}</strong>.
+                  </>
+                ) : (
+                  <>
+                    El cliente desaparecerá de hoy y se mostrará únicamente en esa fecha. Su día habitual seguirá registrado como <strong>{getDayNameFromKey(client.diaFijoOriginal)}</strong>.
+                  </>
+                )}
               </div>
             </div>
           )}
