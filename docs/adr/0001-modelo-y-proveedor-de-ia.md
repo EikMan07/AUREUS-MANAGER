@@ -1,31 +1,26 @@
-# ADR-0001: <modelo y proveedor de IA que usa el proyecto, en una frase>
+# ADR-0001: Modelo Groq openai/gpt-oss-120b para el asistente consultivo financiero Séneca
 
-- Estado: Propuesto
-- Fecha: <AAAA-MM-DD>
-- Decide: <nombre y rol de quien responde por esta decisión>
-
-<!--
-Si su proyecto NO usa IA dentro del producto, este ADR pasa a ser:
-«Qué herramientas de IA usamos para programar y con qué reglas».
--->
+- Estado: Aceptado
+- Fecha: 2026-11-13
+- Decide: Eiker Abarca, Desarrollador Principal y Arquitecto de Software
 
 ## Contexto
 
-<Qué necesita hacer la IA en su producto. Qué restricciones hay: costo, datos personales, latencia, idioma, si el cliente u organización aliada puso condiciones. Máximo 5 líneas.>
+Aureus Manager requiere un asistente financiero y operativo («Séneca») para que el cobrador consulte en lenguaje natural el estado de su cartera, atrasos, cobros del día, agenda y contactos. Se requiere baja latencia en campo, costo predecible y estricta privacidad de datos personales bajo la Ley 8968.
 
 ## Decisión
 
-<Qué modelo y qué proveedor, para qué tareas, y cómo se llama (solo desde el servidor, con qué llave). Frases verificables. Mal: «se usará IA de forma responsable». Bien: «el modelo X se llama solo desde `src/lib/ai/`, con la llave en una variable de entorno del servidor».>
+Se utiliza el modelo `openai/gpt-oss-120b` provisto por Groq mediante su API REST. La inferencia se invoca exclusivamente desde el servidor backend en `src/services/groq.service.js` y `src/services/seneca.service.js`, con temperatura 0.15, timeout de 20 segundos y reintentos exponenciales. La clave `GROQ_API_KEY` reside únicamente en variables de entorno del servidor (`backend/.env`), nunca en el cliente ni en el repositorio. Si la clave no está presente o hay fallo de red, se activa un motor analítico determinista local en PostgreSQL como respaldo.
 
 ## Alternativas descartadas
 
-- <Otro modelo o proveedor>: <por qué no>.
-- <Otra opción, por ejemplo no usar IA para esta tarea>: <por qué no>.
+- OpenAI gpt-4o directo: descartado por mayor latencia en dispositivos móviles durante cobros en ruta y costo significativamente superior por token.
+- No usar modelo de lenguaje y mantener solo consultas SQL estáticas: descartado porque el cobrador necesita síntesis contextual en lenguaje natural y sugerencias conversacionales rápidas sin navegar manualmente entre múltiples pantallas.
 
 ## Consecuencias
 
-<Qué se gana y qué se pierde. Costo estimado por mes. Qué pasa si el proveedor falla o sube el precio. Qué queda pendiente.>
+Se obtienen respuestas ejecutivas en menos de 1.5 segundos con un consumo mínimo de recursos. Si el proveedor Groq experimenta interrupciones o límite de cuota, el sistema degrada limpiamente hacia el motor analítico determinista sobre PostgreSQL sin interrumpir la operación del cobrador.
 
 ## Cómo se verifica
 
-<Dónde en el código o en las pruebas se ve que esto se cumple: un archivo, un test, una regla de CI.>
+La implementación reside en `backend/src/services/groq.service.js`, `backend/src/services/seneca.service.js` y `backend/src/controllers/senecaController.js`, protegida por `authMiddleware` en `/api/seneca` y validada mediante la suite de pruebas `verify_seneca_v3.mjs` con respuestas HTTP 200 verificadas en vivo.

@@ -30,7 +30,7 @@ function nuevaSeccion(titulo) {
 
 function leer(rutaRelativa) {
   const ruta = join(RAIZ, rutaRelativa)
-  return existsSync(ruta) ? readFileSync(ruta, 'utf8') : null
+  return existsSync(ruta) ? readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n') : null
 }
 
 /** Minúsculas y sin tildes, para comparar títulos sin depender de acentos. */
@@ -148,7 +148,7 @@ function verificarAdrs() {
   ]
 
   for (const nombre of archivos) {
-    const texto = readFileSync(join(carpeta, nombre), 'utf8')
+    const texto = readFileSync(join(carpeta, nombre), 'utf8').replace(/\r\n/g, '\n')
     const problemas = []
 
     const estado = campoDeCabecera(texto, 'Estado')

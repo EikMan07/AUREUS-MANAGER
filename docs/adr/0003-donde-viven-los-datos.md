@@ -1,31 +1,30 @@
-# ADR-0003: <dónde se guardan los datos y a quién se envían, en una frase>
+# ADR-0003: Almacenamiento local en PostgreSQL y envío restringido de contexto a la API de inferencia
 
-- Estado: Propuesto
-- Fecha: <AAAA-MM-DD>
-- Decide: <nombre y rol de quien responde por esta decisión>
-
-<!--
-Si en su proyecto hay otra decisión más importante (por ejemplo, cómo manejan el texto
-que sube un usuario y que llega al modelo), pueden reemplazar este ADR por esa y
-explicarlo en el pull request.
--->
+- Estado: Aceptado
+- Fecha: 2026-11-13
+- Decide: Eiker Abarca, Desarrollador Principal y Arquitecto de Software
 
 ## Contexto
 
-<Qué datos maneja el sistema (ver el inventario), qué servicios externos usa y si hay datos personales.>
+El sistema administra datos identificativos (cédulas de identidad de Costa Rica, nombres y apellidos), datos de contacto (teléfonos y direcciones de cobro) y datos crediticios (capital prestado, cuotas y saldos), amparados por la Ley 8968 (Protección de la Persona frente al Tratamiento de sus Datos Personales). Es imperativo garantizar soberanía de datos, almacenamiento seguro y minimización de transferencias hacia servicios externos.
 
 ## Decisión
 
-<En qué servicio y en qué región viven los datos. Qué datos se envían al proveedor de IA y cuáles nunca. Cuánto tiempo se conservan y cómo se borran. Quién puede leerlos (por ejemplo, políticas RLS).>
+Los datos primarios y transaccionales residen de manera persistente en la base de datos relacional PostgreSQL (`cobro_firme_db`) alojada en infraestructura propia controlada.
+
+Al proveedor de inferencia de IA (Groq) únicamente se envían resúmenes operativos o fragmentos de datos estrictamente necesarios para responder la consulta inmediata del usuario autenticado, transmitidos bajo cifrado TLS. Nunca se envían contraseñas, hashes bcrypt, credenciales de vinculación, cookies de sesión ni tokens de seguridad.
+
+Los datos se conservan durante la vigencia del contrato de préstamo y su ciclo de cobro. Los registros eliminados permanecen 30 días en la tabla de papelera (`clientes_baneados` y `prestamos_baneados`) antes de ser archivados de forma definitiva o purgados, permitiendo auditoría y restauración legítima.
 
 ## Alternativas descartadas
 
-- <Otra forma de guardar o enviar los datos>: <por qué no>.
+- Base de datos en la nube sin control de región ni cifrado local: descartada por el riesgo de transferencias internacionales no autorizadas y pérdida de soberanía sobre datos crediticios sensibles.
+- Envío continuo del volcado completo de la base de datos al proveedor de IA: descartado por violación del principio de minimización de datos de la Ley 8968 y costos excesivos de tokens.
 
 ## Consecuencias
 
-<Qué implica para la Ley 8968: consentimiento, transferencia internacional, derechos de acceso y supresión.>
+Se garantiza el cumplimiento de los principios de consentimiento, finalidad y confidencialidad exigidos por la Ley 8968. Toda consulta a la IA es anónima respecto a credenciales de acceso y minimizada respecto a datos de terceros.
 
 ## Cómo se verifica
 
-<La migración, la política de acceso o el test que lo demuestra.>
+El esquema relacional e índices están documentados en `backend/sql/01_schema_cobro_firme.sql`. Los constructores de contexto en `backend/src/prompts/seneca.prompt.js` y `backend/src/schemas/seneca.schema.js` sanitizan los datos salientes y omiten cualquier credencial o secreto del sistema.
