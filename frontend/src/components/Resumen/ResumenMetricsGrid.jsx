@@ -26,19 +26,21 @@ export function ResumenMetricsGrid({ metricas }) {
   const esVariacionPositiva = variacionMes >= 0;
 
   const cardBaseStyle = {
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
+    backgroundColor: 'var(--aureus-bg-surface)',
+    border: '1px solid var(--aureus-border-subtle)',
     borderRadius: '16px',
     padding: '14px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+    boxShadow: 'var(--aureus-card-shadow)',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
+    minWidth: 0,
   };
 
   return (
     <div
+      className="resumen-metrics-grid"
       style={{
         display: 'grid',
         gridTemplateColumns: 'var(--stats-grid-cols, repeat(2, minmax(0, 1fr)))',
@@ -69,7 +71,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '11px',
                 fontWeight: 800,
                 letterSpacing: '0.05em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -79,7 +81,7 @@ export function ResumenMetricsGrid({ metricas }) {
               style={{
                 fontSize: '28px',
                 fontWeight: 900,
-                color: '#059669',
+                color: 'var(--aureus-green-text)',
                 marginTop: '4px',
                 lineHeight: 1.15,
               }}
@@ -92,12 +94,12 @@ export function ResumenMetricsGrid({ metricas }) {
               width: '42px',
               height: '42px',
               borderRadius: '12px',
-              backgroundColor: '#ecfdf5',
-              border: '1px solid #a7f3d0',
+              backgroundColor: 'var(--aureus-green-light)',
+              border: '1px solid var(--aureus-green-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#059669',
+              color: 'var(--aureus-green-text)',
               flexShrink: 0,
             }}
           >
@@ -110,7 +112,7 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '14px',
             paddingTop: '12px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
           }}
         >
           <div
@@ -120,7 +122,7 @@ export function ResumenMetricsGrid({ metricas }) {
               justifyContent: 'space-between',
               fontSize: '12px',
               fontWeight: 700,
-              color: '#334155',
+              color: 'var(--aureus-text-secondary)',
               marginBottom: '8px',
               gap: '8px',
               flexWrap: 'wrap',
@@ -131,11 +133,11 @@ export function ResumenMetricsGrid({ metricas }) {
             </span>
             <span
               style={{
-                color: '#047857',
-                backgroundColor: '#ecfdf5',
+                color: 'var(--aureus-green-text)',
+                backgroundColor: 'var(--aureus-green-light)',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                border: '1px solid #a7f3d0',
+                border: '1px solid var(--aureus-green-border)',
                 fontSize: '11.5px',
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
@@ -147,7 +149,7 @@ export function ResumenMetricsGrid({ metricas }) {
           <div
             style={{
               width: '100%',
-              backgroundColor: '#f1f5f9',
+              backgroundColor: 'var(--aureus-bg-muted)',
               borderRadius: '9999px',
               height: '8px',
               overflow: 'hidden',
@@ -155,7 +157,7 @@ export function ResumenMetricsGrid({ metricas }) {
           >
             <div
               style={{
-                backgroundColor: '#10b981',
+                backgroundColor: '#397D67',
                 height: '100%',
                 borderRadius: '9999px',
                 transition: 'width 0.5s ease',
@@ -183,7 +185,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '10.5px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -194,12 +196,12 @@ export function ResumenMetricsGrid({ metricas }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
+                backgroundColor: 'var(--aureus-gold-soft)',
+                border: '1px solid var(--aureus-border-gold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#2563eb',
+                color: 'var(--aureus-gold-text)',
                 flexShrink: 0,
               }}
             >
@@ -210,7 +212,7 @@ export function ResumenMetricsGrid({ metricas }) {
             style={{
               fontSize: '18px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -221,7 +223,7 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '12px',
             paddingTop: '10px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
             display: 'flex',
             alignItems: 'center',
             flexWrap: 'wrap',
@@ -234,14 +236,14 @@ export function ResumenMetricsGrid({ metricas }) {
               fontWeight: 800,
               padding: '2px 6px',
               borderRadius: '6px',
-              backgroundColor: esVariacionPositiva ? '#ecfdf5' : '#fef2f2',
-              color: esVariacionPositiva ? '#047857' : '#b91c1c',
-              border: esVariacionPositiva ? '1px solid #a7f3d0' : '1px solid #fecaca',
+              backgroundColor: esVariacionPositiva ? 'var(--aureus-green-light)' : 'var(--aureus-red-light)',
+              color: esVariacionPositiva ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)',
+              border: esVariacionPositiva ? '1px solid var(--aureus-green-border)' : '1px solid var(--aureus-red-border)',
             }}
           >
             {esVariacionPositiva ? `+${variacionMes}%` : `${variacionMes}%`}
           </span>
-          <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600 }}>
+          <span style={{ fontSize: '10.5px', color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
             Respecto al mes anterior
           </span>
         </div>
@@ -264,7 +266,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '10.5px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -275,12 +277,12 @@ export function ResumenMetricsGrid({ metricas }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: '#eef2ff',
-                border: '1px solid #c7d2fe',
+                backgroundColor: 'var(--aureus-gold-soft)',
+                border: '1px solid var(--aureus-border-gold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#4f46e5',
+                color: 'var(--aureus-gold-text)',
                 flexShrink: 0,
               }}
             >
@@ -291,7 +293,7 @@ export function ResumenMetricsGrid({ metricas }) {
             style={{
               fontSize: '18px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -302,10 +304,10 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '12px',
             paddingTop: '10px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
           }}
         >
-          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569' }}>
+          <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
             {totalPrestado.prestamosVigentesCount === 1
               ? '1 préstamo activo'
               : `${totalPrestado.prestamosVigentesCount || 0} préstamos activos`}
@@ -330,7 +332,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '10.5px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -341,12 +343,12 @@ export function ResumenMetricsGrid({ metricas }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: '#ecfdf5',
-                border: '1px solid #a7f3d0',
+                backgroundColor: 'var(--aureus-green-light)',
+                border: '1px solid var(--aureus-green-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#059669',
+                color: 'var(--aureus-green-text)',
                 flexShrink: 0,
               }}
             >
@@ -357,7 +359,7 @@ export function ResumenMetricsGrid({ metricas }) {
             style={{
               fontSize: '18px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -368,12 +370,12 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '12px',
             paddingTop: '10px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
           }}
         >
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-muted)' }}>
             Saldo por cobrar{' '}
-            <strong style={{ color: '#0f172a', fontWeight: 800 }}>
+            <strong style={{ color: 'var(--aureus-text-primary)', fontWeight: 800 }}>
               {formatColones(gananciaProyectada.saldoPorCobrar || 0)}
             </strong>
           </span>
@@ -397,7 +399,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '10.5px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -408,12 +410,12 @@ export function ResumenMetricsGrid({ metricas }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: '#fffbeb',
-                border: '1px solid #fde68a',
+                backgroundColor: 'var(--aureus-gold-light)',
+                border: '1px solid var(--aureus-border-gold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#d97706',
+                color: 'var(--aureus-gold-text)',
                 flexShrink: 0,
               }}
             >
@@ -424,7 +426,7 @@ export function ResumenMetricsGrid({ metricas }) {
             style={{
               fontSize: '18px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -435,10 +437,10 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '12px',
             paddingTop: '10px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
           }}
         >
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-gold-text)' }}>
             {moratoriasYAtrasos.prestamosConAtrasoCount === 1
               ? '1 préstamo con atraso'
               : `${moratoriasYAtrasos.prestamosConAtrasoCount || 0} préstamos con atraso`}
@@ -463,7 +465,7 @@ export function ResumenMetricsGrid({ metricas }) {
                 fontSize: '10.5px',
                 fontWeight: 800,
                 letterSpacing: '0.04em',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 textTransform: 'uppercase',
               }}
             >
@@ -474,12 +476,12 @@ export function ResumenMetricsGrid({ metricas }) {
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                backgroundColor: '#f5f3ff',
-                border: '1px solid #ddd6fe',
+                backgroundColor: 'var(--aureus-gold-soft)',
+                border: '1px solid var(--aureus-border-gold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#7c3aed',
+                color: 'var(--aureus-gold-text)',
                 flexShrink: 0,
               }}
             >
@@ -490,7 +492,7 @@ export function ResumenMetricsGrid({ metricas }) {
             style={{
               fontSize: '18px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -501,10 +503,10 @@ export function ResumenMetricsGrid({ metricas }) {
           style={{
             marginTop: '12px',
             paddingTop: '10px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid var(--aureus-border-subtle)',
           }}
         >
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#6d28d9' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-gold-text)' }}>
             {capitalEnArreglos.arreglosActivosCount === 1
               ? '1 acuerdo activo'
               : `${capitalEnArreglos.arreglosActivosCount || 0} acuerdos activos`}
@@ -516,7 +518,7 @@ export function ResumenMetricsGrid({ metricas }) {
       <div
         style={{
           ...cardBaseStyle,
-          gridColumn: 'span 2',
+          gridColumn: '1 / -1',
           padding: '16px',
         }}
       >
@@ -526,7 +528,7 @@ export function ResumenMetricsGrid({ metricas }) {
               fontSize: '11px',
               fontWeight: 800,
               letterSpacing: '0.05em',
-              color: '#64748b',
+              color: 'var(--aureus-text-muted)',
               textTransform: 'uppercase',
             }}
           >
@@ -544,19 +546,19 @@ export function ResumenMetricsGrid({ metricas }) {
                 justifyContent: 'space-between',
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#334155',
+                color: 'var(--aureus-text-secondary)',
                 marginBottom: '6px',
               }}
             >
               <span>Modalidad Semanal</span>
-              <span style={{ color: '#0f172a', fontWeight: 800 }}>
+              <span style={{ color: 'var(--aureus-text-primary)', fontWeight: 800 }}>
                 {efectividadPorModalidad.semanalPct ?? 0}%
               </span>
             </div>
             <div
               style={{
                 width: '100%',
-                backgroundColor: '#f1f5f9',
+                backgroundColor: 'var(--aureus-bg-muted)',
                 borderRadius: '9999px',
                 height: '8px',
                 overflow: 'hidden',
@@ -568,14 +570,14 @@ export function ResumenMetricsGrid({ metricas }) {
                   borderRadius: '9999px',
                   transition: 'width 0.5s ease',
                   width: `${Math.min(100, Math.max(0, efectividadPorModalidad.semanalPct ?? 0))}%`,
-                  backgroundColor: '#0A3323',
+                  backgroundColor: '#B69A55',
                 }}
               />
             </div>
             <div
               style={{
                 fontSize: '11px',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 fontWeight: 600,
                 marginTop: '4px',
               }}
@@ -593,19 +595,19 @@ export function ResumenMetricsGrid({ metricas }) {
                 justifyContent: 'space-between',
                 fontSize: '12px',
                 fontWeight: 700,
-                color: '#334155',
+                color: 'var(--aureus-text-secondary)',
                 marginBottom: '6px',
               }}
             >
               <span>Modalidad Quincenal</span>
-              <span style={{ color: '#059669', fontWeight: 800 }}>
+              <span style={{ color: 'var(--aureus-green-text)', fontWeight: 800 }}>
                 {efectividadPorModalidad.quincenalPct ?? 0}%
               </span>
             </div>
             <div
               style={{
                 width: '100%',
-                backgroundColor: '#f1f5f9',
+                backgroundColor: 'var(--aureus-bg-muted)',
                 borderRadius: '9999px',
                 height: '8px',
                 overflow: 'hidden',
@@ -617,14 +619,14 @@ export function ResumenMetricsGrid({ metricas }) {
                   borderRadius: '9999px',
                   transition: 'width 0.5s ease',
                   width: `${Math.min(100, Math.max(0, efectividadPorModalidad.quincenalPct ?? 0))}%`,
-                  backgroundColor: '#059669',
+                  backgroundColor: '#397D67',
                 }}
               />
             </div>
             <div
               style={{
                 fontSize: '11px',
-                color: '#64748b',
+                color: 'var(--aureus-text-muted)',
                 fontWeight: 600,
                 marginTop: '4px',
               }}

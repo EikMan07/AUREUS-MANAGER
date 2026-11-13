@@ -12,18 +12,26 @@ export async function lookupHacienda(req, res) {
       return res.status(400).json({ error: 'La cédula debe contener exactamente 9 dígitos.' });
     }
 
-    const result = await fetchHaciendaByCedula(cleanCedula, 4500);
+    const result = await fetchHaciendaByCedula(cleanCedula, 10000);
 
     if (result.status === 'ok') {
       return res.json({
         cedula: cleanCedula,
         nombre: result.nombre,
         apellidos: result.apellidos,
-        nombreCompleto: `${result.nombre} ${result.apellidos}`.trim()
+        nombreCompleto: `${result.nombre} ${result.apellidos}`.trim(),
+        nombreOficial: result.nombreOficial,
+        esMoroso: result.esMoroso,
+        omiso: result.omiso,
+        estadoHacienda: result.estadoHacienda,
+        situacion: result.situacion
       });
     }
     if (result.status === 'not_found') {
-      return res.status(404).json({ error: 'Cédula no encontrada en el registro oficial.' });
+      return res.status(404).json({
+        error: 'Cédula no encontrada en el registro oficial.',
+        status: 'not_found'
+      });
     }
     if (result.status === 'timeout') {
       return res.status(504).json({ error: 'Tiempo de espera agotado al consultar Hacienda CR.' });

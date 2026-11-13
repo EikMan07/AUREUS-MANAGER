@@ -1,5 +1,5 @@
 /* ==========================================================================
-   COBRO-FIRME — SISTEMA RESPONSIVE 100% FULL-VIEWPORT
+   AUREUS MANAGER — SISTEMA RESPONSIVE 100% FULL-VIEWPORT
    Borde a Borde (100% Ancho x 100dvh Alto) en Celulares, Tablets y Computadoras
    Cero espacios vacíos laterales, superiores o inferiores
    ========================================================================== */
@@ -26,8 +26,8 @@
   --card-padding: 14px 16px;
   --card-padding-x: 16px;
   --card-padding-y: 14px;
-  --main-content-padding: 14px 16px 90px 16px;
-  --main-content-gap: 14px;
+  --main-content-padding: 12px 12px 28px 12px;
+  --main-content-gap: 13px;
 
   /* Modales */
   --modal-max-width: 480px;
@@ -48,7 +48,7 @@
     --card-padding: 10px 10px;
     --card-padding-x: 10px;
     --card-padding-y: 10px;
-    --main-content-padding: 10px 10px 85px 10px;
+    --main-content-padding: 10px 10px 28px 10px;
     --main-content-gap: 10px;
 
     --stats-grid-cols: minmax(0, 1fr);
@@ -123,16 +123,29 @@
     height: 18px !important;
   }
 
-  /* Botones del menú inferior de 6 módulos */
+  /* Botones del menú inferior simétrico (3 módulos | botón central | 3 módulos) */
   .bottom-nav-inner {
-    height: 52px !important;
+    height: 100% !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    padding: 0 4px !important;
+  }
+  .bottom-nav-inner > * {
+    min-width: 0 !important;
+  }
+  .bottom-nav-center-slot {
+    gap: 6px !important;
+    padding: 0 4px !important;
   }
   .nav-tab-btn {
+    min-width: 0 !important;
     padding: 2px 0 !important;
   }
   .nav-tab-label {
     font-size: 8.5px !important;
     letter-spacing: -0.02em !important;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .nav-icon {
     width: 17px !important;
@@ -180,7 +193,7 @@
     --card-padding: 16px 20px;
     --card-padding-x: 20px;
     --card-padding-y: 16px;
-    --main-content-padding: 18px 24px 95px 24px;
+    --main-content-padding: 18px 24px 32px 24px;
     --main-content-gap: 16px;
 
     --modal-max-width: 540px;
@@ -210,7 +223,7 @@
     --card-padding: 18px 22px;
     --card-padding-x: 22px;
     --card-padding-y: 18px;
-    --main-content-padding: 20px 32px 100px 32px;
+    --main-content-padding: 20px 32px 32px 32px;
     --main-content-gap: 18px;
 
     --modal-max-width: 600px;
@@ -232,7 +245,7 @@ html, body, #root {
   width: 100% !important;
   max-width: 100% !important;
   min-height: 100dvh !important;
-  background-color: #f8fafc !important;
+  background-color: var(--aureus-bg-app, #F5F3ED) !important;
   overflow-x: hidden !important;
 }
 
@@ -245,7 +258,7 @@ html, body, #root {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  background-color: #f8fafc !important;
+  background-color: var(--aureus-bg-app, #F5F3ED) !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
@@ -307,15 +320,184 @@ html, body, #root {
   box-sizing: border-box !important;
 }
 
-/* Clases de visibilidad condicional */
+/* Clases de visibilidad condicional y adaptación por barra lateral en móvil */
+.resumen-metrics-grid > div,
+.resumen-analytics-grid > div {
+  min-width: 0;
+}
+
+@media screen and (max-width: 350px) {
+  .white-summary-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .white-summary-cards-grid .white-summary-card:last-child {
+    grid-column: 1 / -1;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px;
+  }
+  .white-summary-cards-grid .white-summary-card:last-child .card-top-row {
+    align-items: center;
+    gap: 8px;
+  }
+  .white-summary-cards-grid .white-summary-card:last-child .card-icon-box {
+    order: -1;
+  }
+  .white-summary-cards-grid .white-summary-card:last-child .card-bottom-row {
+    margin-top: 0 !important;
+  }
+  .segmented-tabs-control-three {
+    border-radius: 16px !important;
+    flex-wrap: wrap !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+  .loans-category-tabs {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+  }
+  .loans-category-tab {
+    flex: 1 1 auto !important;
+    height: 35px !important;
+    padding: 0 9px !important;
+  }
+}
+
 @media screen and (max-width: 767px) {
   .resp-hide-mobile {
     display: none !important;
+  }
+
+  /* Cuando la barra lateral (izquierda/derecha) está expandida en móvil,
+     el ancho útil de contenido disminuye a ~248px-305px */
+  .main-scrollable-content.has-side-dock {
+    --stats-grid-cols: minmax(0, 1fr);
+    --main-content-gap: 11px;
+  }
+
+  .main-scrollable-content.has-side-dock .white-summary-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+  .main-scrollable-content.has-side-dock .white-summary-card {
+    padding: 9px 8px !important;
+  }
+  .main-scrollable-content.has-side-dock .white-summary-cards-grid .white-summary-card:last-child {
+    grid-column: 1 / -1;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px;
+  }
+  .main-scrollable-content.has-side-dock .white-summary-cards-grid .white-summary-card:last-child .card-top-row {
+    align-items: center;
+    gap: 8px;
+  }
+  .main-scrollable-content.has-side-dock .white-summary-cards-grid .white-summary-card:last-child .card-icon-box {
+    order: -1;
+  }
+  .main-scrollable-content.has-side-dock .white-summary-cards-grid .white-summary-card:last-child .card-bottom-row {
+    margin-top: 0 !important;
+  }
+
+  .main-scrollable-content.has-side-dock .segmented-tabs-control-three {
+    border-radius: 9999px !important;
+    flex-wrap: wrap !important;
+    padding: 3px !important;
+    gap: 2px !important;
+  }
+  .main-scrollable-content.has-side-dock .segmented-tabs-control-three .tab-btn {
+    flex: 1 1 auto !important;
+    padding: 5px 4px !important;
+    font-size: 10px !important;
+    gap: 3px !important;
+  }
+  .main-scrollable-content.has-side-dock .tab-counter-badge {
+    min-width: 15px !important;
+    height: 15px !important;
+    font-size: 9px !important;
+    padding: 0 3px !important;
+  }
+  .main-scrollable-content.has-side-dock .tab-search-btn {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
+    flex: 0 0 26px !important;
+  }
+
+  .main-scrollable-content.has-side-dock .loans-category-tabs {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+  }
+  .main-scrollable-content.has-side-dock .loans-category-tab {
+    flex: 1 1 auto !important;
+    height: 35px !important;
+    padding: 0 9px !important;
+    font-size: 11.5px !important;
+  }
+
+  .main-scrollable-content.has-side-dock .directory-main-heading {
+    font-size: 18px;
+  }
+  .main-scrollable-content.has-side-dock .directory-count-subtitle {
+    font-size: 12px;
+  }
+  .main-scrollable-content.has-side-dock .btn-select-loans,
+  .main-scrollable-content.has-side-dock .btn-new-client {
+    height: 36px;
+    padding: 0 11px;
+    font-size: 12.5px;
+    border-radius: 10px;
+  }
+
+  .main-scrollable-content.has-side-dock .client-directory-card {
+    padding: 11px !important;
+    gap: 9px !important;
+  }
+  .main-scrollable-content.has-side-dock .client-avatar-container {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 13px !important;
+  }
+
+  .main-scrollable-content.has-side-dock .resumen-time-tabs button {
+    padding: 5px 7px !important;
+    font-size: 10.5px !important;
   }
 }
 
 @media screen and (min-width: 768px) {
   .resp-hide-desktop {
     display: none !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .header-dark-compact {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .header-dark-compact .brand-group {
+    gap: 8px !important;
+  }
+  .header-dark-compact .main-title {
+    font-size: 16px !important;
+  }
+  .header-actions-group {
+    gap: 6px !important;
+  }
+  .header-seneca-btn {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+  }
+  .header-icon-action {
+    width: 36px !important;
+    height: 36px !important;
   }
 }

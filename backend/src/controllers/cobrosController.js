@@ -32,22 +32,64 @@ function getDiaSemanaEnum(dateStr) {
 }
 
 function addDaysISO(dateStr, days) {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const cleanStr = dateStr instanceof Date
+    ? dateStr.toISOString().slice(0, 10)
+    : String(dateStr).slice(0, 10);
+  const [y, m, d] = cleanStr.split('-').map(Number);
   const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
   dateObj.setUTCDate(dateObj.getUTCDate() + days);
   return dateObj.toISOString().slice(0, 10);
 }
 
+function getWeekRangeISO(dateStr) {
+  const cleanStr = dateStr instanceof Date
+    ? dateStr.toISOString().slice(0, 10)
+    : String(dateStr).slice(0, 10);
+  const [y, m, d] = cleanStr.split('-').map(Number);
+  const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dayOfWeek = dateObj.getUTCDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = addDaysISO(cleanStr, diffToMonday);
+  const sunday = addDaysISO(monday, 6);
+  return { monday, sunday };
+}
+
+function getMondayOffsetForDiaSemana(diaFijo) {
+  const clean = normalizeDiaSemana(diaFijo);
+  const map = {
+    LUNES: 0,
+    MARTES: 1,
+    MIERCOLES: 2,
+    JUEVES: 3,
+    VIERNES: 4,
+    SABADO: 5,
+    DOMINGO: 6
+  };
+  return map[clean] ?? 0;
+}
+
 function calculateNextChargeDate(currentDateStr, modalidad, diaMes1, diaMes2, diaFijoOriginal = null) {
   if (modalidad === 'SEMANAL') {
+    if (diaFijoOriginal) {
+      const week = getWeekRangeISO(currentDateStr);
+      const nextMonday = addDaysISO(week.monday, 7);
+      const offset = getMondayOffsetForDiaSemana(diaFijoOriginal);
+      return addDaysISO(nextMonday, offset);
+    }
     return addDaysISO(currentDateStr, 7);
   }
   // Modalidad QUINCENAL - Forma B: Cada 2 semanas (14 días) con día fijo de la semana
   if (diaFijoOriginal || (!diaMes1 && !diaMes2)) {
+    if (diaFijoOriginal) {
+      const week = getWeekRangeISO(currentDateStr);
+      const nextBiweeklyMonday = addDaysISO(week.monday, 14);
+      const offset = getMondayOffsetForDiaSemana(diaFijoOriginal);
+      return addDaysISO(nextBiweeklyMonday, offset);
+    }
     return addDaysISO(currentDateStr, 14);
   }
   // Modalidad QUINCENAL - Forma A: Día 15 y fin de mes
-  const [y, m, d] = currentDateStr.split('-').map(Number);
+  const [y, m, d] = String(currentDateStr).slice(0, 10).split('-').map(Number);
   const day1 = Number(diaMes1) || 15;
   const day2 = Number(diaMes2) || 31;
 
@@ -114,6 +156,8 @@ export async function getCobros(req, res) {
           c.nombre,
           c.apellidos,
           c.telefono,
+          c.telefono_secundario,
+          c.telefono_secundario AS cliente_telefono_secundario,
           c.ubicacion,
           c.detalles,
           p.monto_prestado,
@@ -160,6 +204,8 @@ export async function getCobros(req, res) {
           c.nombre,
           c.apellidos,
           c.telefono,
+          c.telefono_secundario,
+          c.telefono_secundario AS cliente_telefono_secundario,
           c.ubicacion,
           c.detalles,
           p.monto_prestado,
@@ -272,6 +318,8 @@ export async function getCobros(req, res) {
         c.nombre,
         c.apellidos,
         c.telefono,
+        c.telefono_secundario,
+        c.telefono_secundario AS cliente_telefono_secundario,
         c.ubicacion,
         c.detalles,
         p.monto_prestado,
@@ -363,6 +411,8 @@ export async function getCobros(req, res) {
         c.nombre,
         c.apellidos,
         c.telefono,
+        c.telefono_secundario,
+        c.telefono_secundario AS cliente_telefono_secundario,
         c.ubicacion,
         c.detalles,
         p.monto_prestado,
@@ -415,6 +465,8 @@ export async function getCobros(req, res) {
         c.nombre,
         c.apellidos,
         c.telefono,
+        c.telefono_secundario,
+        c.telefono_secundario AS cliente_telefono_secundario,
         c.ubicacion,
         c.detalles
       FROM prestamos p
@@ -473,14 +525,35 @@ export async function registrarPago(req, res) {
   try {
     const { id } = req.params; // ID de agenda_cobros (o prestamo_id)
     const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
-    const montoRecibido = req.body.monto ? Number(req.body.monto) : null;
-    const moratoria = req.body.moratoria ? Number(req.body.moratoria) : 0;
+    const rawMonto = req.body.monto_pagado ?? req.body.monto;
+    const montoRecibido = rawMonto !== undefined && rawMonto !== null && Number(rawMonto) > 0
+      ? Number(rawMonto)
+      : null;
+    const rawMoratoria = req.body.monto_moratoria ?? req.body.moratoria;
+    const moratoria = rawMoratoria !== undefined && rawMoratoria !== null
+      ? Number(rawMoratoria)
+      : 0;
+    const rawPeriodosPagados = req.body.periodos_pagados ?? req.body.periodosPagados;
 
     await client.query('BEGIN');
 
-    // Buscar la cuota de cobro
+    // Buscar la cuota de cobro (incluyendo periodos_atrasados_acumulados del préstamo)
     let cuotaRes = await client.query(
-      `SELECT a.*, p.saldo_por_pagar, p.monto_pagado_acumulado, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2, p.total_periodos, p.periodos_pagados, p.periodos_pendientes, p.estado AS estado_prestamo, c.cedula, c.nombre, c.apellidos
+      `SELECT a.*,
+              p.saldo_por_pagar,
+              p.monto_pagado_acumulado,
+              p.modalidad,
+              p.dia_fijo_original,
+              p.dia_mes_1,
+              p.dia_mes_2,
+              p.total_periodos,
+              p.periodos_pagados,
+              p.periodos_pendientes,
+              p.periodos_atrasados_acumulados,
+              p.estado AS estado_prestamo,
+              c.cedula,
+              c.nombre,
+              c.apellidos
        FROM agenda_cobros a
        JOIN prestamos p ON a.prestamo_id = p.id
        JOIN clientes c ON a.cliente_id = c.id
@@ -493,7 +566,21 @@ export async function registrarPago(req, res) {
     // Fallback: si pasaron el prestamo_id en vez de agenda_cobros.id
     if (!cuota) {
       cuotaRes = await client.query(
-        `SELECT a.*, p.saldo_por_pagar, p.monto_pagado_acumulado, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2, p.total_periodos, p.periodos_pagados, p.periodos_pendientes, p.estado AS estado_prestamo, c.cedula, c.nombre, c.apellidos
+        `SELECT a.*,
+                p.saldo_por_pagar,
+                p.monto_pagado_acumulado,
+                p.modalidad,
+                p.dia_fijo_original,
+                p.dia_mes_1,
+                p.dia_mes_2,
+                p.total_periodos,
+                p.periodos_pagados,
+                p.periodos_pendientes,
+                p.periodos_atrasados_acumulados,
+                p.estado AS estado_prestamo,
+                c.cedula,
+                c.nombre,
+                c.apellidos
          FROM agenda_cobros a
          JOIN prestamos p ON a.prestamo_id = p.id
          JOIN clientes c ON a.cliente_id = c.id
@@ -508,7 +595,21 @@ export async function registrarPago(req, res) {
     // Fallback adicional: si todas las cuotas estaban en NO_PAGO (ej. pago desde pestaña Atrasados)
     if (!cuota) {
       cuotaRes = await client.query(
-        `SELECT a.*, p.saldo_por_pagar, p.monto_pagado_acumulado, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2, p.total_periodos, p.periodos_pagados, p.periodos_pendientes, p.estado AS estado_prestamo, c.cedula, c.nombre, c.apellidos
+        `SELECT a.*,
+                p.saldo_por_pagar,
+                p.monto_pagado_acumulado,
+                p.modalidad,
+                p.dia_fijo_original,
+                p.dia_mes_1,
+                p.dia_mes_2,
+                p.total_periodos,
+                p.periodos_pagados,
+                p.periodos_pendientes,
+                p.periodos_atrasados_acumulados,
+                p.estado AS estado_prestamo,
+                c.cedula,
+                c.nombre,
+                c.apellidos
          FROM agenda_cobros a
          JOIN prestamos p ON a.prestamo_id = p.id
          JOIN clientes c ON a.cliente_id = c.id
@@ -526,14 +627,30 @@ export async function registrarPago(req, res) {
     }
 
     const cuotaBase = Math.max(1, Number(cuota.monto_cuota || 1));
+    const atrasosActuales = Math.max(0, Number(cuota.periodos_atrasados_acumulados || 0));
+    const totalPeriodosDebidos = atrasosActuales + 1;
+
     const montoPago = montoRecibido !== null && Number(montoRecibido) > 0
       ? Number(montoRecibido)
-      : Number(cuota.monto_cuota);
+      : (rawPeriodosPagados ? Number(rawPeriodosPagados) * cuotaBase : Number(cuota.monto_cuota));
+
     const montoTotalCobrado = montoPago + moratoria;
-    const periodosCubiertos = Math.max(1, Math.round(montoPago / cuotaBase));
+
+    const periodosCalculadosPorMonto = Math.max(1, Math.round(montoPago / cuotaBase));
+    const cuotasCubiertasHoy = Math.max(
+      1,
+      Math.min(
+        Math.max(totalPeriodosDebidos, periodosCalculadosPorMonto),
+        Number(rawPeriodosPagados) > 0 ? Number(rawPeriodosPagados) : periodosCalculadosPorMonto
+      )
+    );
+    const nuevosAtrasosRestantes = Math.max(0, totalPeriodosDebidos - cuotasCubiertasHoy);
 
     // 1. Insertar en pagos_prestamo
-    const tipoPago = cuota.estado_prestamo === 'ATRASADO' || periodosCubiertos > 1 ? 'PAGO_ATRASADO' : 'COBRO_NORMAL';
+    const tipoPago = (cuota.estado_prestamo === 'ATRASADO' || atrasosActuales > 0 || cuotasCubiertasHoy > 1)
+      ? 'PAGO_ATRASADO'
+      : 'COBRO_NORMAL';
+
     const insertPagoSql = `
       INSERT INTO pagos_prestamo (
         cobrador_id,
@@ -555,24 +672,89 @@ export async function registrarPago(req, res) {
       tipoPago,
       montoPago,
       moratoria,
-      periodosCubiertos
+      cuotasCubiertasHoy
     ]);
     const pago = pagoRows[0];
 
-    // 2. Calcular próxima fecha de cobro según dia_fijo_original o dia_mes_1/dia_mes_2
+    // 2. Determinar fecha actual de la cuota y limpiar posibles colisiones en la misma semana
     const fechaActualStr = cuota.fecha_cobro_actual instanceof Date 
       ? cuota.fecha_cobro_actual.toISOString().slice(0, 10) 
-      : String(cuota.fecha_cobro_actual);
+      : String(cuota.fecha_cobro_actual).slice(0, 10);
 
-    const proximaFechaCobro = calculateNextChargeDate(
-      fechaActualStr,
-      cuota.modalidad,
-      cuota.dia_mes_1,
-      cuota.dia_mes_2,
-      cuota.dia_fijo_original
+    const weekActual = getWeekRangeISO(fechaActualStr);
+
+    // Si el cliente pagó más de 1 cuota hoy, marcar como 'REGISTRADO' las (cuotasCubiertasHoy - 1) filas más antiguas en 'NO_PAGO'
+    if (cuotasCubiertasHoy > 1) {
+      const filasNoPagoACubrir = cuotasCubiertasHoy - 1;
+      await client.query(
+        `UPDATE agenda_cobros
+            SET estado = 'REGISTRADO'::public.estado_cuota_cobro,
+                fecha_hora_registro_pago = (fecha_cobro_actual::text || ' 12:00:00 -06:00')::timestamptz,
+                monto_total_cobrado = COALESCE(NULLIF(monto_total_cobrado, 0), monto_cuota),
+                version = COALESCE(version, 1) + 1
+          WHERE id IN (
+            SELECT id
+              FROM agenda_cobros
+             WHERE prestamo_id = $1::uuid
+               AND estado = 'NO_PAGO'::public.estado_cuota_cobro
+               AND id <> $2::uuid
+             ORDER BY numero_cobro ASC, fecha_cobro_actual ASC
+             LIMIT $3::int
+          )`,
+        [cuota.prestamo_id, cuota.id, filasNoPagoACubrir]
+      );
+    }
+
+    // Asegurar que nunca quede otra cuota PENDIENTE/PASADO_DE_DIA en la misma semana ISO (evitar doble cobro semanal)
+    if (cuota.modalidad === 'SEMANAL') {
+      const sameWeekPendingRes = await client.query(
+        `SELECT id, numero_cobro
+           FROM agenda_cobros
+          WHERE prestamo_id = $1::uuid
+            AND id <> $2::uuid
+            AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
+            AND fecha_cobro_actual >= $3::date
+            AND fecha_cobro_actual <= $4::date
+          ORDER BY fecha_cobro_actual ASC, numero_cobro ASC
+            FOR UPDATE`,
+        [cuota.prestamo_id, cuota.id, weekActual.monday, weekActual.sunday]
+      );
+
+      for (const swRow of sameWeekPendingRes.rows) {
+        await client.query(
+          `UPDATE agenda_cobros
+              SET estado = 'NO_PAGO'::public.estado_cuota_cobro,
+                  version = COALESCE(version, 1) + 1
+            WHERE id = $1::uuid`,
+          [swRow.id]
+        );
+      }
+    }
+
+    // Buscar cuál es la próxima cuota pendiente futura real en agenda_cobros
+    const nextPendingRes = await client.query(
+      `SELECT id, numero_cobro, to_char(fecha_cobro_actual, 'YYYY-MM-DD') AS fecha_cobro_actual
+         FROM agenda_cobros
+        WHERE prestamo_id = $1::uuid
+          AND id <> $2::uuid
+          AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
+          AND fecha_cobro_actual > $3::date
+        ORDER BY fecha_cobro_actual ASC, numero_cobro ASC
+        LIMIT 1`,
+      [cuota.prestamo_id, cuota.id, cuota.modalidad === 'SEMANAL' ? weekActual.sunday : fechaActualStr]
     );
 
-    // 3. Actualizar la cuota en agenda_cobros a 'REGISTRADO'
+    const proximaFechaCobro = nextPendingRes.rows.length > 0
+      ? nextPendingRes.rows[0].fecha_cobro_actual
+      : calculateNextChargeDate(
+          fechaActualStr,
+          cuota.modalidad,
+          cuota.dia_mes_1,
+          cuota.dia_mes_2,
+          cuota.dia_fijo_original
+        );
+
+    // 3. Actualizar la cuota actual en agenda_cobros a 'REGISTRADO'
     await client.query(
       `UPDATE agenda_cobros
        SET estado = 'REGISTRADO'::public.estado_cuota_cobro,
@@ -585,12 +767,28 @@ export async function registrarPago(req, res) {
       [moratoria, montoTotalCobrado, proximaFechaCobro, cuota.id]
     );
 
-    // 4. Descontar saldo_por_pagar en prestamos, reiniciar periodos_atrasados_acumulados = 0
+    // 4. Actualizar saldo_por_pagar, periodos y conservar nuevosAtrasosRestantes en prestamos
     const nuevoSaldo = Math.max(0, Number(cuota.saldo_por_pagar) - montoPago);
     const nuevoPagadoAcumulado = Number(cuota.monto_pagado_acumulado) + montoPago;
-    const periodosPagados = Math.min(Number(cuota.total_periodos || 999), Number(cuota.periodos_pagados) + periodosCubiertos);
-    const periodosPendientes = Math.max(0, Number(cuota.periodos_pendientes) - periodosCubiertos);
-    const nuevoEstado = (nuevoSaldo === 0 || periodosPendientes === 0) ? 'CANCELADO' : 'ACTIVO';
+    const periodosPagados = Math.min(
+      Number(cuota.total_periodos || 999),
+      Number(cuota.periodos_pagados) + cuotasCubiertasHoy
+    );
+    const periodosPendientes = nuevoSaldo <= 0
+      ? 0
+      : Math.max(1, Number(cuota.periodos_pendientes) - cuotasCubiertasHoy);
+    const atrasosFinales = (nuevoSaldo <= 0 || periodosPendientes === 0) ? 0 : nuevosAtrasosRestantes;
+
+    let nuevoEstado = 'ACTIVO';
+    if (nuevoSaldo <= 0 || periodosPendientes === 0) {
+      nuevoEstado = 'CANCELADO';
+    } else if (cuota.modalidad === 'SEMANAL' && atrasosFinales >= 4) {
+      nuevoEstado = 'ATRASADO';
+    } else if (cuota.modalidad === 'QUINCENAL' && atrasosFinales >= 2) {
+      nuevoEstado = 'ATRASADO';
+    } else if (cuota.estado_prestamo === 'ARREGLO_PAGO' || cuota.estado_prestamo === 'RENOVADO') {
+      nuevoEstado = cuota.estado_prestamo;
+    }
 
     await client.query(
       `UPDATE prestamos
@@ -598,55 +796,61 @@ export async function registrarPago(req, res) {
            monto_pagado_acumulado = $2,
            periodos_pagados = $3::int,
            periodos_pendientes = $4::int,
-           periodos_atrasados_acumulados = 0,
-           estado = $5::public.estado_prestamo,
+           periodos_atrasados_acumulados = $5::int,
+           estado = $6::public.estado_prestamo,
            actualizado_en = now(),
            version = COALESCE(version, 1) + 1
-       WHERE id = $6::uuid`,
-      [nuevoSaldo, nuevoPagadoAcumulado, periodosPagados, periodosPendientes, nuevoEstado, cuota.prestamo_id]
+       WHERE id = $7::uuid`,
+      [
+        nuevoSaldo,
+        nuevoPagadoAcumulado,
+        periodosPagados,
+        periodosPendientes,
+        atrasosFinales,
+        nuevoEstado,
+        cuota.prestamo_id
+      ]
     );
 
-    // 5. Si aún queda saldo, programar el próximo cobro en agenda_cobros (si no existe ya)
+    // 5. Si aún queda saldo y ya no quedan cuotas PENDIENTE futuras en agenda_cobros, crear la siguiente en su día fijo
     const finalUsuarioId = cobradorId || cuota.cobrador_id || (await getDefaultCobradorId());
 
-    if (nuevoSaldo > 0) {
-      const siguienteNumero = Number(cuota.numero_cobro) + 1;
+    if (nuevoSaldo > 0 && nextPendingRes.rows.length === 0) {
+      const maxNumRes = await client.query(
+        `SELECT COALESCE(MAX(numero_cobro), 0)::int AS max_num
+           FROM agenda_cobros
+          WHERE prestamo_id = $1::uuid`,
+        [cuota.prestamo_id]
+      );
+      const siguienteNumero = Number(maxNumRes.rows[0]?.max_num || cuota.numero_cobro) + 1;
       const diaSemanaProximo = normalizeDiaSemana(getDiaSemanaEnum(proximaFechaCobro));
 
-      // Verificar si ya existe agenda para esa cuota (calendario pre-generado)
-      const checkExist = await client.query(
-        `SELECT id FROM agenda_cobros WHERE prestamo_id = $1::uuid AND numero_cobro = $2::int`,
-        [cuota.prestamo_id, siguienteNumero]
+      await client.query(
+        `INSERT INTO agenda_cobros (
+          cobrador_id,
+          prestamo_id,
+          cliente_id,
+          numero_cobro,
+          fecha_programada_original,
+          fecha_cobro_actual,
+          dia_semana_actual,
+          veces_pasado,
+          monto_cuota,
+          monto_moratoria,
+          monto_total_cobrado,
+          estado
+        ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::int, $5::date, $5::date, $6::public.dia_semana, 0, $7, 0, 0, 'PENDIENTE'::public.estado_cuota_cobro)
+        ON CONFLICT (prestamo_id, numero_cobro) DO NOTHING;`,
+        [
+          finalUsuarioId,
+          cuota.prestamo_id,
+          cuota.cliente_id,
+          siguienteNumero,
+          proximaFechaCobro,
+          diaSemanaProximo,
+          cuota.monto_cuota
+        ]
       );
-
-      if (checkExist.rows.length === 0) {
-        await client.query(
-          `INSERT INTO agenda_cobros (
-            cobrador_id,
-            prestamo_id,
-            cliente_id,
-            numero_cobro,
-            fecha_programada_original,
-            fecha_cobro_actual,
-            dia_semana_actual,
-            veces_pasado,
-            monto_cuota,
-            monto_moratoria,
-            monto_total_cobrado,
-            estado
-          ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::int, $5::date, $5::date, $6::public.dia_semana, 0, $7, 0, 0, 'PENDIENTE'::public.estado_cuota_cobro)
-          ON CONFLICT (prestamo_id, numero_cobro) DO NOTHING;`,
-          [
-            finalUsuarioId,
-            cuota.prestamo_id,
-            cuota.cliente_id,
-            siguienteNumero,
-            proximaFechaCobro,
-            diaSemanaProximo,
-            cuota.monto_cuota
-          ]
-        );
-      }
     }
 
     // 6. Registrar en bitácora de actividad de forma segura
@@ -672,6 +876,8 @@ export async function registrarPago(req, res) {
           cliente: `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim(),
           monto_cobrado: montoPago,
           monto_moratoria: moratoria,
+          periodos_cubiertos: cuotasCubiertasHoy,
+          periodos_atrasados_restantes: atrasosFinales,
           saldo_restante: nuevoSaldo,
           proxima_fecha: proximaFechaCobro
         })
@@ -684,6 +890,8 @@ export async function registrarPago(req, res) {
       message: 'Pago registrado con éxito',
       pago,
       nuevoSaldo,
+      periodosCubiertos: cuotasCubiertasHoy,
+      periodosAtrasadosRestantes: atrasosFinales,
       proximaFechaCobro
     });
   } catch (err) {
@@ -703,7 +911,11 @@ export async function pasarCobro(req, res) {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { nuevaFecha } = req.body;
+    const rawNuevaFecha = req.body.fecha_nueva || req.body.nuevaFecha;
+    const nuevaFecha = rawNuevaFecha ? String(rawNuevaFecha).slice(0, 10) : '';
+    const modoAcumulacion = String(
+      req.body.modo_acumulacion || req.body.modoAcumulacion || 'ACUMULAR'
+    ).toUpperCase();
     const defaultCobrador = await getDefaultCobradorId();
     const cobradorId = req.body.cobrador_id || defaultCobrador;
 
@@ -713,10 +925,23 @@ export async function pasarCobro(req, res) {
 
     await client.query('BEGIN');
 
-    // Buscar cuota (con bloqueo FOR UPDATE y fallback a prestamo_id)
+    // Buscar cuota actual y datos del préstamo (con bloqueo FOR UPDATE y fallback a prestamo_id)
     let cuotaRes = await client.query(
-      `SELECT a.*, c.cedula AS cliente_cedula, c.nombre, c.apellidos
+      `SELECT a.*,
+              p.modalidad,
+              p.dia_fijo_original,
+              p.dia_mes_1,
+              p.dia_mes_2,
+              p.periodos_atrasados_acumulados,
+              p.total_periodos,
+              p.periodos_pendientes,
+              p.saldo_por_pagar,
+              p.estado AS prestamo_estado,
+              c.cedula AS cliente_cedula,
+              c.nombre,
+              c.apellidos
        FROM agenda_cobros a
+       JOIN prestamos p ON a.prestamo_id = p.id
        JOIN clientes c ON a.cliente_id = c.id
        WHERE a.id = $1 FOR UPDATE`,
       [id]
@@ -727,8 +952,21 @@ export async function pasarCobro(req, res) {
     // Fallback: si pasaron el prestamo_id en vez de agenda_cobros.id
     if (!cuota) {
       cuotaRes = await client.query(
-        `SELECT a.*, c.cedula AS cliente_cedula, c.nombre, c.apellidos
+        `SELECT a.*,
+                p.modalidad,
+                p.dia_fijo_original,
+                p.dia_mes_1,
+                p.dia_mes_2,
+                p.periodos_atrasados_acumulados,
+                p.total_periodos,
+                p.periodos_pendientes,
+                p.saldo_por_pagar,
+                p.estado AS prestamo_estado,
+                c.cedula AS cliente_cedula,
+                c.nombre,
+                c.apellidos
          FROM agenda_cobros a
+         JOIN prestamos p ON a.prestamo_id = p.id
          JOIN clientes c ON a.cliente_id = c.id
          WHERE a.prestamo_id = $1 AND a.estado IN ('PENDIENTE', 'PASADO_DE_DIA')
          ORDER BY a.numero_cobro ASC
@@ -748,19 +986,167 @@ export async function pasarCobro(req, res) {
       : String(cuota.fecha_cobro_actual).slice(0, 10);
 
     const nuevoDiaSemana = normalizeDiaSemana(getDiaSemanaEnum(nuevaFecha));
-    const nuevasVecesPasado = Number(cuota.veces_pasado || 0) + 1;
+    let nuevasVecesPasado = Number(cuota.veces_pasado || 0) + 1;
+    let agendaTargetId = cuota.id;
+    let modoAplicado = 'MISMA_SEMANA';
+    let nuevosAtrasosAcumulados = Number(cuota.periodos_atrasados_acumulados || 0);
 
-    // Actualizar agenda_cobros
-    await client.query(
-      `UPDATE agenda_cobros
-       SET fecha_cobro_actual = $1::date,
-           dia_semana_actual = $2::public.dia_semana,
-           veces_pasado = $3::int,
-           estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
-           version = COALESCE(version, 1) + 1
-       WHERE id = $4::uuid`,
-      [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id]
+    // Obtener todas las cuotas pendientes o reprogramadas posteriores de este mismo préstamo
+    const posterioresRes = await client.query(
+      `SELECT id,
+              numero_cobro,
+              to_char(fecha_programada_original, 'YYYY-MM-DD') AS fecha_programada_original,
+              to_char(fecha_cobro_actual, 'YYYY-MM-DD') AS fecha_cobro_actual,
+              dia_semana_actual,
+              veces_pasado,
+              monto_cuota,
+              estado
+         FROM agenda_cobros
+        WHERE prestamo_id = $1::uuid
+          AND id <> $2::uuid
+          AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
+          AND (numero_cobro > $3::int OR fecha_cobro_actual > $4::date)
+        ORDER BY fecha_cobro_actual ASC, numero_cobro ASC
+          FOR UPDATE`,
+      [cuota.prestamo_id, cuota.id, Number(cuota.numero_cobro || 0), fechaAnteriorStr]
     );
+    const cuotasPosteriores = posterioresRes.rows;
+
+    // Detectar si nuevaFecha cae en una semana posterior o colisiona con una cuota futura programada
+    const weekActual = getWeekRangeISO(fechaAnteriorStr);
+    const weekNueva = getWeekRangeISO(nuevaFecha);
+    const esOtraSemana = weekNueva.monday > weekActual.monday;
+
+    const limiteSemanaDestino = cuota.modalidad === 'SEMANAL' || cuota.dia_fijo_original
+      ? weekNueva.sunday
+      : addDaysISO(nuevaFecha, 6);
+
+    const cuotasEnRango = esOtraSemana
+      ? cuotasPosteriores.filter((c) => c.fecha_cobro_actual <= limiteSemanaDestino)
+      : [];
+
+    if (cuotasEnRango.length === 0) {
+      // CASO 1: Sin colisión (se pasó dentro de la misma semana o no hay otra cuota programada en esa semana)
+      await client.query(
+        `UPDATE agenda_cobros
+         SET fecha_cobro_actual = $1::date,
+             dia_semana_actual = $2::public.dia_semana,
+             veces_pasado = $3::int,
+             estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+             version = COALESCE(version, 1) + 1
+         WHERE id = $4::uuid`,
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id]
+      );
+    } else if (modoAcumulacion === 'CORRER') {
+      // CASO 2B: No acumular · Correr 1 periodo hacia adelante todas las cuotas siguientes
+      modoAplicado = 'CORRER';
+      await client.query(
+        `UPDATE agenda_cobros
+         SET fecha_cobro_actual = $1::date,
+             dia_semana_actual = $2::public.dia_semana,
+             veces_pasado = $3::int,
+             estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+             version = COALESCE(version, 1) + 1
+         WHERE id = $4::uuid`,
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id]
+      );
+
+      const periodosACorrer = Math.max(1, cuotasEnRango.length);
+      let ultimaFechaDesplazada = nuevaFecha;
+
+      for (const cPost of cuotasPosteriores) {
+        let shiftedDate = cPost.fecha_programada_original || cPost.fecha_cobro_actual;
+        for (let step = 0; step < periodosACorrer; step++) {
+          shiftedDate = calculateNextChargeDate(
+            shiftedDate,
+            cuota.modalidad,
+            cuota.dia_mes_1,
+            cuota.dia_mes_2,
+            cuota.dia_fijo_original
+          );
+        }
+        const shiftedDia = normalizeDiaSemana(getDiaSemanaEnum(shiftedDate));
+        ultimaFechaDesplazada = shiftedDate;
+
+        await client.query(
+          `UPDATE agenda_cobros
+              SET fecha_cobro_actual = $1::date,
+                  fecha_programada_original = $1::date,
+                  dia_semana_actual = $2::public.dia_semana,
+                  version = COALESCE(version, 1) + 1
+            WHERE id = $3::uuid`,
+          [shiftedDate, shiftedDia, cPost.id]
+        );
+      }
+
+      await client.query(
+        `UPDATE prestamos
+            SET fecha_final = $1::date,
+                actualizado_en = now(),
+                version = COALESCE(version, 1) + 1
+          WHERE id = $2::uuid`,
+        [ultimaFechaDesplazada, cuota.prestamo_id]
+      );
+    } else {
+      // CASO 2A (Por defecto): 'ACUMULAR' con esa semana
+      // El día pasado (ej. Miércoles 9 dic) absorbe el turno del día fijo de esa semana (ej. Jueves 10 dic)
+      // y suma la cuota anterior como periodo acumulado para que NO aparezca dos veces en esa semana.
+      modoAplicado = 'ACUMULAR';
+      const cuotaColision = cuotasEnRango[cuotasEnRango.length - 1];
+      const cuotasParaNoPago = [cuota, ...cuotasEnRango.slice(0, -1)];
+
+      for (const cNoPago of cuotasParaNoPago) {
+        await client.query(
+          `UPDATE agenda_cobros
+              SET estado = 'NO_PAGO'::public.estado_cuota_cobro,
+                  version = COALESCE(version, 1) + 1
+            WHERE id = $1::uuid`,
+          [cNoPago.id]
+        );
+      }
+
+      nuevasVecesPasado = Math.max(
+        Number(cuota.veces_pasado || 0),
+        Number(cuotaColision.veces_pasado || 0)
+      ) + 1;
+      agendaTargetId = cuotaColision.id;
+
+      await client.query(
+        `UPDATE agenda_cobros
+            SET fecha_cobro_actual = $1::date,
+                dia_semana_actual = $2::public.dia_semana,
+                veces_pasado = $3::int,
+                estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+                version = COALESCE(version, 1) + 1
+          WHERE id = $4::uuid`,
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuotaColision.id]
+      );
+
+      nuevosAtrasosAcumulados = Number(cuota.periodos_atrasados_acumulados || 0) + cuotasParaNoPago.length;
+      let nuevoEstadoPrestamo = 'ACTIVO';
+      if (cuota.modalidad === 'SEMANAL' && nuevosAtrasosAcumulados >= 4) {
+        nuevoEstadoPrestamo = 'ATRASADO';
+      } else if (cuota.modalidad === 'QUINCENAL' && nuevosAtrasosAcumulados >= 2) {
+        nuevoEstadoPrestamo = 'ATRASADO';
+      } else if (cuota.prestamo_estado === 'ATRASADO') {
+        nuevoEstadoPrestamo = 'ATRASADO';
+      } else if (cuota.prestamo_estado === 'ARREGLO_PAGO' || cuota.prestamo_estado === 'RENOVADO') {
+        nuevoEstadoPrestamo = cuota.prestamo_estado;
+      }
+
+      await client.query(
+        `UPDATE prestamos
+            SET periodos_atrasados_acumulados = $1::int,
+                estado = CASE
+                  WHEN estado = 'SUSPENDIDO'::public.estado_prestamo THEN 'SUSPENDIDO'::public.estado_prestamo
+                  ELSE $2::public.estado_prestamo
+                END,
+                actualizado_en = now(),
+                version = COALESCE(version, 1) + 1
+          WHERE id = $3::uuid`,
+        [nuevosAtrasosAcumulados, nuevoEstadoPrestamo, cuota.prestamo_id]
+      );
+    }
 
     // Insertar en historial_pasar_dia
     await client.query(
@@ -771,7 +1157,7 @@ export async function pasarCobro(req, res) {
         fecha_nueva,
         numero_reprogramacion
       ) VALUES ($1::uuid, $2::uuid, $3::date, $4::date, $5::int)`,
-      [cuota.id, cuota.prestamo_id, fechaAnteriorStr, nuevaFecha, nuevasVecesPasado]
+      [agendaTargetId, cuota.prestamo_id, fechaAnteriorStr, nuevaFecha, nuevasVecesPasado]
     );
 
     // Registrar en bitácora de actividad de forma segura
@@ -791,13 +1177,15 @@ export async function pasarCobro(req, res) {
       [
         finalUsuarioId,
         finalUsuarioId,
-        cuota.id,
+        agendaTargetId,
         finalCedula,
         JSON.stringify({
           prestamo_id: cuota.prestamo_id,
           cliente: `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim(),
           fecha_anterior: fechaAnteriorStr,
           fecha_nueva: nuevaFecha,
+          modo_acumulacion: modoAplicado,
+          periodos_atrasados_acumulados: nuevosAtrasosAcumulados,
           veces_pasado: nuevasVecesPasado
         })
       ]
@@ -809,6 +1197,8 @@ export async function pasarCobro(req, res) {
       message: 'Cobro pasado de día con éxito',
       fecha_anterior: fechaAnteriorStr,
       fecha_nueva: nuevaFecha,
+      modo_acumulacion: modoAplicado,
+      periodos_atrasados_acumulados: nuevosAtrasosAcumulados,
       veces_pasado: nuevasVecesPasado
     });
   } catch (err) {

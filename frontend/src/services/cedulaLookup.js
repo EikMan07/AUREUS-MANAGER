@@ -8,6 +8,7 @@
 
 import Tesseract from 'tesseract.js';
 import { cleanCedulaDigits, formatCedulaCR } from '../utils/formatters.js';
+import { getCsrfToken, setCsrfToken, notifyUnauthorized } from './apiClient.js';
 
 export function toTitleCase(str = '') {
   return str
@@ -45,20 +46,25 @@ export function parseOfficialFullName(rawFullName = '') {
  * Consulta transparente de cédula por 9 dígitos
  * Conecta a través del backend proxy /api/hacienda/:cedula con fallback al registro oficial
  */
-export async function lookupCedula(cedulaInput, timeoutMs = 4000) {
+export async function lookupCedula(cedulaInput, timeoutMs = 11000) {
   const clean = cleanCedulaDigits(cedulaInput);
   if (clean.length !== 9) return null;
 
-  // 1. Consulta mediante el proxy del backend /api/hacienda/:cedula
+  // Consulta mediante el proxy del backend /api/hacienda/:cedula
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const proxyRes = await fetch(`/api/hacienda/${clean}`, {
       method: 'GET',
+      credentials: 'include',
       headers: { 'Accept': 'application/json' },
       signal: controller.signal
     });
+
+    const headerCsrf = proxyRes.headers.get('x-csrf-token');
+    if (headerCsrf) setCsrfToken(headerCsrf);
+    if (proxyRes.status === 401) notifyUnauthorized(`/api/hacienda/${clean}`);
 
     clearTimeout(timeoutId);
 
@@ -68,47 +74,46 @@ export async function lookupCedula(cedulaInput, timeoutMs = 4000) {
         return {
           nombre: data.nombre,
           apellidos: data.apellidos || '',
-          cedulaFormateada: clean
+          cedulaFormateada: clean,
+          haciendaInfo: {
+            status: 'ok',
+            esMoroso: Boolean(data.esMoroso),
+            omiso: Boolean(data.omiso),
+            estadoHacienda: data.estadoHacienda || 'Inscrito',
+            nombreOficial: data.nombreOficial || `${data.nombre} ${data.apellidos || ''}`.trim()
+          }
         };
       }
+    } else if (proxyRes.status === 404) {
+      return {
+        nombre: '',
+        apellidos: '',
+        cedulaFormateada: clean,
+        haciendaInfo: {
+          status: 'not_found',
+          esMoroso: false,
+          omiso: false,
+          estadoHacienda: '',
+          nombreOficial: ''
+        }
+      };
     }
   } catch {
-    // Si el proxy falla, intentar directo a la API pública
+    // Falla de red o timeout en el proxy: retorna fallback silencioso sin llamar directo a Hacienda (evita error CORS en navegador)
   }
 
-  // 2. Fallback de contingencia directo a la API pública
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await fetch(`https://api.hacienda.go.cr/fe/ae?identificacion=${clean}`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.nombre) {
-        const parsed = parseOfficialFullName(data.nombre);
-        return {
-          nombre: parsed.nombre,
-          apellidos: parsed.apellidos,
-          cedulaFormateada: clean
-        };
-      }
-    }
-  } catch {
-    // Fallback silencioso sin inventar datos
-  }
-
-  // Si no se encuentra ni hay conexión, devolver la cédula sin guiones
+  // Si no se encuentra o hay timeout, devolver la cédula sin alterar
   return {
     nombre: '',
     apellidos: '',
-    cedulaFormateada: clean
+    cedulaFormateada: clean,
+    haciendaInfo: {
+      status: 'error',
+      esMoroso: false,
+      omiso: false,
+      estadoHacienda: '',
+      nombreOficial: ''
+    }
   };
 }
 
@@ -278,11 +283,18 @@ async function scanOnServer(img) {
   const timeoutId = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
 
   try {
+    const csrfToken = getCsrfToken();
     const res = await fetch('/api/ocr/cedula', {
       method: 'POST',
+      credentials: 'include',
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
       body: form,
       signal: controller.signal
     });
+
+    const headerCsrf = res.headers.get('x-csrf-token');
+    if (headerCsrf) setCsrfToken(headerCsrf);
+    if (res.status === 401) notifyUnauthorized('/api/ocr/cedula');
 
     if (res.status === 422) return null;
     if (!res.ok) throw new Error(`Servidor OCR respondió ${res.status}`);
@@ -295,7 +307,8 @@ async function scanOnServer(img) {
       cedula: clean,
       cleanCedula: clean,
       nombre: data.nombre || '',
-      apellidos: data.apellidos || ''
+      apellidos: data.apellidos || '',
+      haciendaInfo: data.haciendaInfo || null
     };
   } finally {
     clearTimeout(timeoutId);
@@ -356,7 +369,8 @@ async function scanLocally(img) {
             cedula: cleanCedula,
             cleanCedula,
             nombre: officialData?.nombre || cardData.nombre || '',
-            apellidos: officialData?.apellidos || cardData.apellidos || ''
+            apellidos: officialData?.apellidos || cardData.apellidos || '',
+            haciendaInfo: officialData?.haciendaInfo || null
           };
         }
       }

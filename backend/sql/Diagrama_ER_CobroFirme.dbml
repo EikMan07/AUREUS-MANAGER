@@ -251,6 +251,27 @@ Table clientes {
   }
 }
 
+Table clientes_baneados {
+  id uuid [pk, note: 'Conserva el mismo UUID original del cliente']
+  cobrador_id uuid [not null, ref: > usuarios.id, note: 'Dueño del cliente']
+  cedula varchar(20) [null]
+  nombre varchar(120) [not null]
+  apellidos varchar(160) [null]
+  telefono varchar(40) [not null]
+  ubicacion text [not null]
+  detalles text [null]
+  version int [not null, default: 1]
+  creado_originalmente_en timestamptz [not null, default: `now()`]
+  fecha_envio_papelera timestamptz [not null, default: `now()` technique: 'Envío a papelera']
+  fecha_borrado_definitivo timestamptz [not null, default: `now() + interval 30 days`, note: 'Purga automática a los 30 días']
+  respaldo_prestamos jsonb [default: `[]`, note: 'Copia JSONB de seguridad de préstamos y pagos']
+
+  indexes {
+    (cobrador_id, fecha_envio_papelera) [name: 'idx_clientes_baneados_cobrador']
+    fecha_borrado_definitivo [name: 'idx_clientes_baneados_vencimiento']
+  }
+}
+
 // -------------------------------------------------------------------------
 // 3. MÓDULO LISTA NEGRA (PRIVADA POR COBRADOR)
 // -------------------------------------------------------------------------

@@ -6,6 +6,24 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Documentation
+- **gov:** completa ADRs, riesgos y AGENTS.md
+  Completa la documentación y reglas del Governance Pack para Aureus Manager, asegurando que todos los registros cumplan con el verificador automático en CI y reflejen con precisión la arquitectura actual del proyecto.
+  
+  Cambios principales:
+  - docs/adr/0001-modelo-y-proveedor-de-ia.md: documenta el uso de Groq (openai/gpt-oss-120b) desde el backend con respaldo determinista local en PostgreSQL.
+  - docs/adr/0002-que-decide-la-ia.md: establece la separación estricta entre consultas informativas de Séneca y decisiones transaccionales humanas.
+  - docs/adr/0003-donde-viven-los-datos.md: detalla la residencia local en cobro_firme_db y minimización de contexto hacia IA conforme a la Ley 8968.
+  - docs/adr/README.md: actualiza el índice de decisiones al estado Aceptado.
+  - docs/gobernanza/inventario-de-datos.md: registra 5 categorías de datos personales/crediticios y define los datos explícitamente no recolectados.
+  - docs/gobernanza/registro-de-riesgos.md: documenta 4 riesgos concretos (OWASP LLM01, LLM09, LLM10 y Ley 8968) con probabilidad, impacto y mitigaciones implementadas.
+  - AGENTS.md: define 15 reglas de desarrollo, arquitectura y seguridad propias de Aureus Manager.
+  - .github/governance-pack/verificar-pack.mjs: normaliza saltos de línea CRLF/LF para garantizar compatibilidad en Windows y Linux.
+  
+  Impacto y verificación:
+  - Validación local con node .github/governance-pack/verificar-pack.mjs . superada al 100% con 0 errores y 0 avisos.
+
+
 ### Added
 - **feat: integra módulos, auth JWT y cápsulas UX**:
   - **Capa ORM Sequelize y Migraciones (`backend/src/models/`, `backend/migrations/`)**:

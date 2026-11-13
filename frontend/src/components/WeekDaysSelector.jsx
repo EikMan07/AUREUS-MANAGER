@@ -1,7 +1,9 @@
 import React from 'react';
 import { getWeekDaysForDate } from '../utils/formatters';
+import { useTheme } from '../context/ThemeContext.jsx';
 
 export function WeekDaysSelector({ weekDays, selectedDayKey, onSelectDay, diasConPendientesSinCerrar = [] }) {
+  const { isDark } = useTheme();
   // Si no se suministra weekDays, calcular los días de la semana actual por defecto
   const daysList = (weekDays && weekDays.length === 7) ? weekDays : getWeekDaysForDate();
   const unclosedSet = new Set(Array.isArray(diasConPendientesSinCerrar) ? diasConPendientesSinCerrar : []);
@@ -22,13 +24,57 @@ export function WeekDaysSelector({ weekDays, selectedDayKey, onSelectDay, diasCo
                 aria-selected={isActive}
                 onClick={() => onSelectDay(day.key, day.dateObj, day)}
                 className={`day-col-btn ${isActive ? 'active' : ''} ${day.isToday ? 'is-today-marker' : ''} ${index > 0 ? 'border-left' : ''}`}
-                title={`${day.name} ${day.dayNum}${day.isToday ? ' (Hoy)' : ''}${hasUnclosedPastCobros ? ' · Con cobros pendientes sin registrar' : ''}`}
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: isDark ? '#D4B46A' : '#B69A55',
+                        border: isDark ? '1.5px solid #F5E1A4' : '1.5px solid #9E8342',
+                      }
+                    : undefined
+                }
+                title={`${day.name} ${day.dayNum}${day.isToday ? ' · Hoy' : ''}${hasUnclosedPastCobros ? ' · Con cobros pendientes sin registrar' : ''}`}
               >
-                <span className="day-abbr">{day.key}</span>
-                <span className="day-number">{day.dayNum}</span>
+                <span
+                  className="day-abbr day-name"
+                  style={
+                    isActive
+                      ? {
+                          color: '#101C2C',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          opacity: 0.9,
+                        }
+                      : {
+                          color: isDark ? '#94A3B8' : '#6E757F',
+                          fontWeight: 700,
+                        }
+                  }
+                >
+                  {day.key}
+                </span>
+                <span
+                  className="day-number day-num"
+                  style={
+                    isActive
+                      ? {
+                          color: '#101C2C',
+                          fontSize: '16px',
+                          fontWeight: 900,
+                          lineHeight: 1.1,
+                        }
+                      : {
+                          color: isDark ? '#F5F3ED' : '#252A31',
+                          fontSize: '15px',
+                          fontWeight: 800,
+                        }
+                  }
+                >
+                  {day.dayNum}
+                </span>
                 {hasUnclosedPastCobros ? (
                   <span
-                    className="unclosed-pending-dot w-1.5 h-1.5 rounded-full bg-amber-500"
+                    className="unclosed-pending-dot w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: isActive ? '#101C2C' : '#B69A55' }}
                     title="Día con cobros pendientes sin cerrar"
                   />
                 ) : (

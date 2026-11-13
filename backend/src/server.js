@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import app from './app.js';
 import { pool } from './config/db.js';
 import { ensureBaseUser } from './services/seedService.js';
+import { ensureHistorialArchivoSchema } from './utils/papeleraHelpers.js';
 import { initOcrWorker, terminateOcrWorker } from './services/ocrService.js';
 
 dotenv.config();
@@ -16,8 +17,9 @@ async function startServer() {
     console.log(`[Servidor] Conexión establecida con éxito. Zona horaria activa: ${tzRes.rows[0].TimeZone}`);
     client.release();
 
-    // Semilla técnica base
+    // Semilla técnica base y verificación idempotente de columnas del archivo histórico
     await ensureBaseUser();
+    await ensureHistorialArchivoSchema();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`[Servidor] Cobro-Firme Backend activo y escuchando en http://localhost:${PORT} y http://127.0.0.1:${PORT}`);

@@ -80,11 +80,11 @@ export function ResumenDashboard({ onShowAlert }) {
 
   return (
     <div
+      className="resumen-dashboard-container"
       style={{
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'var(--aureus-bg-app)',
         minHeight: '100%',
-        padding: '16px',
-        paddingBottom: '96px',
+        padding: '2px 0 28px 0',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -99,17 +99,18 @@ export function ResumenDashboard({ onShowAlert }) {
         style={{
           display: 'flex',
           flexDirection: 'row',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
+          gap: '10px 12px',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 180px' }}>
           <h2
             style={{
               fontSize: '20px',
-              fontWeight: 900,
-              color: '#0f172a',
+              fontWeight: 800,
+              color: 'var(--aureus-text-primary)',
               margin: 0,
               lineHeight: 1.2,
             }}
@@ -120,7 +121,7 @@ export function ResumenDashboard({ onShowAlert }) {
             style={{
               fontSize: '12.5px',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'var(--aureus-text-muted)',
               marginTop: '4px',
             }}
           >
@@ -137,13 +138,13 @@ export function ResumenDashboard({ onShowAlert }) {
             width: '38px',
             height: '38px',
             borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            backgroundColor: 'var(--aureus-bg-surface)',
+            border: '1px solid var(--aureus-border-subtle)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#475569',
+            color: 'var(--aureus-text-secondary)',
             cursor: isLoading ? 'default' : 'pointer',
             flexShrink: 0,
             padding: 0,
@@ -156,7 +157,7 @@ export function ResumenDashboard({ onShowAlert }) {
             size={18}
             strokeWidth={2}
             style={{
-              color: isLoading ? '#059669' : '#475569',
+              color: isLoading ? '#B69A55' : 'var(--aureus-text-secondary)',
               transition: 'transform 0.3s ease',
             }}
             className={isLoading ? 'animate-spin' : ''}
@@ -172,7 +173,7 @@ export function ResumenDashboard({ onShowAlert }) {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '60px 0',
-            color: '#64748b',
+            color: 'var(--aureus-text-muted)',
           }}
         >
           <span
@@ -180,7 +181,7 @@ export function ResumenDashboard({ onShowAlert }) {
             style={{
               width: '32px',
               height: '32px',
-              border: '3px solid #059669',
+              border: '3px solid #B69A55',
               borderTopColor: 'transparent',
               borderRadius: '50%',
               marginBottom: '12px',

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTablePlugin from 'jspdf-autotable';
+import { formatPhone } from './formatters.js';
 
 // Helper seguro para llamar a autoTable independientemente del empaquetado ESM/CJS
 function applyAutoTable(doc, options) {
@@ -27,7 +28,7 @@ function applyAutoTable(doc, options) {
  * @param {number[]} [rgbColor=[5, 150, 105]] - Color RGB [R, G, B]
  * @returns {number} Ancho ocupado por la letra 'C' en puntos
  */
-export function drawColonSymbol(doc, x, y, size = 11, rgbColor = [5, 150, 105]) {
+export function drawColonSymbol(doc, x, y, size = 11, rgbColor = [57, 125, 103]) {
   doc.saveGraphicsState();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(size);
@@ -93,7 +94,7 @@ export function generarPdfCobrosDia({
   fechaISO = '',
   cobros = [],
   montoTotal = 0,
-  nombreCobrador = 'Cobro-Firme'
+  nombreCobrador = 'Aureus Manager'
 }) {
   // Configuración en orientación horizontal A4 (841.89 pt x 595.28 pt)
   const doc = new jsPDF({
@@ -110,14 +111,14 @@ export function generarPdfCobrosDia({
   doc.setCharSpace(0);
 
   // =========================================================================
-  // 1. ENCABEZADO SUPERIOR EJECUTIVO (Fondo Corporativo #131629)
+  // 1. ENCABEZADO SUPERIOR EJECUTIVO AUREUS MANAGER (Grafito #252A31 + Dorado Aureus #B69A55)
   // =========================================================================
-  const headerHeight = 72;
-  doc.setFillColor(19, 22, 41); // #131629
+  const headerHeight = 76;
+  doc.setFillColor(37, 42, 49); // #252A31 Grafito
   doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
-  // Línea de acento verde esmeralda (#10b981) en la base del encabezado
-  doc.setFillColor(16, 185, 129); // #10b981
+  // Línea de acento Dorado Aureus (#B69A55) en la base del encabezado
+  doc.setFillColor(182, 154, 85); // #B69A55
   doc.rect(0, headerHeight - 3, pageWidth, 3, 'F');
 
   // Título Principal
@@ -125,20 +126,27 @@ export function generarPdfCobrosDia({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setCharSpace(0);
-  doc.text('COBRO-FIRME — HOJA DE COBROS DEL DÍA', marginX, 28);
+  doc.text('AUREUS MANAGER — HOJA DE COBROS DEL DÍA', marginX, 26);
+
+  // Lema oficial en Dorado suave
+  doc.setTextColor(239, 230, 206); // #EFE6CE
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Tu dinero, tus préstamos y tus operaciones bajo control', marginX, 42);
 
   // Subtítulo con la fecha legible seleccionada
-  doc.setTextColor(203, 213, 225); // #cbd5e1
-  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(245, 243, 237); // #F5F3ED Marfil
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text(fechaTexto, marginX, 48);
+  doc.text(fechaTexto, marginX, 58);
 
   // Etiqueta del emisor asignado a la derecha
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(148, 163, 184); // #94a3b8
+  doc.setTextColor(213, 194, 149); // Dorado claro
   const cobradorTexto = `Asignado: ${nombreCobrador}`;
   const cobradorWidth = doc.getTextWidth(cobradorTexto);
-  doc.text(cobradorTexto, pageWidth - marginX - cobradorWidth, 48);
+  doc.text(cobradorTexto, pageWidth - marginX - cobradorWidth, 58);
 
   // =========================================================================
   // 2. TARJETAS DE RESUMEN EJECUTIVO (Total Clientes y Monto Total a Recaudar)
@@ -148,40 +156,40 @@ export function generarPdfCobrosDia({
   const cardWidth = (pageWidth - marginX * 2 - 16) / 2;
 
   // Tarjeta 1: Total de Clientes a Cobrar
-  doc.setFillColor(248, 250, 252); // #f8fafc
-  doc.setDrawColor(226, 232, 240); // #e2e8f0
+  doc.setFillColor(245, 243, 237); // #F5F3ED Marfil
+  doc.setDrawColor(229, 224, 213); // #E5E0D5
   doc.setLineWidth(0.75);
   doc.roundedRect(marginX, cardY, cardWidth, cardHeight, 6, 6, 'FD');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.setTextColor(100, 116, 139); // #64748b
+  doc.setTextColor(110, 117, 127); // #6E757F
   doc.text('TOTAL DE CLIENTES A COBRAR', marginX + 14, cardY + 16);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(15, 23, 42); // #0f172a
+  doc.setTextColor(37, 42, 49); // #252A31 Grafito
   doc.text(`${cobros.length} clientes`, marginX + 14, cardY + 35);
 
   // Tarjeta 2: Monto Total por Cobrar con símbolo ₡ vectorial y número limpio
   const card2X = marginX + cardWidth + 16;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(245, 243, 237);
+  doc.setDrawColor(229, 224, 213);
   doc.roundedRect(card2X, cardY, cardWidth, cardHeight, 6, 6, 'FD');
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(110, 117, 127);
   doc.text('MONTO TOTAL POR COBRAR', card2X + 14, cardY + 16);
 
-  // Símbolo vectorial ₡ en verde esmeralda [5, 150, 105] (#059669)
-  const cWidthTotal = drawColonSymbol(doc, card2X + 14, cardY + 35, 13, [5, 150, 105]);
+  // Símbolo vectorial ₡ en Verde Financiero [57, 125, 103] (#397D67)
+  const cWidthTotal = drawColonSymbol(doc, card2X + 14, cardY + 35, 13, [57, 125, 103]);
   const totalFormatted = formatCleanNumber(montoTotal);
 
   // Dígitos numéricos juntos sin espaciado alterado ni signos ¡
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(5, 150, 105);
+  doc.setTextColor(57, 125, 103);
   doc.setCharSpace(0);
   doc.text(totalFormatted, card2X + 14 + cWidthTotal + 3, cardY + 35);
 
@@ -206,7 +214,11 @@ export function generarPdfCobrosDia({
     const num = index + 1;
     const nombre = item.nombre_completo || [item.nombre, item.apellidos].filter(Boolean).join(' ').trim() || 'Sin nombre registrado';
     const cedula = item.cedula ? String(item.cedula) : 'Sin cédula';
-    const telefono = item.telefono ? String(item.telefono) : 'Sin teléfono';
+    const primaryTel = item.telefono ? formatPhone(item.telefono) : '';
+    const secTel = (item.telefono_secundario || item.cliente_telefono_secundario)
+      ? formatPhone(item.telefono_secundario || item.cliente_telefono_secundario)
+      : '';
+    const telefono = [primaryTel, secTel].filter(Boolean).join('\n') || 'Sin teléfono';
     const ubicacion = item.ubicacion ? String(item.ubicacion) : 'Sin ubicación';
     const detalles = item.detalles ? String(item.detalles) : 'Sin detalles';
     const monto = item.monto_cuota || 0;
@@ -232,23 +244,23 @@ export function generarPdfCobrosDia({
       valign: 'middle'
     },
     headStyles: {
-      fillColor: [19, 22, 41], // #131629
+      fillColor: [37, 42, 49], // #252A31 Grafito
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 10,
       cellPadding: { top: 12, right: 12, bottom: 12, left: 12 }
     },
     columnStyles: {
-      0: { cellWidth: 44, halign: 'center', valign: 'middle', fontStyle: 'bold', textColor: [15, 23, 42], cellPadding: { top: 12, right: 6, bottom: 12, left: 6 } },
-      1: { cellWidth: 174, halign: 'left', fontStyle: 'bold', fontSize: 10.5, textColor: [15, 23, 42] },
-      2: { cellWidth: 85, halign: 'center', fontSize: 10, textColor: [51, 65, 85] },
-      3: { cellWidth: 90, halign: 'center', fontSize: 10, textColor: [51, 65, 85] },
-      4: { cellWidth: 115, halign: 'left', fontSize: 10, textColor: [15, 23, 42] },
-      5: { cellWidth: 'auto', halign: 'left', fontSize: 9.5, textColor: [71, 85, 105] }, // Espacio restante (~150pt)
-      6: { cellWidth: 112, halign: 'center', fontStyle: 'bold', fontSize: 11, textColor: [5, 150, 105] }
+      0: { cellWidth: 44, halign: 'center', valign: 'middle', fontStyle: 'bold', textColor: [37, 42, 49], cellPadding: { top: 12, right: 6, bottom: 12, left: 6 } },
+      1: { cellWidth: 174, halign: 'left', fontStyle: 'bold', fontSize: 10.5, textColor: [37, 42, 49] },
+      2: { cellWidth: 85, halign: 'center', fontSize: 10, textColor: [74, 80, 88] },
+      3: { cellWidth: 90, halign: 'center', fontSize: 10, textColor: [74, 80, 88] },
+      4: { cellWidth: 115, halign: 'left', fontSize: 10, textColor: [37, 42, 49] },
+      5: { cellWidth: 'auto', halign: 'left', fontSize: 9.5, textColor: [110, 117, 127] }, // Espacio restante (~150pt)
+      6: { cellWidth: 112, halign: 'center', fontStyle: 'bold', fontSize: 11, textColor: [57, 125, 103] }
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252] // #f8fafc
+      fillColor: [245, 243, 237] // #F5F3ED Marfil
     },
     didParseCell: (data) => {
       // Para la columna N° (índice 0), asegurar que N° y números se mantengan en una sola línea centrada
@@ -284,13 +296,13 @@ export function generarPdfCobrosDia({
         // Centrado vertical exacto según la línea base
         const startY = data.cell.y + data.cell.height / 2 + 3.5;
 
-        // Dibuja el símbolo de colón ₡ vectorial
-        drawColonSymbol(doc, startX, startY, 11, [5, 150, 105]);
+        // Dibuja el símbolo de colón ₡ vectorial en Verde Financiero #397D67
+        drawColonSymbol(doc, startX, startY, 11, [57, 125, 103]);
 
-        // Dibuja los números en color verde esmeralda #059669
+        // Dibuja los números en Verde Financiero #397D67
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(11);
-        doc.setTextColor(5, 150, 105);
+        doc.setTextColor(57, 125, 103);
         doc.setCharSpace(0);
         doc.text(numStr, startX + cWidth + spacing, startY);
 
@@ -304,9 +316,9 @@ export function generarPdfCobrosDia({
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
-      doc.setTextColor(148, 163, 184); // #94a3b8
+      doc.setTextColor(110, 117, 127); // #6E757F
 
-      const footerText = 'Cobro-Firme — Documento Ejecutivo de Cobros';
+      const footerText = 'Aureus Manager — Documento Ejecutivo de Cobros';
       doc.text(footerText, marginX, pageHeight - 20);
 
       const pageStr = `Página ${currentPage} de ${totalPages}`;

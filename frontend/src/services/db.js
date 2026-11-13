@@ -1,7 +1,8 @@
-// Servicio de datos para Cobro-Firme conectado en tiempo real al backend (PostgreSQL)
+// Servicio de datos para Aureus Manager conectado en tiempo real al backend (PostgreSQL)
 // 100% libre de datos simulados o clientes falsos.
 
 import { api } from './api.js';
+import { sanitizeUserFacingMessage } from './apiClient.js';
 
 export function purgeLegacyDemoData() {
   if (typeof window === 'undefined') return;
@@ -23,9 +24,9 @@ export function purgeLegacyDemoData() {
     if (window.indexedDB && window.indexedDB.deleteDatabase) {
       window.indexedDB.deleteDatabase('CobroClaroDB');
     }
-    console.log('[Cobro-Firme] Datos demo antiguos purgados exitosamente.');
+    console.log('[Aureus Manager] Datos demo antiguos purgados exitosamente.');
   } catch (err) {
-    console.warn('[Cobro-Firme] Advertencia limpiando almacenamiento heredado:', err);
+    console.warn('[Aureus Manager] Advertencia limpiando almacenamiento heredado:', err);
   }
 }
 
@@ -170,8 +171,16 @@ export const dbService = {
     }
   },
 
-  async restaurarClientePapelera(id) {
-    return await api.restaurarClientePapelera(id);
+  async restaurarClientePapelera(id, options = {}) {
+    return await api.restaurarClientePapelera(id, options);
+  },
+
+  async restaurarPrestamoPapelera(prestamoId) {
+    return await api.restaurarPrestamoPapelera(prestamoId);
+  },
+
+  async eliminarPrestamoDefinitivoPapelera(prestamoId) {
+    return await api.eliminarPrestamoDefinitivoPapelera(prestamoId);
   },
 
   async eliminarClienteDefinitivo(id) {
@@ -207,7 +216,13 @@ export const dbService = {
       return await api.marcarNotificacionVista(idOrIds);
     } catch (err) {
       console.error('Error al sincronizar notificación vista:', err);
-      return { success: false, error: err.message };
+      return {
+        success: false,
+        error: sanitizeUserFacingMessage(
+          err?.userMessage || err?.message,
+          'No fue posible sincronizar el aviso en este momento.'
+        ),
+      };
     }
   },
 
@@ -244,5 +259,20 @@ export const dbService = {
 
   async dejarDeCompartirDia(data) {
     return await api.dejarDeCompartirDia(data);
+  },
+
+  // Séneca y consultas informativas
+  async consultarHistorialArchivoCliente(params = {}) {
+    return await api.consultarHistorialArchivoCliente(params);
+  },
+
+  async obtenerResumenSeneca() {
+    return await api.obtenerResumenSeneca();
+  },
+
+  async consultarSeneca(pregunta, historial = []) {
+    return await api.consultarSeneca(pregunta, historial);
   }
 };
+
+export const { obtenerResumenSeneca, consultarSeneca, consultarHistorialArchivoCliente } = dbService;

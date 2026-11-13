@@ -133,9 +133,9 @@ export function LoanCard({
         <span
           className="loan-status-badge success"
           style={{
-            backgroundColor: '#D6E7D6',
-            border: '1px solid #8FB89A',
-            color: '#0A3323',
+            backgroundColor: 'var(--aureus-green-light)',
+            border: '1px solid var(--aureus-green-border)',
+            color: 'var(--aureus-green-text)',
             fontWeight: 800
           }}
         >
@@ -148,9 +148,9 @@ export function LoanCard({
         <span
           className="loan-status-badge danger"
           style={{
-            backgroundColor: '#fff1f2',
-            border: '1px solid #fecdd3',
-            color: '#e11d48',
+            backgroundColor: 'var(--aureus-red-light)',
+            border: '1px solid var(--aureus-red-border)',
+            color: 'var(--aureus-red-text)',
             fontWeight: 800
           }}
         >
@@ -168,9 +168,9 @@ export function LoanCard({
       <span
         className="loan-status-badge success"
         style={{
-          backgroundColor: '#D6E7D6',
-          border: '1px solid #8FB89A',
-          color: '#0A3323',
+          backgroundColor: 'var(--aureus-green-light)',
+          border: '1px solid var(--aureus-green-border)',
+          color: 'var(--aureus-green-text)',
           fontWeight: 800
         }}
       >
@@ -228,8 +228,8 @@ export function LoanCard({
         boxSizing: 'border-box',
         padding: 'var(--card-padding, 16px)',
         cursor: isSelectionMode ? 'pointer' : 'default',
-        border: isCardHighlighted ? '2px solid #e11d48' : undefined,
-        backgroundColor: isCardHighlighted ? '#fff1f2' : undefined,
+        border: isCardHighlighted ? '2px solid #C65D58' : undefined,
+        backgroundColor: isCardHighlighted ? 'var(--aureus-red-light)' : undefined,
         transition: 'all 0.15s ease'
       }}
     >
@@ -255,9 +255,9 @@ export function LoanCard({
           {loansList.length > 1 && (
             <span
               style={{
-                backgroundColor: '#eef2ff',
-                color: '#3730a3',
-                border: '1px solid #c7d2fe',
+                backgroundColor: 'var(--aureus-gold-soft)',
+                color: 'var(--aureus-gold-text)',
+                border: '1px solid var(--aureus-border-gold)',
                 fontSize: '11px',
                 fontWeight: 800,
                 padding: '3px 9px',
@@ -282,9 +282,9 @@ export function LoanCard({
                 width: '32px',
                 height: '32px',
                 borderRadius: '10px',
-                border: '1px solid #fee2e2',
-                backgroundColor: '#fff1f2',
-                color: '#e11d48',
+                border: '1px solid var(--aureus-red-border)',
+                backgroundColor: 'var(--aureus-red-light)',
+                color: 'var(--aureus-red-text)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -310,8 +310,8 @@ export function LoanCard({
                 width: '24px',
                 height: '24px',
                 borderRadius: '50%',
-                border: isCurrentSelected ? '1.5px solid #e11d48' : '2px solid #cbd5e1',
-                backgroundColor: isCurrentSelected ? '#e11d48' : '#ffffff',
+                border: isCurrentSelected ? '1.5px solid #C65D58' : '2px solid var(--aureus-border-subtle)',
+                backgroundColor: isCurrentSelected ? '#C65D58' : 'var(--aureus-bg-surface)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -329,8 +329,8 @@ export function LoanCard({
       {loansList.length > 1 && (
         <div
           style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '10px',
             padding: '6px 10px',
             marginTop: '8px',
@@ -341,11 +341,11 @@ export function LoanCard({
             fontSize: '11px'
           }}
         >
-          <span style={{ color: '#64748b', fontWeight: 600 }}>
-            Total prestado: <strong style={{ color: '#0f172a' }}>{formatColones(totalPrestadoCliente)}</strong>
+          <span style={{ color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
+            Total prestado: <strong style={{ color: 'var(--aureus-text-primary)' }}>{formatColones(totalPrestadoCliente)}</strong>
           </span>
-          <span style={{ color: '#64748b', fontWeight: 600 }}>
-            Falta pagar: <strong style={{ color: '#0f172a', fontWeight: 800 }}>{formatColones(totalFaltaPagarCliente)}</strong>
+          <span style={{ color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
+            Falta pagar: <strong style={{ color: 'var(--aureus-text-primary)', fontWeight: 800 }}>{formatColones(totalFaltaPagarCliente)}</strong>
           </span>
         </div>
       )}
@@ -360,7 +360,7 @@ export function LoanCard({
                 ? 'repeat(2, minmax(0, 1fr))'
                 : 'repeat(auto-fit, minmax(135px, 1fr))',
             gap: '6px',
-            backgroundColor: '#f1f5f9',
+            backgroundColor: 'var(--aureus-bg-muted)',
             padding: '5px',
             borderRadius: '12px',
             marginBottom: '12px'
@@ -384,14 +384,14 @@ export function LoanCard({
                   setActiveLoanId(item.id);
                 }}
                 style={{
-                  backgroundColor: isTabActive ? '#0A3323' : '#ffffff',
-                  color: isTabActive ? '#ffffff' : '#475569',
+                  backgroundColor: isTabActive ? '#B69A55' : 'var(--aureus-bg-surface)',
+                  color: isTabActive ? '#FFFFFF' : 'var(--aureus-text-secondary)',
                   fontWeight: isTabActive ? 800 : 700,
-                  boxShadow: isTabActive ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                  boxShadow: isTabActive ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                   borderRadius: '9px',
                   padding: '8px 10px',
                   fontSize: '12px',
-                  border: isTabActive ? '1px solid #1B4D37' : '1px solid #e2e8f0',
+                  border: isTabActive ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -440,8 +440,8 @@ export function LoanCard({
       >
         <div
           style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #f1f5f9',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '12px',
             padding: '10px 12px',
             display: 'flex',
@@ -458,8 +458,8 @@ export function LoanCard({
         </div>
         <div
           style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #f1f5f9',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '12px',
             padding: '10px 12px',
             display: 'flex',
@@ -492,25 +492,25 @@ export function LoanCard({
             {/* Caja 1: INTERÉS */}
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '12px',
                 padding: '10px 8px',
                 minWidth: 0,
                 boxSizing: 'border-box'
               }}
             >
-              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--aureus-text-muted)', letterSpacing: '0.03em' }}>
                 INTERÉS
               </div>
-              <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--aureus-text-primary)', marginTop: '2px' }}>
                 {currentLoan.porcentaje_interes}%
               </div>
               <div
                 style={{
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: '#64748b',
+                  color: 'var(--aureus-text-muted)',
                   marginTop: '2px',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -524,18 +524,18 @@ export function LoanCard({
             {/* Caja 2: MODALIDAD */}
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '12px',
                 padding: '10px 8px',
                 minWidth: 0,
                 boxSizing: 'border-box'
               }}
             >
-              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--aureus-text-muted)', letterSpacing: '0.03em' }}>
                 MODALIDAD
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--aureus-text-primary)', marginTop: '4px' }}>
                 {currentLoan.modalidad === 'QUINCENAL' ? 'Quincenal' : 'Semanal'}
               </div>
             </div>
@@ -543,22 +543,22 @@ export function LoanCard({
             {/* Caja 3: COBRO */}
             <div
               style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '12px',
                 padding: '10px 8px',
                 minWidth: 0,
                 boxSizing: 'border-box'
               }}
             >
-              <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.03em' }}>
+              <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--aureus-text-muted)', letterSpacing: '0.03em' }}>
                 COBRO
               </div>
               <div
                 style={{
                   fontSize: '13px',
                   fontWeight: 800,
-                  color: '#0f172a',
+                  color: 'var(--aureus-text-primary)',
                   marginTop: '4px',
                   lineHeight: 1.2,
                   wordBreak: 'break-word'
@@ -575,8 +575,8 @@ export function LoanCard({
               display: 'grid',
               gridTemplateColumns: 'var(--loan-progress-cols, repeat(3, minmax(0, 1fr)))',
               gap: '6px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              backgroundColor: 'var(--aureus-bg-elevated)',
+              border: '1px solid var(--aureus-border-subtle)',
               borderRadius: '12px',
               padding: '10px 8px',
               width: '100%',
@@ -585,30 +585,30 @@ export function LoanCard({
           >
             {/* Pagado */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--aureus-text-muted)', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Pagado
               </span>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: '#059669', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--aureus-green-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {formatColones(isRegistrado ? (Number(currentLoan.monto_total_financiar) || Number(currentLoan.monto_pagado_acumulado)) : currentLoan.monto_pagado_acumulado)}
               </span>
             </div>
 
             {/* Falta por pagar */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid var(--aureus-border-subtle)', paddingLeft: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--aureus-text-muted)', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Falta pagar
               </span>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--aureus-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {formatColones(isRegistrado ? 0 : (currentLoan.saldo_por_pagar != null ? currentLoan.saldo_por_pagar : currentLoan.monto_total_financiar))}
               </span>
             </div>
 
             {/* Cuotas */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, boxSizing: 'border-box', borderLeft: '1px solid var(--aureus-border-subtle)', paddingLeft: '8px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--aureus-text-muted)', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Cuotas
               </span>
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {isRegistrado ? (currentLoan.total_periodos || currentLoan.periodos_pagados || 0) : (currentLoan.periodos_pagados || 0)} de {currentLoan.total_periodos || 0}
               </span>
             </div>
@@ -617,7 +617,7 @@ export function LoanCard({
           {/* CALENDARIO DE PAGOS */}
           <div className="loan-calendar-section" style={{ width: '100%', boxSizing: 'border-box' }}>
             <div className="calendar-section-header">
-              <CalendarDays size={16} strokeWidth={2} style={{ marginRight: '8px', color: '#475569', display: 'block' }} />
+              <CalendarDays size={16} strokeWidth={2} style={{ marginRight: '8px', color: 'var(--aureus-text-secondary)', display: 'block' }} />
               <h4 className="calendar-section-title">CALENDARIO DE PAGOS</h4>
             </div>
 
@@ -648,8 +648,8 @@ export function LoanCard({
                 <div
                   key={c.id || c.numero_cobro}
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #f1f5f9',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
+                    border: '1px solid var(--aureus-border-subtle)',
                     borderRadius: '12px',
                     padding: '10px 12px',
                     display: 'flex',
@@ -658,18 +658,18 @@ export function LoanCard({
                     gap: '8px',
                     width: '100%',
                     boxSizing: 'border-box',
-                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.02)'
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)'
                   }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: '1 1 auto' }}>
-                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px', lineHeight: 1.2 }}>
+                    <span style={{ fontWeight: 800, color: 'var(--aureus-text-primary)', fontSize: '13px', lineHeight: 1.2 }}>
                       Cobro {c.numero_cobro}
                     </span>
                     <span
                       style={{
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: '#64748b',
+                        color: 'var(--aureus-text-muted)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -683,7 +683,7 @@ export function LoanCard({
                     <span
                       style={{
                         fontWeight: 800,
-                        color: '#0f172a',
+                        color: 'var(--aureus-text-primary)',
                         fontSize: '13px',
                         letterSpacing: '-0.01em',
                         whiteSpace: 'nowrap'

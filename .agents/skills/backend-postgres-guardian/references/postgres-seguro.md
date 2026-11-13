@@ -43,7 +43,7 @@
 - `Model.create(req.body)` / `update(req.body)` con datos sin filtrar en endpoints expuestos.
 - SQL concatenando strings con datos del usuario (inyección SQL).
 - Guardar contraseñas en texto plano, devolver `password` en una respuesta, subir credenciales o `.env` al repositorio.
-- JWT sin `expiresIn`, con el secreto escrito en el código, o token guardado en `localStorage`/`sessionStorage` (ver `auth-seguridad.md`).
+- JWT sin `expiresIn`, con el secreto escrito en el código, retornado en el JSON de login, o token guardado en `localStorage`/`sessionStorage` en lugar de cookie HttpOnly reforzada (ver `auth-seguridad.md` y `cookies-seguras.md`).
 - `FLOAT`/`DOUBLE` para dinero.
 - Instalar o usar otro ORM distinto de Sequelize.
 

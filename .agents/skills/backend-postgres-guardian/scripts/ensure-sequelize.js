@@ -71,7 +71,7 @@ if (encontrados.length) {
 
 // 4. Dependencias necesarias (bcrypt o bcryptjs: cualquiera sirve)
 const hayBcrypt = deps['bcrypt'] || deps['bcryptjs'];
-const faltanProd = ['sequelize', 'pg', 'pg-hstore', 'express', 'cors', 'dotenv', 'jsonwebtoken']
+const faltanProd = ['sequelize', 'pg', 'pg-hstore', 'express', 'cors', 'dotenv', 'jsonwebtoken', 'helmet', 'compression', 'cookie-parser']
   .concat(hayBcrypt ? [] : ['bcryptjs'])
   .filter((d) => !deps[d]);
 const faltanDev = ['sequelize-cli', 'nodemon'].filter((d) => !deps[d]);
@@ -79,8 +79,8 @@ if (!faltanProd.length && !faltanDev.length) log('Sequelize y sus dependencias y
 install(faltanProd);
 install(faltanDev, true);
 
-// 5. Estructura obligatoria: backend/src/{models,controllers,routes,middlewares} (+ config, migrations, seeders)
-for (const d of ['src/models', 'src/controllers', 'src/routes', 'src/middlewares', 'src/config', 'src/migrations', 'src/seeders']) {
+// 5. Estructura obligatoria: backend/src/{models,controllers,routes,middlewares,services,utils,schemas} (+ config, migrations, seeders)
+for (const d of ['src/models', 'src/controllers', 'src/routes', 'src/middlewares', 'src/services', 'src/utils', 'src/schemas', 'src/config', 'src/migrations', 'src/seeders']) {
   const p = path.join(root, d);
   if (!fs.existsSync(p)) {
     log(`Se crea la carpeta ${d}/`);
@@ -109,7 +109,12 @@ if (scaffold) {
     ['src/controllers/authController.template.js', 'src/controllers/authController.js'],
     ['src/routes/authRoutes.template.js', 'src/routes/authRoutes.js'],
     ['src/middlewares/authMiddleware.template.js', 'src/middlewares/authMiddleware.js'],
+    ['src/middlewares/csrf.template.js', 'src/middlewares/csrf.js'],
     ['src/middlewares/validaciones.template.js', 'src/middlewares/validaciones.js'],
+    ['src/middlewares/validar.template.js', 'src/middlewares/validar.js'],
+    ['src/middlewares/errorHandler.template.js', 'src/middlewares/errorHandler.js'],
+    ['src/utils/cookies.template.js', 'src/utils/cookies.js'],
+    ['src/utils/errors.template.js', 'src/utils/errors.js'],
   ];
   mapa.forEach(([o, d]) => copiar(path.join(TPL, o), d));
 

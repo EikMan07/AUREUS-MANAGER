@@ -22,6 +22,9 @@ Proyecto-Backend/
 │   ├── .env.example      # Plantilla de variables de entorno
 │   └── package.json      # Dependencias del servidor
 ├── .agents/              # Habilidades y agentes de automatización
+├── .github/              # Workflows CI y verificador del Governance Pack
+├── docs/                 # ADRs de arquitectura e inventario/riesgos (gobernanza)
+├── AGENTS.md             # Reglas operativas y de arquitectura para agentes IA
 ├── CHANGELOG.md          # Registro de cambios (Keep a Changelog + Conventional Commits)
 ├── SECURITY.md           # Políticas y directrices de seguridad
 └── README.md             # Documentación principal del repositorio

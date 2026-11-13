@@ -34,8 +34,8 @@ export function CompletedClientCard({ client }) {
                   gap: '4px',
                   fontSize: '10.5px',
                   fontWeight: 700,
-                  backgroundColor: '#e0f2fe',
-                  color: '#0369a1',
+                  backgroundColor: 'var(--aureus-gold-light)',
+                  color: 'var(--aureus-gold-text)',
                   padding: '1px 6px',
                   borderRadius: '5px',
                   marginTop: '3px'
@@ -52,8 +52,8 @@ export function CompletedClientCard({ client }) {
                   gap: '4px',
                   fontSize: '10.5px',
                   fontWeight: 700,
-                  backgroundColor: '#ecfdf5',
-                  color: '#065f46',
+                  backgroundColor: 'var(--aureus-green-light)',
+                  color: 'var(--aureus-green-text)',
                   padding: '1px 6px',
                   borderRadius: '5px',
                   marginTop: '3px'

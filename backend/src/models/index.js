@@ -16,10 +16,14 @@ import defineHistorialClienteArchivo from './HistorialClienteArchivo.js';
 import defineHistorialPrestamoArchivo from './HistorialPrestamoArchivo.js';
 import defineBitacoraActividad from './BitacoraActividad.js';
 import defineTransferenciaCartera from './TransferenciaCartera.js';
+import defineClienteBaneado from './ClienteBaneado.js';
+import definePrestamoBaneado from './PrestamoBaneado.js';
 
 const models = {
   Usuario: defineUsuario(sequelize, DataTypes),
   Cliente: defineCliente(sequelize, DataTypes),
+  ClienteBaneado: defineClienteBaneado(sequelize, DataTypes),
+  PrestamoBaneado: definePrestamoBaneado(sequelize, DataTypes),
   Prestamo: definePrestamo(sequelize, DataTypes),
   AgendaCobro: defineAgendaCobro(sequelize, DataTypes),
   PagoPrestamo: definePagoPrestamo(sequelize, DataTypes),
@@ -40,6 +44,8 @@ Object.values(models).forEach((model) => {
 export const {
   Usuario,
   Cliente,
+  ClienteBaneado,
+  PrestamoBaneado,
   Prestamo,
   AgendaCobro,
   PagoPrestamo,

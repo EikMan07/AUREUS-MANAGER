@@ -230,12 +230,13 @@ export function NuevoRegistroModal({
       >
         <div
           style={{
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--aureus-bg-surface)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '20px',
             width: '100%',
             maxWidth: 'var(--modal-form-max-width, 480px)',
             padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.35)',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
@@ -254,12 +255,12 @@ export function NuevoRegistroModal({
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
-                  backgroundColor: '#fee2e2',
-                  border: '1px solid #fecaca',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  border: '1px solid var(--aureus-border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#dc2626',
+                  color: 'var(--aureus-text-primary)',
                   flexShrink: 0,
                 }}
               >
@@ -270,14 +271,14 @@ export function NuevoRegistroModal({
                   style={{
                     fontSize: '17px',
                     fontWeight: 800,
-                    color: '#0f172a',
+                    color: 'var(--aureus-text-primary)',
                     margin: 0,
                     lineHeight: 1.2,
                   }}
                 >
                   Registrar en Lista Negra
                 </h3>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+                <span style={{ fontSize: '12px', color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
                   Bloqueo directo para nuevos préstamos
                 </span>
               </div>
@@ -290,10 +291,10 @@ export function NuevoRegistroModal({
                 width: '32px',
                 height: '32px',
                 borderRadius: '9999px',
-                border: 'none',
+                border: '1px solid var(--aureus-border-subtle)',
                 outline: 'none',
-                backgroundColor: '#f1f5f9',
-                color: '#64748b',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                color: 'var(--aureus-text-muted)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -315,7 +316,7 @@ export function NuevoRegistroModal({
                   display: 'block',
                   fontSize: '11.5px',
                   fontWeight: 800,
-                  color: '#475569',
+                  color: 'var(--aureus-text-secondary)',
                   marginBottom: '5px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
@@ -337,12 +338,12 @@ export function NuevoRegistroModal({
                     height: '42px',
                     padding: '0 12px',
                     borderRadius: '12px',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--aureus-border-subtle)',
                     outline: 'none',
                     fontSize: '14px',
                     fontWeight: 600,
-                    color: '#0f172a',
-                    backgroundColor: '#ffffff',
+                    color: 'var(--aureus-text-primary)',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
                     boxSizing: 'border-box',
                     fontFamily: 'inherit',
                   }}
@@ -355,10 +356,10 @@ export function NuevoRegistroModal({
                     height: '42px',
                     padding: '0 12px',
                     borderRadius: '12px',
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--aureus-border-subtle)',
                     outline: 'none',
-                    backgroundColor: isScanningPhoto ? '#f1f5f9' : '#ffffff',
-                    color: '#0f172a',
+                    backgroundColor: isScanningPhoto ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-elevated)',
+                    color: 'var(--aureus-text-primary)',
                     fontSize: '12.5px',
                     fontWeight: 700,
                     display: 'flex',
@@ -370,12 +371,12 @@ export function NuevoRegistroModal({
                   }}
                   title="Escanear cédula desde foto de la galería"
                 >
-                  <Camera size={16} strokeWidth={2.2} style={{ color: '#059669' }} />
+                  <Camera size={16} strokeWidth={2.2} style={{ color: '#B69A55' }} />
                   <span style={{ fontFamily: 'inherit' }}>{isScanningPhoto ? 'Leyendo...' : 'Foto'}</span>
                 </button>
               </div>
               {isLookingUp && (
-                <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '4px', display: 'block', fontFamily: 'inherit' }}>
+                <span style={{ fontSize: '11px', color: '#B69A55', fontWeight: 600, marginTop: '4px', display: 'block', fontFamily: 'inherit' }}>
                   Consultando registro oficial...
                 </span>
               )}
@@ -388,14 +389,14 @@ export function NuevoRegistroModal({
                   display: 'block',
                   fontSize: '11.5px',
                   fontWeight: 800,
-                  color: hasNombreError ? '#dc2626' : '#475569',
+                  color: hasNombreError ? 'var(--aureus-red-text)' : 'var(--aureus-text-secondary)',
                   marginBottom: '5px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   fontFamily: 'inherit',
                 }}
               >
-                Nombre *
+                Nombre <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -410,12 +411,12 @@ export function NuevoRegistroModal({
                   height: '42px',
                   padding: '0 12px',
                   borderRadius: '12px',
-                  border: hasNombreError ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                  border: hasNombreError ? '2px solid #C65D58' : '1px solid var(--aureus-border-subtle)',
                   outline: 'none',
                   fontSize: '14px',
                   fontWeight: 600,
-                  color: '#0f172a',
-                  backgroundColor: '#ffffff',
+                  color: 'var(--aureus-text-primary)',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
                   boxSizing: 'border-box',
                   fontFamily: 'inherit',
                 }}
@@ -429,7 +430,7 @@ export function NuevoRegistroModal({
                   display: 'block',
                   fontSize: '11.5px',
                   fontWeight: 800,
-                  color: '#475569',
+                  color: 'var(--aureus-text-secondary)',
                   marginBottom: '5px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
@@ -448,12 +449,12 @@ export function NuevoRegistroModal({
                   height: '42px',
                   padding: '0 12px',
                   borderRadius: '12px',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--aureus-border-subtle)',
                   outline: 'none',
                   fontSize: '14px',
                   fontWeight: 600,
-                  color: '#0f172a',
-                  backgroundColor: '#ffffff',
+                  color: 'var(--aureus-text-primary)',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
                   boxSizing: 'border-box',
                   fontFamily: 'inherit',
                 }}
@@ -463,12 +464,12 @@ export function NuevoRegistroModal({
             {/* Aviso informativo */}
             <div
               style={{
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
                 borderRadius: '12px',
                 padding: '10px 12px',
                 fontSize: '12px',
-                color: '#991b1b',
+                color: 'var(--aureus-text-secondary)',
                 lineHeight: 1.4,
                 fontFamily: 'inherit',
               }}
@@ -492,10 +493,10 @@ export function NuevoRegistroModal({
                   flex: 1,
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--aureus-border-subtle)',
                   outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#475569',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  color: 'var(--aureus-text-primary)',
                   fontSize: '13.5px',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -511,17 +512,20 @@ export function NuevoRegistroModal({
                   flex: 1,
                   padding: '12px',
                   borderRadius: '12px',
-                  border: 'none',
+                  border: '1px solid #334155',
                   outline: 'none',
-                  backgroundColor: '#dc2626',
+                  backgroundColor: '#1E293B',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.25)',
                   textAlign: 'center',
                   fontFamily: 'inherit',
+                  transition: 'background-color 0.2s ease',
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1E293B'; }}
               >
                 Registrar
               </button>
@@ -549,12 +553,13 @@ export function NuevoRegistroModal({
         >
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
+              border: '1px solid var(--aureus-border-subtle)',
               borderRadius: '20px',
               width: '100%',
               maxWidth: '380px',
               padding: '24px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.35)',
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
@@ -570,12 +575,12 @@ export function NuevoRegistroModal({
                   width: '56px',
                   height: '56px',
                   borderRadius: '9999px',
-                  backgroundColor: '#fee2e2',
-                  border: '1.5px solid #fecaca',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  border: '1.5px solid var(--aureus-border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#dc2626',
+                  color: 'var(--aureus-text-primary)',
                 }}
               >
                 <ShieldAlert size={28} strokeWidth={2.2} className={isSaving ? 'cf-anim-shield-seal' : ''} />
@@ -583,13 +588,13 @@ export function NuevoRegistroModal({
             </div>
 
             <div>
-              <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
+              <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--aureus-text-primary)', margin: '0 0 6px 0' }}>
                 Confirmar Ingreso a Lista Negra
               </h4>
-              <p style={{ fontSize: '13px', color: '#475569', margin: 0, lineHeight: 1.45 }}>
-                ¿Estás seguro de registrar a <strong style={{ color: '#0f172a' }}>{nombreCompleto}</strong> en la Lista Negra?
+              <p style={{ fontSize: '13px', color: 'var(--aureus-text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                ¿Estás seguro de registrar a <strong style={{ color: 'var(--aureus-text-primary)' }}>{nombreCompleto}</strong> en la Lista Negra?
               </p>
-              <p style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: 600, marginTop: '8px' }}>
+              <p style={{ fontSize: '11.5px', color: 'var(--aureus-text-muted)', fontWeight: 600, marginTop: '8px' }}>
                 La persona quedará bloqueada para nuevos préstamos.
               </p>
             </div>
@@ -603,10 +608,10 @@ export function NuevoRegistroModal({
                   flex: 1,
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--aureus-border-subtle)',
                   outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#475569',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  color: 'var(--aureus-text-primary)',
                   fontSize: '13.5px',
                   fontWeight: 700,
                   cursor: isSaving ? 'default' : 'pointer',
@@ -623,16 +628,19 @@ export function NuevoRegistroModal({
                   flex: 1,
                   padding: '12px',
                   borderRadius: '12px',
-                  border: 'none',
+                  border: '1px solid #334155',
                   outline: 'none',
-                  backgroundColor: '#dc2626',
+                  backgroundColor: '#1E293B',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: 800,
                   cursor: isSaving ? 'default' : 'pointer',
-                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.25)',
                   fontFamily: 'inherit',
+                  transition: 'background-color 0.2s ease',
                 }}
+                onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.backgroundColor = '#334155'; }}
+                onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.backgroundColor = '#1E293B'; }}
               >
                 {isSaving ? 'Guardando...' : 'Confirmar'}
               </button>

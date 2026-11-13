@@ -5,6 +5,7 @@ import {
   Activity
 } from 'lucide-react';
 import { formatColones } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
 
 const TABS = [
   { id: 'DIA', label: 'Día' },
@@ -15,6 +16,7 @@ const TABS = [
 ];
 
 export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isLoading = false }) {
+  const { isDark } = useTheme();
   const [activeTooltip, setActiveTooltip] = useState(null);
   const containerRef = useRef(null);
 
@@ -240,11 +242,11 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
     <div
       ref={containerRef}
       style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #e2e8f0',
+        backgroundColor: 'var(--aureus-bg-surface)',
+        border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
         padding: '16px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--aureus-card-shadow)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -265,7 +267,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             style={{
               fontSize: '16px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               margin: 0,
               lineHeight: 1.2,
             }}
@@ -276,7 +278,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             style={{
               fontSize: '12px',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'var(--aureus-text-muted)',
               margin: '3px 0 0 0',
             }}
           >
@@ -284,17 +286,18 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
           </p>
         </div>
 
-        {/* Pestañas de Unidad de Tiempo (Cápsula unificada) */}
+        {/* Pestañas de Unidad de Tiempo (Cápsula unificada adaptativa) */}
         <div
+          className="resumen-time-tabs"
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
-            backgroundColor: '#f1f5f9',
+            backgroundColor: 'var(--aureus-bg-muted)',
             padding: '3px',
-            borderRadius: '9999px',
-            border: '1px solid #e2e8f0',
-            overflowX: 'auto',
-            gap: '2px',
+            borderRadius: '16px',
+            border: '1px solid var(--aureus-border-subtle)',
+            gap: '3px',
             boxSizing: 'border-box',
             width: '100%',
           }}
@@ -316,10 +319,10 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                   outline: 'none',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  backgroundColor: isActive ? '#0A3323' : 'transparent',
-                  color: isActive ? '#ffffff' : '#64748b',
-                  border: isActive ? '1px solid #1B4D37' : '1px solid transparent',
-                  boxShadow: isActive ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                  backgroundColor: isActive ? '#B69A55' : 'transparent',
+                  color: isActive ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                  border: isActive ? '1px solid #B69A55' : '1px solid transparent',
+                  boxShadow: isActive ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                   transition: 'all 0.15s ease',
                   textAlign: 'center',
                 }}
@@ -338,8 +341,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '14px',
             padding: '5px',
             width: '100%',
@@ -367,17 +370,18 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               width: '36px',
               height: '36px',
               borderRadius: '10px',
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--aureus-border-subtle)',
               outline: 'none',
-              backgroundColor: isMinusDisabled ? '#f1f5f9' : '#ffffff',
-              color: isMinusDisabled ? '#cbd5e1' : '#0f172a',
+              backgroundColor: isMinusDisabled ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-surface)',
+              color: isMinusDisabled ? 'var(--aureus-text-muted)' : 'var(--aureus-text-primary)',
+              opacity: isMinusDisabled ? 0.5 : 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '18px',
               fontWeight: 700,
               cursor: isMinusDisabled ? 'not-allowed' : 'pointer',
-              boxShadow: isMinusDisabled ? 'none' : '0 1px 2px rgba(15, 23, 42, 0.06)',
+              boxShadow: isMinusDisabled ? 'none' : '0 1px 2px rgba(0, 0, 0, 0.08)',
               transition: 'all 0.15s ease',
               flexShrink: 0,
               padding: 0,
@@ -396,7 +400,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               textAlign: 'center',
               fontSize: '14px',
               fontWeight: 800,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               whiteSpace: 'nowrap',
               padding: '0 12px',
               userSelect: 'none',
@@ -425,17 +429,18 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               width: '36px',
               height: '36px',
               borderRadius: '10px',
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--aureus-border-subtle)',
               outline: 'none',
-              backgroundColor: isPlusDisabled ? '#f1f5f9' : '#ffffff',
-              color: isPlusDisabled ? '#cbd5e1' : '#0f172a',
+              backgroundColor: isPlusDisabled ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-surface)',
+              color: isPlusDisabled ? 'var(--aureus-text-muted)' : 'var(--aureus-text-primary)',
+              opacity: isPlusDisabled ? 0.5 : 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '18px',
               fontWeight: 700,
               cursor: isPlusDisabled ? 'not-allowed' : 'pointer',
-              boxShadow: isPlusDisabled ? 'none' : '0 1px 2px rgba(15, 23, 42, 0.06)',
+              boxShadow: isPlusDisabled ? 'none' : '0 1px 2px rgba(0, 0, 0, 0.08)',
               transition: 'all 0.15s ease',
               flexShrink: 0,
               padding: 0,
@@ -456,11 +461,11 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               gap: '6px',
               padding: '6px 14px',
               borderRadius: '9999px',
-              backgroundColor: '#ecfdf5',
-              color: '#047857',
+              backgroundColor: 'var(--aureus-green-light)',
+              color: 'var(--aureus-green-text)',
               fontSize: '12px',
               fontWeight: 800,
-              border: '1px solid #a7f3d0',
+              border: '1px solid var(--aureus-green-border)',
             }}
           >
             Todo el historial registrado
@@ -474,10 +479,10 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
           position: 'relative',
           width: '100%',
           overflow: 'hidden',
-          backgroundColor: '#f8fafc',
+          backgroundColor: 'var(--aureus-bg-elevated)',
           borderRadius: '12px',
           padding: '8px',
-          border: '1px solid #f1f5f9',
+          border: '1px solid var(--aureus-border-subtle)',
           boxSizing: 'border-box',
           userSelect: 'none',
         }}
@@ -487,7 +492,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              backgroundColor: isDark ? 'rgba(16, 28, 44, 0.72)' : 'rgba(255, 255, 255, 0.7)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -499,7 +504,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               style={{
                 width: '24px',
                 height: '24px',
-                border: '2px solid #059669',
+                border: '2px solid #B69A55',
                 borderTopColor: 'transparent',
                 borderRadius: '50%',
               }}
@@ -520,8 +525,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               color: '#ffffff',
               borderRadius: '10px',
               padding: '6px 10px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
-              border: '1px solid #1e293b',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.28)',
+              border: '1px solid #283B54',
               left: `${(activeTooltip.x / svgWidth) * 100}%`,
               top: `${(activeTooltip.y / svgHeight) * 100}%`,
               textAlign: 'center',
@@ -530,7 +535,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             <div style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8', whiteSpace: 'nowrap' }}>
               {activeTooltip.fechaCompleta || activeTooltip.etiqueta}
             </div>
-            <div style={{ fontSize: '12px', fontWeight: 800, color: '#34d399', whiteSpace: 'nowrap', marginTop: '1px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: '#52B796', whiteSpace: 'nowrap', marginTop: '1px' }}>
               {formatColones(activeTooltip.monto || 0)}
             </div>
           </div>
@@ -543,8 +548,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
           <defs>
             {/* Degradado esmeralda para el área sombreada */}
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#059669" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="#059669" stopOpacity="0.0" />
+              <stop offset="0%" stopColor={isDark ? '#52B796' : '#397D67'} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={isDark ? '#52B796' : '#397D67'} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -554,7 +559,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             y1={padTop}
             x2={svgWidth - padRight}
             y2={padTop}
-            stroke="#E2E8F0"
+            stroke={isDark ? '#283B54' : '#E2E8F0'}
             strokeDasharray="3 3"
             strokeWidth="1"
           />
@@ -563,7 +568,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             y1={padTop + plotHeight / 2}
             x2={svgWidth - padRight}
             y2={padTop + plotHeight / 2}
-            stroke="#E2E8F0"
+            stroke={isDark ? '#283B54' : '#E2E8F0'}
             strokeDasharray="3 3"
             strokeWidth="1"
           />
@@ -572,7 +577,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             y1={padTop + plotHeight}
             x2={svgWidth - padRight}
             y2={padTop + plotHeight}
-            stroke="#CBD5E1"
+            stroke={isDark ? '#3B5373' : '#CBD5E1'}
             strokeWidth="1.2"
           />
 
@@ -584,7 +589,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             <path
               d={pathD}
               fill="none"
-              stroke="#059669"
+              stroke={isDark ? '#52B796' : '#397D67'}
               strokeWidth="2.75"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -596,6 +601,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             const esPuntoAlto = puntoMasAlto.monto > 0 && pt.monto === puntoMasAlto.monto;
             const esPuntoBajo = puntoMasBajo.monto >= 0 && pt.monto === puntoMasBajo.monto && !esPuntoAlto;
             const isHovered = activeTooltip?.idx === pt.idx;
+            const nodeHalo = isDark ? '#162436' : '#FFFFFF';
+            const regularFill = isHovered ? (isDark ? '#52B796' : '#397D67') : (isDark ? '#F5F3ED' : '#252A31');
 
             return (
               <g
@@ -615,8 +622,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                       cx={pt.x}
                       cy={pt.y}
                       r={isHovered ? 8 : 6.5}
-                      fill="#059669"
-                      stroke="#FFFFFF"
+                      fill="#397D67"
+                      stroke={nodeHalo}
                       strokeWidth="2.5"
                     />
                     <circle
@@ -624,7 +631,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                       cy={pt.y}
                       r={isHovered ? 12 : 9.5}
                       fill="none"
-                      stroke="#059669"
+                      stroke="#397D67"
                       strokeOpacity="0.4"
                       strokeWidth="2"
                     />
@@ -637,7 +644,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                       cy={pt.y}
                       r={isHovered ? 7 : 5.5}
                       fill="#D97706"
-                      stroke="#FFFFFF"
+                      stroke={nodeHalo}
                       strokeWidth="2"
                     />
                     <circle
@@ -656,8 +663,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                     cx={pt.x}
                     cy={pt.y}
                     r={isHovered ? 6 : 4}
-                    fill={isHovered ? '#059669' : '#0F172A'}
-                    stroke="#FFFFFF"
+                    fill={regularFill}
+                    stroke={nodeHalo}
                     strokeWidth="1.75"
                   />
                 )}
@@ -669,7 +676,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
                   textAnchor="middle"
                   fontSize="10"
                   fontWeight="700"
-                  fill={isHovered ? '#0F172A' : '#64748B'}
+                  fill={isHovered ? (isDark ? '#F5F3ED' : '#0F172A') : '#94A3B8'}
                 >
                   {pt.etiqueta}
                 </text>
@@ -681,9 +688,10 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
 
       {/* 4. Tres Indicadores Analíticos Automáticos */}
       <div
+        className="resumen-analytics-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))',
           gap: '8px',
           width: '100%',
           boxSizing: 'border-box',
@@ -692,8 +700,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
         {/* Recuadro 1: PUNTO MÁS ALTO */}
         <div
           style={{
-            backgroundColor: '#D6E7D6',
-            border: '1px solid #8FB89A',
+            backgroundColor: 'var(--aureus-green-light)',
+            border: '1px solid var(--aureus-green-border)',
             borderRadius: '12px',
             padding: '10px',
             display: 'flex',
@@ -707,7 +715,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              color: '#0A3323',
+              color: 'var(--aureus-green-text)',
               fontSize: '10px',
               fontWeight: 800,
               textTransform: 'uppercase',
@@ -715,13 +723,13 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             }}
           >
             <span>PUNTO MÁS ALTO</span>
-            <ArrowUpRight size={14} strokeWidth={2.4} style={{ color: '#1B4D37' }} />
+            <ArrowUpRight size={14} strokeWidth={2.4} style={{ color: 'var(--aureus-green-text)' }} />
           </div>
           <div
             style={{
               fontSize: '15px',
               fontWeight: 900,
-              color: '#1B4D37',
+              color: 'var(--aureus-green-text)',
               lineHeight: 1.2,
             }}
           >
@@ -731,7 +739,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             style={{
               fontSize: '10.5px',
               fontWeight: 600,
-              color: '#2E6B4F',
+              color: 'var(--aureus-green-text)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -744,8 +752,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
         {/* Recuadro 2: PUNTO MÁS BAJO */}
         <div
           style={{
-            backgroundColor: '#fffbeb',
-            border: '1px solid #fde68a',
+            backgroundColor: 'var(--aureus-gold-light)',
+            border: '1px solid var(--aureus-border-gold)',
             borderRadius: '12px',
             padding: '10px',
             display: 'flex',
@@ -759,7 +767,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              color: '#92400e',
+              color: 'var(--aureus-gold-text)',
               fontSize: '10px',
               fontWeight: 800,
               textTransform: 'uppercase',
@@ -767,13 +775,13 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             }}
           >
             <span>PUNTO MÁS BAJO</span>
-            <ArrowDownRight size={14} strokeWidth={2.4} style={{ color: '#d97706' }} />
+            <ArrowDownRight size={14} strokeWidth={2.4} style={{ color: 'var(--aureus-gold-text)' }} />
           </div>
           <div
             style={{
               fontSize: '15px',
               fontWeight: 900,
-              color: '#b45309',
+              color: 'var(--aureus-gold-text)',
               lineHeight: 1.2,
             }}
           >
@@ -783,7 +791,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             style={{
               fontSize: '10.5px',
               fontWeight: 600,
-              color: '#92400e',
+              color: 'var(--aureus-gold-text)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -796,8 +804,8 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
         {/* Recuadro 3: PROMEDIO Y VARIACIÓN */}
         <div
           style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '1px solid var(--aureus-border-subtle)',
             borderRadius: '12px',
             padding: '10px',
             display: 'flex',
@@ -811,7 +819,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              color: '#475569',
+              color: 'var(--aureus-text-secondary)',
               fontSize: '10px',
               fontWeight: 800,
               textTransform: 'uppercase',
@@ -819,13 +827,13 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
             }}
           >
             <span>PROMEDIO</span>
-            <Activity size={14} strokeWidth={2.2} style={{ color: '#64748b' }} />
+            <Activity size={14} strokeWidth={2.2} style={{ color: 'var(--aureus-text-muted)' }} />
           </div>
           <div
             style={{
               fontSize: '15px',
               fontWeight: 900,
-              color: '#0f172a',
+              color: 'var(--aureus-text-primary)',
               lineHeight: 1.2,
             }}
           >
@@ -838,13 +846,13 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
               gap: '4px',
               fontSize: '10.5px',
               fontWeight: 700,
-              color: '#64748b',
+              color: 'var(--aureus-text-muted)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ color: esVariacionPositiva ? '#059669' : '#dc2626' }}>
+            <span style={{ color: esVariacionPositiva ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)' }}>
               {esVariacionPositiva ? `+${promedioYVariacion.variacionPct}%` : `${promedioYVariacion.variacionPct}%`}
             </span>
             <span>variación</span>

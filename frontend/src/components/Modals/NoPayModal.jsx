@@ -121,11 +121,11 @@ export function NoPayModal({ client, isOpen, onClose, onConfirmNoPay, currentDat
         <div className="modal-body">
           <div className="confirmation-prompt-box">
             <div
-              className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center bg-red-50 text-red-600 border border-red-200/80"
+              className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center"
               style={{
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
-                borderColor: 'rgba(254, 202, 202, 0.8)',
+                backgroundColor: 'var(--aureus-red-light)',
+                color: 'var(--aureus-red-text)',
+                borderColor: 'var(--aureus-red-border)',
                 borderWidth: '1px',
                 borderStyle: 'solid'
               }}

@@ -163,25 +163,37 @@ DECLARE
 BEGIN
   SELECT * INTO c FROM clientes WHERE id = p_cliente_id FOR UPDATE;
   IF NOT FOUND THEN
+    -- Si ya fue movido a clientes_baneados, delegar a la función especializada
+    PERFORM archivar_y_eliminar_cliente_baneado(p_cliente_id);
     RETURN;
   END IF;
 
-  INSERT INTO historial_clientes_archivo
-    (cobrador_id, cedula, nombre, apellidos, telefono, ubicacion, detalles,
-     fecha_eliminacion, fecha_expiracion, cliente_id_actual)
-  VALUES
-    (c.cobrador_id, c.cedula, c.nombre, c.apellidos, c.telefono, c.ubicacion, c.detalles,
-     now(), now() + interval '5 months', NULL)
-  ON CONFLICT (cobrador_id, cedula) DO UPDATE
-     SET nombre = EXCLUDED.nombre,
-         apellidos = EXCLUDED.apellidos,
-         telefono = EXCLUDED.telefono,
-         ubicacion = EXCLUDED.ubicacion,
-         detalles = EXCLUDED.detalles,
-         fecha_eliminacion = now(),
-         fecha_expiracion = now() + interval '5 months',
-         cliente_id_actual = NULL
-  RETURNING id INTO v_archivo;
+  IF c.cedula IS NOT NULL AND TRIM(c.cedula) <> '' THEN
+    INSERT INTO historial_clientes_archivo
+      (cobrador_id, cedula, nombre, apellidos, telefono, ubicacion, detalles,
+       fecha_eliminacion, fecha_expiracion, cliente_id_actual)
+    VALUES
+      (c.cobrador_id, c.cedula, c.nombre, c.apellidos, c.telefono, c.ubicacion, c.detalles,
+       now(), now() + interval '5 months', NULL)
+    ON CONFLICT (cobrador_id, cedula) DO UPDATE
+       SET nombre = EXCLUDED.nombre,
+           apellidos = EXCLUDED.apellidos,
+           telefono = EXCLUDED.telefono,
+           ubicacion = EXCLUDED.ubicacion,
+           detalles = EXCLUDED.detalles,
+           fecha_eliminacion = now(),
+           fecha_expiracion = now() + interval '5 months',
+           cliente_id_actual = NULL
+    RETURNING id INTO v_archivo;
+  ELSE
+    INSERT INTO historial_clientes_archivo
+      (cobrador_id, cedula, nombre, apellidos, telefono, ubicacion, detalles,
+       fecha_eliminacion, fecha_expiracion, cliente_id_actual)
+    VALUES
+      (c.cobrador_id, NULL, c.nombre, c.apellidos, c.telefono, c.ubicacion, c.detalles,
+       now(), now() + interval '5 months', NULL)
+    RETURNING id INTO v_archivo;
+  END IF;
 
   INSERT INTO historial_prestamos_archivo
     (archivo_id, prestamo_id_original, monto_prestado, porcentaje_interes,
@@ -204,7 +216,83 @@ BEGIN
   FROM prestamos p
   WHERE p.cliente_id = p_cliente_id;
 
+  DELETE FROM agenda_cobros WHERE cliente_id = p_cliente_id;
+  DELETE FROM prestamos WHERE cliente_id = p_cliente_id;
   DELETE FROM clientes WHERE id = p_cliente_id;
+END;
+$$;
+
+
+--
+-- Name: archivar_y_eliminar_cliente_baneado(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.archivar_y_eliminar_cliente_baneado(p_cliente_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  c clientes_baneados%ROWTYPE;
+  v_archivo uuid;
+BEGIN
+  SELECT * INTO c FROM clientes_baneados WHERE id = p_cliente_id FOR UPDATE;
+  IF NOT FOUND THEN
+    IF EXISTS (SELECT 1 FROM clientes WHERE id = p_cliente_id) THEN
+      PERFORM archivar_y_eliminar_cliente(p_cliente_id);
+    END IF;
+    RETURN;
+  END IF;
+
+  IF c.cedula IS NOT NULL AND TRIM(c.cedula) <> '' THEN
+    INSERT INTO historial_clientes_archivo
+      (cobrador_id, cedula, nombre, apellidos, telefono, ubicacion, detalles,
+       fecha_eliminacion, fecha_expiracion, cliente_id_actual)
+    VALUES
+      (c.cobrador_id, c.cedula, c.nombre, c.apellidos, c.telefono, c.ubicacion, c.detalles,
+       now(), now() + interval '5 months', NULL)
+    ON CONFLICT (cobrador_id, cedula) DO UPDATE
+       SET nombre = EXCLUDED.nombre,
+           apellidos = EXCLUDED.apellidos,
+           telefono = EXCLUDED.telefono,
+           ubicacion = EXCLUDED.ubicacion,
+           detalles = EXCLUDED.detalles,
+           fecha_eliminacion = now(),
+           fecha_expiracion = now() + interval '5 months',
+           cliente_id_actual = NULL
+    RETURNING id INTO v_archivo;
+  ELSE
+    INSERT INTO historial_clientes_archivo
+      (cobrador_id, cedula, nombre, apellidos, telefono, ubicacion, detalles,
+       fecha_eliminacion, fecha_expiracion, cliente_id_actual)
+    VALUES
+      (c.cobrador_id, NULL, c.nombre, c.apellidos, c.telefono, c.ubicacion, c.detalles,
+       now(), now() + interval '5 months', NULL)
+    RETURNING id INTO v_archivo;
+  END IF;
+
+  INSERT INTO historial_prestamos_archivo
+    (archivo_id, prestamo_id_original, monto_prestado, porcentaje_interes,
+     monto_total_financiar, monto_pagado, saldo_pendiente, cuota, modalidad,
+     fecha_inicio, fecha_final, estado_final, periodos_pagados, total_periodos,
+     veces_pasado_total, total_moratorias, pagos_detalle)
+  SELECT
+     v_archivo, p.id, p.monto_prestado, p.porcentaje_interes,
+     p.monto_total_financiar, p.monto_pagado_acumulado, p.saldo_por_pagar, p.cuota, p.modalidad,
+     p.fecha_inicio, p.fecha_final, COALESCE(p.estado_previo_suspension, p.estado),
+     p.periodos_pagados, p.total_periodos,
+     (SELECT COALESCE(SUM(a.veces_pasado), 0) FROM agenda_cobros a WHERE a.prestamo_id = p.id),
+     (SELECT COALESCE(SUM(g.monto_moratoria), 0) FROM pagos_prestamo g WHERE g.prestamo_id = p.id),
+     (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'fecha', g.fecha_hora_pago,
+                'monto', g.monto_cobrado,
+                'moratoria', g.monto_moratoria,
+                'tipo', g.tipo) ORDER BY g.fecha_hora_pago), '[]'::jsonb)
+        FROM pagos_prestamo g WHERE g.prestamo_id = p.id)
+  FROM prestamos p
+  WHERE p.cliente_id = p_cliente_id;
+
+  DELETE FROM agenda_cobros WHERE cliente_id = p_cliente_id;
+  DELETE FROM prestamos WHERE cliente_id = p_cliente_id;
+  DELETE FROM clientes_baneados WHERE id = p_cliente_id;
 END;
 $$;
 
@@ -513,6 +601,7 @@ CREATE TABLE public.clientes (
     nombre character varying(100) NOT NULL,
     apellidos character varying(120),
     telefono character varying(20) NOT NULL,
+    telefono_secundario character varying(40),
     ubicacion character varying(200) NOT NULL,
     detalles text,
     estado public.estado_cliente DEFAULT 'ACTIVO'::public.estado_cliente NOT NULL,
@@ -525,6 +614,33 @@ CREATE TABLE public.clientes (
     CONSTRAINT ck_clientes_cedula_9_digitos CHECK (((cedula IS NULL) OR (cedula ~ '^[0-9]{9}$'::text))),
     CONSTRAINT ck_clientes_papelera_fechas CHECK (((estado = 'EN_PAPELERA'::public.estado_cliente) = (fecha_envio_papelera IS NOT NULL)))
 );
+
+
+--
+-- Name: clientes_baneados; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clientes_baneados (
+    id uuid NOT NULL,
+    cobrador_id uuid NOT NULL,
+    cedula character varying(20),
+    nombre character varying(120) NOT NULL,
+    apellidos character varying(160),
+    telefono character varying(40) NOT NULL,
+    telefono_secundario character varying(40),
+    ubicacion text NOT NULL,
+    detalles text,
+    version integer DEFAULT 1 NOT NULL,
+    creado_originalmente_en timestamp with time zone DEFAULT now() NOT NULL,
+    fecha_envio_papelera timestamp with time zone DEFAULT now() NOT NULL,
+    fecha_borrado_definitivo timestamp with time zone DEFAULT (now() + '30 days'::interval) NOT NULL,
+    respaldo_prestamos jsonb DEFAULT '[]'::jsonb,
+    CONSTRAINT clientes_baneados_pkey PRIMARY KEY (id),
+    CONSTRAINT clientes_baneados_cobrador_id_fkey FOREIGN KEY (cobrador_id) REFERENCES public.usuarios(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_clientes_baneados_cobrador ON public.clientes_baneados USING btree (cobrador_id, fecha_envio_papelera DESC);
+CREATE INDEX idx_clientes_baneados_vencimiento ON public.clientes_baneados USING btree (fecha_borrado_definitivo);
 
 
 --
@@ -556,8 +672,14 @@ CREATE TABLE public.historial_clientes_archivo (
     nombre character varying(100) NOT NULL,
     apellidos character varying(120),
     telefono character varying(20),
-    ubicacion character varying(200),
+    telefono_secundario character varying(40),
+    ubicacion text,
     detalles text,
+    total_prestamos_archivados integer DEFAULT 0 NOT NULL,
+    total_prestado_historico numeric(14,2) DEFAULT 0 NOT NULL,
+    total_pagado_historico numeric(14,2) DEFAULT 0 NOT NULL,
+    saldo_impago_historico numeric(14,2) DEFAULT 0 NOT NULL,
+    atrasos_acumulados_historico integer DEFAULT 0 NOT NULL,
     fecha_eliminacion timestamp with time zone DEFAULT now() NOT NULL,
     fecha_expiracion timestamp with time zone,
     creado_en timestamp with time zone DEFAULT now() NOT NULL
@@ -589,16 +711,20 @@ CREATE TABLE public.historial_prestamos_archivo (
     prestamo_id_original uuid NOT NULL,
     monto_prestado numeric(14,2) NOT NULL,
     porcentaje_interes numeric(5,2) NOT NULL,
-    monto_total_financiar numeric(14,2) NOT NULL,
+    monto_total_financiar numeric(14,2) DEFAULT 0 NOT NULL,
     monto_pagado numeric(14,2) NOT NULL,
+    monto_pagado_acumulado numeric(14,2) DEFAULT 0 NOT NULL,
     saldo_pendiente numeric(14,2) NOT NULL,
-    cuota numeric(14,2) NOT NULL,
+    saldo_por_pagar numeric(14,2) DEFAULT 0 NOT NULL,
+    cuota numeric(14,2) DEFAULT 0 NOT NULL,
     modalidad public.modalidad_prestamo NOT NULL,
     fecha_inicio date NOT NULL,
     fecha_final date NOT NULL,
     estado_final public.estado_prestamo NOT NULL,
-    periodos_pagados integer NOT NULL,
-    total_periodos integer NOT NULL,
+    estado_al_eliminar character varying(30),
+    periodos_pagados integer DEFAULT 0 NOT NULL,
+    total_periodos integer DEFAULT 0 NOT NULL,
+    periodos_atrasados_acumulados integer DEFAULT 0 NOT NULL,
     veces_pasado_total integer DEFAULT 0 NOT NULL,
     total_moratorias numeric(14,2) DEFAULT 0 NOT NULL,
     pagos_detalle jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -1459,6 +1585,78 @@ ALTER TABLE ONLY public.transferencias_cartera
 
 ALTER TABLE ONLY public.verificaciones_correo
     ADD CONSTRAINT verificaciones_correo_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
+
+
+--
+-- Name: prestamos_baneados; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.prestamos_baneados (
+    id uuid PRIMARY KEY,
+    cobrador_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    cliente_id uuid NOT NULL,
+    cliente_nombre character varying(120) DEFAULT ''::character varying NOT NULL,
+    cliente_apellidos character varying(140) DEFAULT ''::character varying,
+    cliente_cedula character(9),
+    cliente_telefono character varying(20) DEFAULT ''::character varying,
+    origen_papelera character varying(32) DEFAULT 'PRESTAMO_ELIMINADO'::character varying NOT NULL
+        CONSTRAINT prestamos_baneados_origen_check CHECK ((origen_papelera)::text = ANY (ARRAY[('PRESTAMO_ELIMINADO'::character varying)::text, ('CLIENTE_ELIMINADO'::character varying)::text])),
+    categoria_previa character varying(32) DEFAULT 'PENDIENTE'::character varying NOT NULL
+        CONSTRAINT prestamos_baneados_categoria_check CHECK ((categoria_previa)::text = ANY (ARRAY[('PENDIENTE'::character varying)::text, ('REGISTRADO'::character varying)::text, ('ATRASADO'::character varying)::text])),
+    monto_prestado numeric(14,2) NOT NULL,
+    porcentaje_interes numeric(5,2) DEFAULT 0 NOT NULL,
+    monto_total_financiar numeric(14,2) DEFAULT 0 NOT NULL,
+    monto_pagado_acumulado numeric(14,2) DEFAULT 0 NOT NULL,
+    saldo_por_pagar numeric(14,2) DEFAULT 0 NOT NULL,
+    cuota numeric(14,2) DEFAULT 0 NOT NULL,
+    modalidad public.modalidad_prestamo NOT NULL,
+    fecha_inicio date NOT NULL,
+    fecha_final date NOT NULL,
+    estado_previo character varying(32) DEFAULT 'ACTIVO'::character varying NOT NULL,
+    periodos_pagados integer DEFAULT 0 NOT NULL,
+    total_periodos integer DEFAULT 0 NOT NULL,
+    periodos_atrasados_acumulados integer DEFAULT 0 NOT NULL,
+    fecha_envio_papelera timestamp with time zone DEFAULT now() NOT NULL,
+    fecha_borrado_definitivo timestamp with time zone DEFAULT (now() + '30 days'::interval) NOT NULL,
+    datos_prestamo_json jsonb DEFAULT '{}'::jsonb NOT NULL,
+    respaldo_agenda_cobros jsonb DEFAULT '[]'::jsonb NOT NULL,
+    respaldo_pagos jsonb DEFAULT '[]'::jsonb NOT NULL,
+    respaldo_arreglos jsonb DEFAULT '[]'::jsonb NOT NULL,
+    respaldo_renovaciones jsonb DEFAULT '[]'::jsonb NOT NULL,
+    respaldo_historial_pasar_dia jsonb DEFAULT '[]'::jsonb NOT NULL,
+    creado_en timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prestamos_baneados_cobrador_fecha
+    ON public.prestamos_baneados USING btree (cobrador_id, fecha_envio_papelera DESC);
+
+CREATE INDEX IF NOT EXISTS idx_prestamos_baneados_cliente
+    ON public.prestamos_baneados USING btree (cliente_id, cobrador_id);
+
+CREATE INDEX IF NOT EXISTS idx_prestamos_baneados_expiracion
+    ON public.prestamos_baneados USING btree (fecha_borrado_definitivo);
+
+-- Enriquecimiento idempotente del Archivo Historico Permanente
+ALTER TABLE public.historial_clientes_archivo
+  ADD COLUMN IF NOT EXISTS telefono_secundario varchar(40),
+  ADD COLUMN IF NOT EXISTS ubicacion text,
+  ADD COLUMN IF NOT EXISTS detalles text,
+  ADD COLUMN IF NOT EXISTS total_prestamos_archivados integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_prestado_historico numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_pagado_historico numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS saldo_impago_historico numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS atrasos_acumulados_historico integer NOT NULL DEFAULT 0;
+
+ALTER TABLE public.historial_prestamos_archivo
+  ADD COLUMN IF NOT EXISTS monto_total_financiar numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cuota numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS monto_pagado_acumulado numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS saldo_por_pagar numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_periodos integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS periodos_pagados integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS periodos_atrasados_acumulados integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS modalidad varchar(30),
+  ADD COLUMN IF NOT EXISTS estado_al_eliminar varchar(30);
 
 
 --

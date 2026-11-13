@@ -24,25 +24,26 @@ export function SegmentedTabs({
   if (isSearchOpen) {
     return (
       <div
-        className="segmented-tabs-search-active"
+        className="segmented-tabs-search-active cf-search-pill"
         style={{
           display: 'flex',
           flexDirection: 'row',
           flexWrap: 'nowrap',
           alignItems: 'center',
           gap: '10px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--aureus-bg-surface)',
           padding: '0 14px',
           borderRadius: '9999px',
-          border: '1px solid #cbd5e1',
+          border: '1px solid var(--aureus-border-gold)',
           width: '100%',
           height: '44px',
           boxSizing: 'border-box',
           marginBottom: '16px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          transition: 'border-color 0.16s ease, box-shadow 0.16s ease',
         }}
       >
-        <Search size={18} strokeWidth={2.2} style={{ color: '#94a3b8', flexShrink: 0 }} />
+        <Search size={18} strokeWidth={2.2} style={{ color: 'var(--aureus-text-muted)', flexShrink: 0 }} />
         <input
           ref={inputRef}
           type="text"
@@ -59,7 +60,7 @@ export function SegmentedTabs({
             backgroundColor: 'transparent',
             fontSize: '13.5px',
             fontWeight: '600',
-            color: '#0f172a',
+            color: 'var(--aureus-text-primary)',
           }}
           autoComplete="off"
           aria-label="Buscar cobros del día"
@@ -78,8 +79,8 @@ export function SegmentedTabs({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#f1f5f9',
-            color: '#475569',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            color: 'var(--aureus-text-secondary)',
             flexShrink: 0,
             padding: 0,
           }}
@@ -92,25 +93,15 @@ export function SegmentedTabs({
     );
   }
 
-  // ESTADO NORMAL: 1 Sola fila horizontal (Pestañas + Botón Lupa integrado a la derecha)
+  // ESTADO NORMAL: 1 Sola fila horizontal adaptable (Pestañas + Botón Lupa integrado)
   return (
     <div className="segmented-tabs-wrapper" style={{ width: '100%', marginBottom: '16px' }}>
       <div
         className="segmented-tabs-control-three"
         role="tablist"
         style={{
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'nowrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '4px',
-          backgroundColor: '#f1f5f9',
-          padding: '4px',
-          borderRadius: '9999px',
-          border: '1px solid #e2e8f0',
-          width: '100%',
-          boxSizing: 'border-box',
+          backgroundColor: 'var(--aureus-bg-surface)',
+          borderColor: 'var(--aureus-border-subtle)',
         }}
       >
         {/* Pestaña 1: Pendientes */}
@@ -121,41 +112,18 @@ export function SegmentedTabs({
           onClick={() => onTabChange('pendientes')}
           className={`tab-btn ${activeTab === 'pendientes' ? 'active' : ''}`}
           style={{
-            flex: '1 1 0px',
-            minWidth: 0,
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            borderRadius: '9999px',
-            padding: '7px 8px',
-            fontSize: '12px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            backgroundColor: activeTab === 'pendientes' ? '#ffffff' : 'transparent',
-            color: activeTab === 'pendientes' ? '#0f172a' : '#64748b',
-            boxShadow: activeTab === 'pendientes' ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
+            backgroundColor: activeTab === 'pendientes' ? '#B69A55' : 'transparent',
+            color: activeTab === 'pendientes' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+            fontWeight: activeTab === 'pendientes' ? 800 : 700,
+            boxShadow: activeTab === 'pendientes' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
           }}
         >
-          <span>Pendientes</span>
+          <span className="tab-btn-label">Pendientes</span>
           <span
             className="tab-counter-badge green"
             style={{
-              backgroundColor: '#059669',
-              color: '#ffffff',
-              borderRadius: '9999px',
-              minWidth: '18px',
-              height: '18px',
-              padding: '0 4px',
-              fontSize: '10px',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: 1,
+              backgroundColor: activeTab === 'pendientes' ? 'rgba(255, 255, 255, 0.24)' : '#397D67',
+              color: '#FFFFFF',
             }}
           >
             {pendingCount}
@@ -170,26 +138,13 @@ export function SegmentedTabs({
           onClick={() => onTabChange('registrados')}
           className={`tab-btn ${activeTab === 'registrados' ? 'active' : ''}`}
           style={{
-            flex: '1 1 0px',
-            minWidth: 0,
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            borderRadius: '9999px',
-            padding: '7px 8px',
-            fontSize: '12px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            backgroundColor: activeTab === 'registrados' ? '#ffffff' : 'transparent',
-            color: activeTab === 'registrados' ? '#0f172a' : '#64748b',
-            boxShadow: activeTab === 'registrados' ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
+            backgroundColor: activeTab === 'registrados' ? '#B69A55' : 'transparent',
+            color: activeTab === 'registrados' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+            fontWeight: activeTab === 'registrados' ? 800 : 700,
+            boxShadow: activeTab === 'registrados' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
           }}
         >
-          <span>Registrados</span>
+          <span className="tab-btn-label">Registrados</span>
         </button>
 
         {/* Pestaña 3: Atrasados */}
@@ -200,42 +155,19 @@ export function SegmentedTabs({
           onClick={() => onTabChange('atrasados')}
           className={`tab-btn ${activeTab === 'atrasados' ? 'active' : ''}`}
           style={{
-            flex: '1 1 0px',
-            minWidth: 0,
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            borderRadius: '9999px',
-            padding: '7px 8px',
-            fontSize: '12px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            whiteSpace: 'nowrap',
-            backgroundColor: activeTab === 'atrasados' ? '#ffffff' : 'transparent',
-            color: activeTab === 'atrasados' ? '#0f172a' : '#64748b',
-            boxShadow: activeTab === 'atrasados' ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
+            backgroundColor: activeTab === 'atrasados' ? '#B69A55' : 'transparent',
+            color: activeTab === 'atrasados' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+            fontWeight: activeTab === 'atrasados' ? 800 : 700,
+            boxShadow: activeTab === 'atrasados' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
           }}
         >
-          <span>Atrasados</span>
+          <span className="tab-btn-label">Atrasados</span>
           {atrasadosCount > 0 && (
             <span
               className="tab-counter-badge red"
               style={{
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                borderRadius: '9999px',
-                minWidth: '18px',
-                height: '18px',
-                padding: '0 4px',
-                fontSize: '10px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
+                backgroundColor: '#C65D58',
+                color: '#FFFFFF',
               }}
             >
               {atrasadosCount}
@@ -249,28 +181,13 @@ export function SegmentedTabs({
           onClick={onOpenSearch}
           className="tab-search-btn"
           style={{
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            width: '32px',
-            height: '32px',
-            minWidth: '32px',
-            maxWidth: '32px',
-            borderRadius: '9999px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#ffffff',
-            color: '#475569',
-            flexShrink: 0,
-            padding: 0,
-            margin: 0,
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            color: 'var(--aureus-text-secondary)',
           }}
           aria-label="Buscar cobro"
           title="Buscar cobro"
         >
-          <Search size={16} strokeWidth={2.2} style={{ color: '#475569' }} />
+          <Search size={15} strokeWidth={2.2} style={{ color: 'var(--aureus-text-secondary)' }} />
         </button>
       </div>
     </div>

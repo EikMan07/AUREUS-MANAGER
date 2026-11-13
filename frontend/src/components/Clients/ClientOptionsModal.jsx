@@ -41,7 +41,7 @@ export function ClientOptionsModal({
 
         {/* Botones de Acción */}
         <div className="modal-body client-options-body">
-          {/* 1. Botón "Editar cliente" (Blanco con borde gris #E2E8F0, icono Pencil) */}
+          {/* 1. Botón "Editar cliente" */}
           <button
             type="button"
             onClick={() => {
@@ -50,11 +50,11 @@ export function ClientOptionsModal({
             }}
             className="client-option-btn btn-option-edit"
           >
-            <Pencil size={18} strokeWidth={1.75} className="option-icon" />
-            <span>Editar cliente</span>
+            <Pencil size={18} strokeWidth={1.75} className="option-icon" style={{ color: '#B69A55' }} />
+            <span style={{ color: 'var(--aureus-text-primary)', fontWeight: 700 }}>Editar cliente</span>
           </button>
 
-          {/* 2. Botón "Enviar a Lista Negra" (Fondo rojo suave #FEF2F2, borde rojo claro #FECACA, icono ShieldAlert) */}
+          {/* 2. Botón "Enviar a Lista Negra" */}
           <button
             type="button"
             onClick={() => {
@@ -63,11 +63,11 @@ export function ClientOptionsModal({
             }}
             className="client-option-btn btn-option-blacklist"
           >
-            <ShieldAlert size={18} strokeWidth={1.75} className="option-icon text-red-600" />
-            <span>Enviar a Lista Negra</span>
+            <ShieldAlert size={18} strokeWidth={1.75} className="option-icon" style={{ color: 'var(--aureus-text-secondary)' }} />
+            <span style={{ color: 'var(--aureus-text-primary)', fontWeight: 700 }}>Enviar a Lista Negra</span>
           </button>
 
-          {/* 3. Botón "Eliminar cliente" (Blanco con borde gris #E2E8F0, icono Trash2) */}
+          {/* 3. Botón "Eliminar cliente" */}
           <button
             type="button"
             onClick={() => {
@@ -76,8 +76,8 @@ export function ClientOptionsModal({
             }}
             className="client-option-btn btn-option-delete"
           >
-            <Trash2 size={18} strokeWidth={1.75} className="option-icon" />
-            <span>Eliminar cliente</span>
+            <Trash2 size={18} strokeWidth={1.75} className="option-icon" style={{ color: 'var(--aureus-red-text)' }} />
+            <span style={{ color: 'var(--aureus-red-text)', fontWeight: 700 }}>Eliminar cliente</span>
           </button>
         </div>
       </div>

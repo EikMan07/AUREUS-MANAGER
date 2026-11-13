@@ -452,7 +452,7 @@ export function CompartirCobrosModal({
       fechaISO: fechaSeleccionada,
       cobros: cobrosSeleccionados,
       montoTotal: montoTotalSeleccionado,
-      nombreCobrador: personaSeleccionada?.nombre_completo || 'Cobro-Firme'
+      nombreCobrador: personaSeleccionada?.nombre_completo || 'Aureus Manager'
     });
   };
 
@@ -482,7 +482,8 @@ export function CompartirCobrosModal({
         style={{
           width: '100%',
           maxWidth: '560px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--aureus-bg-surface)',
+          border: '1px solid var(--aureus-border-subtle)',
           borderRadius: '20px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
           overflow: 'hidden',
@@ -493,15 +494,16 @@ export function CompartirCobrosModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ENCABEZADO SUPERIOR VERDE DÓLAR EJECUTIVO */}
+        {/* ENCABEZADO SUPERIOR AUREUS MANAGER */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #0A3323 0%, #1B4D37 100%)',
+            background: 'var(--aureus-bg-surface)',
+            backgroundColor: 'var(--aureus-bg-surface)',
             padding: '18px 20px',
-            color: '#ffffff',
+            color: 'var(--aureus-text-primary)',
             position: 'relative',
-            borderBottom: '1px solid rgba(143, 184, 154, 0.22)',
-            boxShadow: '0 4px 16px rgba(10, 51, 35, 0.14)'
+            borderBottom: '1px solid var(--aureus-border-subtle)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
           }}
         >
           <div
@@ -517,12 +519,12 @@ export function CompartirCobrosModal({
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  backgroundColor: 'rgba(214, 231, 214, 0.12)',
-                  border: '1px solid rgba(143, 184, 154, 0.28)',
+                  backgroundColor: 'var(--aureus-gold-light)',
+                  border: '1px solid var(--aureus-border-gold)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#D6E7D6'
+                  color: 'var(--aureus-gold-text)'
                 }}
               >
                 <Share2 size={20} strokeWidth={2.2} />
@@ -534,7 +536,7 @@ export function CompartirCobrosModal({
                     fontWeight: 800,
                     margin: 0,
                     lineHeight: 1.2,
-                    color: '#ffffff',
+                    color: 'var(--aureus-text-primary)',
                     letterSpacing: '-0.3px'
                   }}
                 >
@@ -544,7 +546,7 @@ export function CompartirCobrosModal({
                   style={{
                     fontSize: '12px',
                     margin: '3px 0 0 0',
-                    color: '#94a3b8',
+                    color: 'var(--aureus-text-muted)',
                     fontWeight: 500
                   }}
                 >
@@ -560,9 +562,9 @@ export function CompartirCobrosModal({
                 width: '34px',
                 height: '34px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
-                color: '#e2e8f0',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
+                color: 'var(--aureus-text-muted)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -585,22 +587,22 @@ export function CompartirCobrosModal({
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            backgroundColor: '#f8fafc'
+            backgroundColor: 'var(--aureus-bg-muted)'
           }}
         >
           {/* SECCIÓN 1: SELECTOR RÁPIDO DE FECHA */}
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
               borderRadius: '14px',
               padding: '12px 14px',
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--aureus-border-subtle)',
               display: 'flex',
               flexDirection: 'column',
               gap: '10px'
             }}
           >
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Fecha a compartir
             </span>
 
@@ -614,10 +616,10 @@ export function CompartirCobrosModal({
                   borderRadius: '10px',
                   fontSize: '12px',
                   fontWeight: fechaSeleccionada === todayISO ? 800 : 600,
-                  backgroundColor: fechaSeleccionada === todayISO ? '#0A3323' : '#f1f5f9',
-                  color: fechaSeleccionada === todayISO ? '#ffffff' : '#334155',
-                  border: fechaSeleccionada === todayISO ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                  boxShadow: fechaSeleccionada === todayISO ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                  backgroundColor: fechaSeleccionada === todayISO ? '#B69A55' : 'var(--aureus-bg-elevated)',
+                  color: fechaSeleccionada === todayISO ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                  border: fechaSeleccionada === todayISO ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
+                  boxShadow: fechaSeleccionada === todayISO ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
@@ -634,10 +636,10 @@ export function CompartirCobrosModal({
                   borderRadius: '10px',
                   fontSize: '12px',
                   fontWeight: fechaSeleccionada === tomorrowISO ? 800 : 600,
-                  backgroundColor: fechaSeleccionada === tomorrowISO ? '#0A3323' : '#f1f5f9',
-                  color: fechaSeleccionada === tomorrowISO ? '#ffffff' : '#334155',
-                  border: fechaSeleccionada === tomorrowISO ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                  boxShadow: fechaSeleccionada === tomorrowISO ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                  backgroundColor: fechaSeleccionada === tomorrowISO ? '#B69A55' : 'var(--aureus-bg-elevated)',
+                  color: fechaSeleccionada === tomorrowISO ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                  border: fechaSeleccionada === tomorrowISO ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
+                  boxShadow: fechaSeleccionada === tomorrowISO ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
@@ -654,8 +656,8 @@ export function CompartirCobrosModal({
                     width: '100%',
                     height: '40px',
                     borderRadius: '12px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--aureus-border-subtle)',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
                     padding: '0 12px',
                     display: 'flex',
                     alignItems: 'center',
@@ -667,10 +669,10 @@ export function CompartirCobrosModal({
                   }}
                   aria-label="Seleccionar fecha"
                 >
-                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#0f172a', letterSpacing: '0.02em' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--aureus-text-primary)', letterSpacing: '0.02em' }}>
                     {fechaCortaDisplay}
                   </span>
-                  <Calendar size={16} color="#0f172a" />
+                  <Calendar size={16} color="var(--aureus-text-primary)" />
                 </button>
 
                 {/* Popover de Calendario Compacto */}
@@ -682,10 +684,10 @@ export function CompartirCobrosModal({
                       right: 0,
                       zIndex: 50,
                       width: '260px',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: 'var(--aureus-bg-surface)',
                       borderRadius: '16px',
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 12px 28px -4px rgba(15, 23, 42, 0.18)',
+                      border: '1px solid var(--aureus-border-subtle)',
+                      boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.35)',
                       padding: '12px',
                       userSelect: 'none'
                     }}
@@ -700,7 +702,7 @@ export function CompartirCobrosModal({
                         marginBottom: '8px'
                       }}
                     >
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                         {calendarMonthTitle}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -714,13 +716,13 @@ export function CompartirCobrosModal({
                             width: '28px',
                             height: '28px',
                             borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#f8fafc',
+                            border: '1px solid var(--aureus-border-subtle)',
+                            backgroundColor: 'var(--aureus-bg-elevated)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            color: '#334155'
+                            color: 'var(--aureus-text-secondary)'
                           }}
                           aria-label="Mes anterior"
                         >
@@ -736,13 +738,13 @@ export function CompartirCobrosModal({
                             width: '28px',
                             height: '28px',
                             borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#f8fafc',
+                            border: '1px solid var(--aureus-border-subtle)',
+                            backgroundColor: 'var(--aureus-bg-elevated)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            color: '#334155'
+                            color: 'var(--aureus-text-secondary)'
                           }}
                           aria-label="Mes siguiente"
                         >
@@ -766,7 +768,7 @@ export function CompartirCobrosModal({
                           style={{
                             fontSize: '10px',
                             fontWeight: 800,
-                            color: '#64748b',
+                            color: 'var(--aureus-text-muted)',
                             textAlign: 'center',
                             padding: '4px 0'
                           }}
@@ -789,17 +791,20 @@ export function CompartirCobrosModal({
                         const isToday = d.iso === todayISO;
 
                         let bg = 'transparent';
-                        let textColor = d.isCurrentMonth ? '#0f172a' : '#cbd5e1';
+                        let textColor = d.isCurrentMonth ? 'var(--aureus-text-primary)' : 'var(--aureus-text-muted)';
+                        let opacityVal = d.isCurrentMonth ? 1 : 0.45;
                         let border = 'none';
 
                         if (isSelected) {
-                          bg = '#0A3323';
-                          textColor = '#ffffff';
-                          border = '1px solid #1B4D37';
+                          bg = '#B69A55';
+                          textColor = '#101C2C';
+                          opacityVal = 1;
+                          border = '1.5px solid #9E8342';
                         } else if (isToday) {
-                          bg = '#ecfdf5';
-                          textColor = '#059669';
-                          border = '1px solid #10b981';
+                          bg = 'var(--aureus-green-light)';
+                          textColor = 'var(--aureus-green-text)';
+                          opacityVal = 1;
+                          border = '1px solid var(--aureus-green-border)';
                         }
 
                         return (
@@ -815,9 +820,10 @@ export function CompartirCobrosModal({
                               height: '30px',
                               borderRadius: '8px',
                               fontSize: '12px',
-                              fontWeight: isSelected || isToday ? 800 : 700,
+                              fontWeight: isSelected ? 900 : isToday ? 800 : 700,
                               backgroundColor: bg,
                               color: textColor,
+                              opacity: opacityVal,
                               border,
                               cursor: 'pointer',
                               display: 'flex',
@@ -841,7 +847,7 @@ export function CompartirCobrosModal({
                         justifyContent: 'space-between',
                         marginTop: '10px',
                         paddingTop: '8px',
-                        borderTop: '1px solid #f1f5f9'
+                        borderTop: '1px solid var(--aureus-border-subtle)'
                       }}
                     >
                       <button
@@ -860,7 +866,7 @@ export function CompartirCobrosModal({
                           padding: '2px 4px',
                           fontSize: '11px',
                           fontWeight: 800,
-                          color: '#059669',
+                          color: 'var(--aureus-gold-text)',
                           cursor: 'pointer'
                         }}
                       >
@@ -875,7 +881,7 @@ export function CompartirCobrosModal({
                           padding: '2px 4px',
                           fontSize: '11px',
                           fontWeight: 700,
-                          color: '#64748b',
+                          color: 'var(--aureus-text-muted)',
                           cursor: 'pointer'
                         }}
                       >
@@ -898,32 +904,32 @@ export function CompartirCobrosModal({
             >
               <div
                 style={{
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid var(--aureus-border-subtle)'
                 }}
               >
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>
+                <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)', fontWeight: 600, display: 'block' }}>
                   Clientes pendientes
                 </span>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', display: 'block', marginTop: '2px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--aureus-text-primary)', display: 'block', marginTop: '2px' }}>
                   {isLoadingCobros ? '...' : `${cobrosDelDia.length} clientes`}
                 </span>
               </div>
 
               <div
                 style={{
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid var(--aureus-border-subtle)'
                 }}
               >
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block' }}>
+                <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)', fontWeight: 600, display: 'block' }}>
                   Total por cobrar
                 </span>
-                <span style={{ fontSize: '16px', fontWeight: 900, color: '#059669', display: 'block', marginTop: '2px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 900, color: 'var(--aureus-green-text)', display: 'block', marginTop: '2px' }}>
                   {isLoadingCobros ? '...' : formatColones(montoTotalSeleccionado)}
                 </span>
               </div>
@@ -945,7 +951,7 @@ export function CompartirCobrosModal({
                     border: 'none',
                     fontSize: '11.5px',
                     fontWeight: 700,
-                    color: '#0284c7',
+                    color: 'var(--aureus-gold-text)',
                     cursor: 'pointer'
                   }}
                 >
@@ -964,11 +970,11 @@ export function CompartirCobrosModal({
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '6px',
-                      borderTop: '1px solid #f1f5f9'
+                      borderTop: '1px solid var(--aureus-border-subtle)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-muted)' }}>
                         Seleccionados: {selectedAgendaIds.size} de {cobrosDelDia.length}
                       </span>
                       <button
@@ -977,7 +983,7 @@ export function CompartirCobrosModal({
                         style={{
                           fontSize: '11px',
                           fontWeight: 700,
-                          color: '#2563eb',
+                          color: 'var(--aureus-gold-text)',
                           backgroundColor: 'transparent',
                           border: 'none',
                           cursor: 'pointer'
@@ -999,27 +1005,27 @@ export function CompartirCobrosModal({
                             justifyContent: 'space-between',
                             padding: '8px 10px',
                             borderRadius: '8px',
-                            backgroundColor: isChecked ? '#f0fdf4' : '#f8fafc',
-                            border: isChecked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                            backgroundColor: isChecked ? 'var(--aureus-green-light)' : 'var(--aureus-bg-elevated)',
+                            border: isChecked ? '1px solid var(--aureus-green-border)' : '1px solid var(--aureus-border-subtle)',
                             cursor: 'pointer'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {isChecked ? (
-                              <CheckSquare size={16} color="#059669" strokeWidth={2.4} />
+                              <CheckSquare size={16} color="var(--aureus-green-text)" strokeWidth={2.4} />
                             ) : (
-                              <Square size={16} color="#94a3b8" />
+                              <Square size={16} color="var(--aureus-text-muted)" />
                             )}
                             <div>
-                              <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
+                              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-primary)' }}>
                                 {c.nombre_completo || c.nombre}
                               </div>
-                              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
                                 {c.ubicacion || 'Sin ubicación'}
                               </div>
                             </div>
                           </div>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#059669' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-green-text)' }}>
                             {formatColones(c.monto_cuota)}
                           </span>
                         </div>
@@ -1036,7 +1042,7 @@ export function CompartirCobrosModal({
             style={{
               display: 'flex',
               gap: '6px',
-              borderBottom: '1px solid #e2e8f0',
+              borderBottom: '1px solid var(--aureus-border-subtle)',
               paddingBottom: '8px'
             }}
           >
@@ -1049,10 +1055,10 @@ export function CompartirCobrosModal({
                 borderRadius: '10px',
                 fontSize: '12.5px',
                 fontWeight: tabAccion === 'ENVIAR_PERSONA' ? 800 : 600,
-                backgroundColor: tabAccion === 'ENVIAR_PERSONA' ? '#0A3323' : '#ffffff',
-                color: tabAccion === 'ENVIAR_PERSONA' ? '#ffffff' : '#64748b',
-                border: tabAccion === 'ENVIAR_PERSONA' ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                boxShadow: tabAccion === 'ENVIAR_PERSONA' ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                backgroundColor: tabAccion === 'ENVIAR_PERSONA' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                color: tabAccion === 'ENVIAR_PERSONA' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                border: tabAccion === 'ENVIAR_PERSONA' ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
+                boxShadow: tabAccion === 'ENVIAR_PERSONA' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1074,10 +1080,10 @@ export function CompartirCobrosModal({
                 borderRadius: '10px',
                 fontSize: '12.5px',
                 fontWeight: tabAccion === 'DESCARGAR_PDF' ? 800 : 600,
-                backgroundColor: tabAccion === 'DESCARGAR_PDF' ? '#0A3323' : '#ffffff',
-                color: tabAccion === 'DESCARGAR_PDF' ? '#ffffff' : '#64748b',
-                border: tabAccion === 'DESCARGAR_PDF' ? '1px solid #1B4D37' : '1px solid #cbd5e1',
-                boxShadow: tabAccion === 'DESCARGAR_PDF' ? '0 2px 6px rgba(10, 51, 35, 0.18)' : 'none',
+                backgroundColor: tabAccion === 'DESCARGAR_PDF' ? '#B69A55' : 'var(--aureus-bg-surface)',
+                color: tabAccion === 'DESCARGAR_PDF' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                border: tabAccion === 'DESCARGAR_PDF' ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
+                boxShadow: tabAccion === 'DESCARGAR_PDF' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1098,8 +1104,21 @@ export function CompartirCobrosModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Barra superior de contactos: Buscador y Botón Agregar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }} />
+                <div
+                  className="cf-search-pill"
+                  style={{
+                    position: 'relative',
+                    flex: 1,
+                    borderRadius: '10px',
+                    border: '1px solid var(--aureus-border-subtle)',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.16s ease, box-shadow 0.16s ease'
+                  }}
+                >
+                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--aureus-text-muted)' }} />
                   <input
                     type="text"
                     placeholder="Buscar por nombre, usuario o código..."
@@ -1109,10 +1128,12 @@ export function CompartirCobrosModal({
                       width: '100%',
                       padding: '8px 10px 8px 32px',
                       borderRadius: '10px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '12px',
+                      border: 'none',
                       outline: 'none',
-                      backgroundColor: '#ffffff'
+                      boxShadow: 'none',
+                      fontSize: '12px',
+                      color: 'var(--aureus-text-primary)',
+                      backgroundColor: 'transparent'
                     }}
                   />
                 </div>
@@ -1126,11 +1147,11 @@ export function CompartirCobrosModal({
                     gap: '5px',
                     padding: '8px 12px',
                     borderRadius: '10px',
-                    backgroundColor: isAddingNewPerson ? '#f1f5f9' : '#10b981',
-                    color: isAddingNewPerson ? '#334155' : '#064e3b',
+                    backgroundColor: isAddingNewPerson ? 'var(--aureus-bg-elevated)' : '#B69A55',
+                    color: isAddingNewPerson ? 'var(--aureus-text-primary)' : '#FFFFFF',
                     fontSize: '12px',
                     fontWeight: 800,
-                    border: 'none',
+                    border: isAddingNewPerson ? '1px solid var(--aureus-border-subtle)' : 'none',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
                   }}
@@ -1145,21 +1166,21 @@ export function CompartirCobrosModal({
                 <form
                   onSubmit={handleGuardarNuevaPersona}
                   style={{
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'var(--aureus-bg-surface)',
                     padding: '12px',
                     borderRadius: '12px',
-                    border: '1px solid #10b981',
+                    border: '1px solid var(--aureus-border-gold)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '10px'
                   }}
                 >
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#065f46', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--aureus-gold-text)', textTransform: 'uppercase' }}>
                     Registrar y vincular nueva persona
                   </span>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <div>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-secondary)', display: 'block', marginBottom: '3px' }}>
                         Nombre completo
                       </label>
                       <input
@@ -1171,7 +1192,9 @@ export function CompartirCobrosModal({
                           width: '100%',
                           padding: '7px 10px',
                           borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--aureus-border-subtle)',
+                          backgroundColor: 'var(--aureus-bg-elevated)',
+                          color: 'var(--aureus-text-primary)',
                           fontSize: '12px',
                           outline: 'none'
                         }}
@@ -1179,7 +1202,7 @@ export function CompartirCobrosModal({
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '3px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-secondary)', display: 'block', marginBottom: '3px' }}>
                         Nombre de usuario
                       </label>
                       <input
@@ -1191,7 +1214,9 @@ export function CompartirCobrosModal({
                           width: '100%',
                           padding: '7px 10px',
                           borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
+                          border: '1px solid var(--aureus-border-subtle)',
+                          backgroundColor: 'var(--aureus-bg-elevated)',
+                          color: 'var(--aureus-text-primary)',
                           fontSize: '12px',
                           outline: 'none'
                         }}
@@ -1206,8 +1231,8 @@ export function CompartirCobrosModal({
                       disabled={isSavingPerson}
                       style={{
                         padding: '7px 14px',
-                        backgroundColor: '#10b981',
-                        color: '#064e3b',
+                        backgroundColor: '#B69A55',
+                        color: '#FFFFFF',
                         borderRadius: '8px',
                         fontSize: '12px',
                         fontWeight: 800,
@@ -1225,13 +1250,13 @@ export function CompartirCobrosModal({
               {searchTerm.trim() && resultadosBusqueda.length > 0 && (
                 <div
                   style={{
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'var(--aureus-bg-surface)',
                     padding: '10px',
                     borderRadius: '12px',
-                    border: '1px solid #cbd5e1'
+                    border: '1px solid var(--aureus-border-subtle)'
                   }}
                 >
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', display: 'block', marginBottom: '6px' }}>
                     Resultados de búsqueda
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
@@ -1247,17 +1272,17 @@ export function CompartirCobrosModal({
                             justifyContent: 'space-between',
                             padding: '8px 10px',
                             borderRadius: '8px',
-                            backgroundColor: isSelected ? '#ecfdf5' : '#ffffff',
-                            border: isSelected ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                            backgroundColor: isSelected ? 'var(--aureus-gold-light)' : 'var(--aureus-bg-elevated)',
+                            border: isSelected ? '1.5px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                               {res.nombre_completo}
                             </div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
                               @{res.usuario} · {res.codigo_id}
                             </div>
                           </div>
@@ -1271,9 +1296,9 @@ export function CompartirCobrosModal({
                               style={{
                                 padding: '4px 8px',
                                 borderRadius: '6px',
-                                backgroundColor: '#e0f2fe',
-                                color: '#0369a1',
-                                border: 'none',
+                                backgroundColor: 'var(--aureus-gold-soft)',
+                                color: 'var(--aureus-gold-text)',
+                                border: '1px solid var(--aureus-border-gold)',
                                 fontSize: '11px',
                                 fontWeight: 700,
                                 cursor: 'pointer'
@@ -1283,7 +1308,7 @@ export function CompartirCobrosModal({
                             </button>
                           ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700 }}>
+                              <span style={{ fontSize: '11px', color: 'var(--aureus-green-text)', fontWeight: 700 }}>
                                 Vinculado
                               </span>
                               <div
@@ -1291,8 +1316,8 @@ export function CompartirCobrosModal({
                                   width: '18px',
                                   height: '18px',
                                   borderRadius: '50%',
-                                  border: isSelected ? '1.5px solid #10b981' : '2px solid #cbd5e1',
-                                  backgroundColor: isSelected ? '#10b981' : 'transparent',
+                                  border: isSelected ? '1.5px solid #B69A55' : '2px solid var(--aureus-border-subtle)',
+                                  backgroundColor: isSelected ? '#B69A55' : 'transparent',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -1313,23 +1338,23 @@ export function CompartirCobrosModal({
               {/* LISTA DE PERSONAS VINCULADAS */}
               <div
                 style={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--aureus-bg-surface)',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid var(--aureus-border-subtle)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                     Personas vinculadas para cobrar
                   </span>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
                     {misPersonas.length} en la lista
                   </span>
                 </div>
 
                 {misPersonas.length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '12.5px' }}>
+                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--aureus-text-muted)', fontSize: '12.5px' }}>
                     Aún no has vinculado personas. Toca el botón <strong>Agregar persona</strong> para dar de alta a un cobrador o compañero.
                   </div>
                 ) : (
@@ -1348,8 +1373,8 @@ export function CompartirCobrosModal({
                             justifyContent: 'space-between',
                             padding: '10px 12px',
                             borderRadius: '10px',
-                            backgroundColor: isSelected ? '#ecfdf5' : '#ffffff',
-                            border: isSelected ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                            backgroundColor: isSelected ? 'var(--aureus-gold-light)' : 'var(--aureus-bg-elevated)',
+                            border: isSelected ? '1.5px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease'
                           }}
@@ -1360,8 +1385,8 @@ export function CompartirCobrosModal({
                                 width: '32px',
                                 height: '32px',
                                 borderRadius: '50%',
-                                backgroundColor: isSelected ? '#10b981' : '#f1f5f9',
-                                color: isSelected ? '#ffffff' : '#334155',
+                                backgroundColor: isSelected ? '#B69A55' : 'var(--aureus-bg-muted)',
+                                color: isSelected ? '#FFFFFF' : 'var(--aureus-text-primary)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1373,13 +1398,13 @@ export function CompartirCobrosModal({
                               {(p.nombre_completo || 'C').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>
+                              <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                                 {p.nombre_completo}
                               </div>
-                              <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
                                 <span>@{p.usuario}</span>
                                 <span>·</span>
-                                <span style={{ fontWeight: 700, color: '#0284c7' }}>{p.codigo_id}</span>
+                                <span style={{ fontWeight: 700, color: 'var(--aureus-gold-text)' }}>{p.codigo_id}</span>
                               </div>
                             </div>
                           </div>
@@ -1390,8 +1415,8 @@ export function CompartirCobrosModal({
                                 style={{
                                   fontSize: '11px',
                                   fontWeight: 700,
-                                  color: '#059669',
-                                  backgroundColor: '#d1fae5',
+                                  color: 'var(--aureus-green-text)',
+                                  backgroundColor: 'var(--aureus-green-light)',
                                   padding: '2px 7px',
                                   borderRadius: '6px'
                                 }}
@@ -1404,8 +1429,8 @@ export function CompartirCobrosModal({
                                 width: '20px',
                                 height: '20px',
                                 borderRadius: '50%',
-                                border: isSelected ? '1.5px solid #10b981' : '2px solid #cbd5e1',
-                                backgroundColor: isSelected ? '#10b981' : 'transparent',
+                                border: isSelected ? '1.5px solid #B69A55' : '2px solid var(--aureus-border-subtle)',
+                                backgroundColor: isSelected ? '#B69A55' : 'transparent',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1426,8 +1451,8 @@ export function CompartirCobrosModal({
               {cobrosYaCompartidosConPersona.length > 0 && (
                 <div
                   style={{
-                    backgroundColor: '#fef3c7',
-                    border: '1px solid #fde68a',
+                    backgroundColor: 'var(--aureus-gold-light)',
+                    border: '1px solid var(--aureus-border-gold)',
                     padding: '10px 12px',
                     borderRadius: '10px',
                     display: 'flex',
@@ -1437,8 +1462,8 @@ export function CompartirCobrosModal({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={16} color="#d97706" />
-                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#92400e' }}>
+                    <Clock size={16} color="var(--aureus-gold-text)" />
+                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--aureus-gold-text)' }}>
                       {cobrosYaCompartidosConPersona.length} cobros de esta fecha ya están asignados a esta persona
                     </span>
                   </div>
@@ -1449,9 +1474,9 @@ export function CompartirCobrosModal({
                     style={{
                       padding: '5px 10px',
                       borderRadius: '8px',
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #d97706',
-                      color: '#92400e',
+                      backgroundColor: 'var(--aureus-bg-surface)',
+                      border: '1px solid var(--aureus-border-gold)',
+                      color: 'var(--aureus-gold-text)',
                       fontSize: '11px',
                       fontWeight: 800,
                       cursor: 'pointer',
@@ -1475,18 +1500,18 @@ export function CompartirCobrosModal({
                   width: '100%',
                   padding: '13px',
                   borderRadius: '12px',
-                  backgroundColor: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? '#94a3b8' : '#10b981',
-                  color: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? '#ffffff' : '#064e3b',
+                  backgroundColor: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'var(--aureus-text-muted)' : '#B69A55',
+                  color: '#FFFFFF',
                   fontSize: '13px',
                   fontWeight: 800,
-                  border: 'none',
+                  border: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'none' : '1px solid #B69A55',
                   cursor: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'not-allowed' : 'pointer',
-                  opacity: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 0.7 : 1,
+                  opacity: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 0.65 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.25)',
+                  boxShadow: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'none' : '0 4px 12px rgba(182, 154, 85, 0.25)',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -1511,10 +1536,10 @@ export function CompartirCobrosModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div
                 style={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--aureus-bg-surface)',
                   padding: '16px',
                   borderRadius: '14px',
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--aureus-border-subtle)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px'
@@ -1526,8 +1551,8 @@ export function CompartirCobrosModal({
                       width: '32px',
                       height: '32px',
                       borderRadius: '8px',
-                      backgroundColor: '#eff6ff',
-                      color: '#2563eb',
+                      backgroundColor: 'var(--aureus-gold-soft)',
+                      color: 'var(--aureus-gold-text)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -1536,10 +1561,10 @@ export function CompartirCobrosModal({
                     <FileDown size={18} strokeWidth={2.2} />
                   </div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: '#0f172a' }}>
+                    <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
                       Vista previa del documento PDF
                     </h4>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
                       Hoja de cobros ejecutiva en formato horizontal para consultar o llevar en digital
                     </span>
                   </div>
@@ -1547,30 +1572,30 @@ export function CompartirCobrosModal({
 
                 <div
                   style={{
-                    backgroundColor: '#f8fafc',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
                     borderRadius: '10px',
                     padding: '12px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '6px',
                     fontSize: '12px',
-                    color: '#334155'
+                    color: 'var(--aureus-text-secondary)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Fecha del documento:</span>
-                    <strong style={{ color: '#0f172a' }}>{fechaTextoActual}</strong>
+                    <span style={{ color: 'var(--aureus-text-muted)' }}>Fecha del documento:</span>
+                    <strong style={{ color: 'var(--aureus-text-primary)' }}>{fechaTextoActual}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Clientes a incluir:</span>
-                    <strong style={{ color: '#0f172a' }}>{cobrosSeleccionados.length} clientes</strong>
+                    <span style={{ color: 'var(--aureus-text-muted)' }}>Clientes a incluir:</span>
+                    <strong style={{ color: 'var(--aureus-text-primary)' }}>{cobrosSeleccionados.length} clientes</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Total a cobrar:</span>
-                    <strong style={{ color: '#059669' }}>{formatColones(montoTotalSeleccionado)}</strong>
+                    <span style={{ color: 'var(--aureus-text-muted)' }}>Total a cobrar:</span>
+                    <strong style={{ color: 'var(--aureus-green-text)' }}>{formatColones(montoTotalSeleccionado)}</strong>
                   </div>
-                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '6px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  <div style={{ borderTop: '1px dashed var(--aureus-border-subtle)', paddingTop: '6px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
                       Datos incluidos por cliente: N°, Nombre completo, Cédula, Teléfono, Ubicación, Detalles y Monto a cobrar en colones.
                     </span>
                   </div>
@@ -1586,9 +1611,10 @@ export function CompartirCobrosModal({
                   width: '100%',
                   padding: '13px',
                   borderRadius: '12px',
-                  backgroundColor: cobrosSeleccionados.length === 0 ? '#94a3b8' : '#0A3323',
-                  border: cobrosSeleccionados.length === 0 ? 'none' : '1px solid #1B4D37',
-                  color: '#ffffff',
+                  backgroundColor: cobrosSeleccionados.length === 0 ? 'var(--aureus-text-muted)' : '#B69A55',
+                  border: cobrosSeleccionados.length === 0 ? 'none' : '1px solid #B69A55',
+                  opacity: cobrosSeleccionados.length === 0 ? 0.65 : 1,
+                  color: '#FFFFFF',
                   fontSize: '13px',
                   fontWeight: 800,
                   cursor: cobrosSeleccionados.length === 0 ? 'not-allowed' : 'pointer',
@@ -1596,7 +1622,7 @@ export function CompartirCobrosModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: cobrosSeleccionados.length === 0 ? 'none' : '0 2px 6px rgba(10, 51, 35, 0.18)',
+                  boxShadow: cobrosSeleccionados.length === 0 ? 'none' : '0 2px 8px rgba(182, 154, 85, 0.25)',
                   transition: 'all 0.15s ease'
                 }}
               >

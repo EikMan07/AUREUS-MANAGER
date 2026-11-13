@@ -1,5 +1,6 @@
 import { pool, query, debugPayload } from '../config/db.js';
 import { getDefaultCobradorId } from '../services/seedService.js';
+import { snapshotPrestamoToBaneado } from '../utils/papeleraHelpers.js';
 
 const DIA_SEMANA_ENUM = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
@@ -212,6 +213,8 @@ export async function getPrestamos(req, res) {
         c.apellidos AS cliente_apellidos,
         c.cedula AS cliente_cedula,
         c.telefono AS cliente_telefono,
+        c.telefono_secundario AS cliente_telefono_secundario,
+        c.telefono_secundario,
         c.ubicacion AS cliente_ubicacion,
         c.ubicacion AS ubicacion,
         c.detalles AS cliente_detalles,
@@ -1128,9 +1131,15 @@ export async function eliminarPrestamos(req, res) {
 
     // 2. Verificar que los préstamos existan y pertenezcan al cobrador autenticado
     const checkRes = await client.query(
-      `SELECT id, cliente_id, monto_prestado 
-       FROM prestamos 
-       WHERE id = ANY($1::uuid[]) AND cobrador_id = $2::uuid;`,
+      `SELECT p.*,
+              c.nombre AS cliente_nombre,
+              c.apellidos AS cliente_apellidos,
+              c.cedula AS cliente_cedula,
+              c.telefono AS cliente_telefono
+       FROM prestamos p
+       LEFT JOIN clientes c ON c.id = p.cliente_id
+       WHERE p.id = ANY($1::uuid[]) AND p.cobrador_id = $2::uuid
+       FOR UPDATE OF p;`,
       [prestamoIds, cobradorId]
     );
 
@@ -1144,6 +1153,26 @@ export async function eliminarPrestamos(req, res) {
 
     const idsParaEliminar = checkRes.rows.map((r) => r.id);
 
+    // 2.5 Respaldar préstamos y sus dependencias en prestamos_baneados (retención 30 días en Papelera)
+    const hoyRes = await client.query(
+      `SELECT to_char((now() AT TIME ZONE 'America/Costa_Rica')::date, 'YYYY-MM-DD') AS hoy`
+    );
+    const fechaHoyCR = hoyRes.rows[0]?.hoy || null;
+
+    for (const loanRow of checkRes.rows) {
+      await snapshotPrestamoToBaneado(client, {
+        loanRow,
+        clienteRow: {
+          nombre: loanRow.cliente_nombre || '',
+          apellidos: loanRow.cliente_apellidos || '',
+          cedula: loanRow.cliente_cedula || null,
+          telefono: loanRow.cliente_telefono || '',
+        },
+        origenPapelera: 'PRESTAMO_ELIMINADO',
+        fechaHoyCR,
+      });
+    }
+
     // 3. Eliminar dependencias explícitamente dentro de la transacción
     await client.query('DELETE FROM historial_pasar_dia WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
     await client.query('DELETE FROM pagos_prestamo WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
@@ -1151,10 +1180,10 @@ export async function eliminarPrestamos(req, res) {
     await client.query('DELETE FROM renovaciones_prestamo WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
     await client.query('DELETE FROM agenda_cobros WHERE prestamo_id = ANY($1::uuid[]);', [idsParaEliminar]);
 
-    // 4. Eliminar los préstamos seleccionados (el cliente en la tabla clientes se conserva intacto)
+    // 4. Eliminar los préstamos activos (el cliente en la tabla clientes permanece ACTIVO)
     const deleteRes = await client.query(
-      `DELETE FROM prestamos 
-       WHERE id = ANY($1::uuid[]) AND cobrador_id = $2::uuid 
+      `DELETE FROM prestamos
+       WHERE id = ANY($1::uuid[]) AND cobrador_id = $2::uuid
        RETURNING id, cliente_id, monto_prestado;`,
       [idsParaEliminar, cobradorId]
     );
@@ -1176,10 +1205,11 @@ export async function eliminarPrestamos(req, res) {
     return res.json({
       ok: true,
       eliminadosCount: count,
+      movidosAPapelera: count,
       ids: idsParaEliminar,
       userMessage: count === 1
-        ? 'El préstamo ha sido eliminado exitosamente.'
-        : `Se han eliminado ${count} préstamos exitosamente.`
+        ? 'El préstamo ha sido movido a la papelera por 30 días.'
+        : `Se han movido ${count} préstamos a la papelera por 30 días.`
     });
   } catch (err) {
     await client.query('ROLLBACK');

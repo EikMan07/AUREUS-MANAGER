@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Check, AlertCircle, CheckCircle2, Minus, Plus } from 'lucide-react';
 import { ConfirmActionStage } from './ConfirmActionStage';
 import {
   formatColones,
@@ -14,14 +14,20 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
   const [moratoriaInput, setMoratoriaInput] = useState('');
   const [confirmStep, setConfirmStep] = useState(1);
   const [confirmPhase, setConfirmPhase] = useState('idle');
+  const [periodosAPagarHoy, setPeriodosAPagarHoy] = useState(1);
 
   useEffect(() => {
     if (isOpen) {
+      const initialAtrasos = Math.max(
+        0,
+        Number(client?.periodos_atrasados_acumulados ?? client?.periodosAtrasados ?? client?.atrasos ?? 0)
+      );
       setConfirmPhase('idle');
       setConfirmStep(1);
       setMoratoriaInput('');
+      setPeriodosAPagarHoy(initialAtrasos + 1);
     }
-  }, [isOpen]);
+  }, [isOpen, client]);
 
   if (!isOpen || !client) return null;
 
@@ -52,8 +58,26 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
   // 4. Cuota regular correspondiente al día de hoy
   const cuotaDeHoy = cuotaRegular;
 
-  // 5. Total que debe dar hoy (Deuda Base Acumulada = Atrasos + Cuota de Hoy)
-  const deudaBaseTotal = montoAtrasoAcumulado + cuotaDeHoy;
+  // 5. Selector de períodos a pagar hoy (por defecto atrasos + 1, o solo semana anterior)
+  const totalPeriodos = atrasos + 1;
+  const periodosSeleccionados = isOverdue
+    ? Math.max(1, Math.min(totalPeriodos, Number(periodosAPagarHoy) || totalPeriodos))
+    : 1;
+  const montoBaseHoy = periodosSeleccionados * cuotaRegular;
+  const semanasQueQuedanPendientes = isOverdue
+    ? Math.max(0, totalPeriodos - periodosSeleccionados)
+    : 0;
+
+  const unidadSingularPlural = esQuincenal
+    ? periodosSeleccionados === 1 ? 'quincena' : 'quincenas'
+    : periodosSeleccionados === 1 ? 'semana' : 'semanas';
+
+  const unidadRestante = esQuincenal
+    ? semanasQueQuedanPendientes === 1 ? 'quincena' : 'quincenas'
+    : semanasQueQuedanPendientes === 1 ? 'semana' : 'semanas';
+
+  // Total base seleccionado para cobrar hoy
+  const deudaBaseTotal = isOverdue ? montoBaseHoy : cuotaRegular;
 
   // 6. Monto digitado manualmente por el usuario
   const montoDigitado = Number(String(moratoriaInput || '0').replace(/,/g, '')) || 0;
@@ -78,7 +102,7 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
       : atrasos === 1 ? 'semana' : 'semanas'
   }`;
 
-  const montoBaseDescontar = isOverdue ? deudaBaseTotal : cuotaRegular;
+  const montoBaseDescontar = isOverdue ? montoBaseHoy : cuotaRegular;
   const nuevoSaldoRestante = Math.max(0, (Number(client?.saldoRestante) || 0) - montoBaseDescontar);
 
   const handleMoratoriaChange = (e) => {
@@ -107,7 +131,8 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
         await onConfirmPayment(
           client.id,
           isOverdue ? montoMoratoriaReal : 0,
-          montoBaseDescontar
+          montoBaseDescontar,
+          isOverdue ? periodosSeleccionados : 1
         );
       } finally {
         handleClose();
@@ -186,9 +211,9 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
               <div
                 className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center"
                 style={{
-                  backgroundColor: '#D6E7D6',
-                  color: '#1B4D37',
-                  borderColor: '#8FB89A',
+                  backgroundColor: 'var(--aureus-green-light)',
+                  color: 'var(--aureus-green-text)',
+                  borderColor: 'var(--aureus-green-border)',
                   borderWidth: '1px',
                   borderStyle: 'solid'
                 }}
@@ -226,19 +251,174 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                 </div>
               </div>
 
+              {/* Selector rápido de qué está pagando el cliente hoy */}
+              <div
+                style={{
+                  padding: '12px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  marginBottom: '12px'
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: 'var(--aureus-text-secondary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em'
+                  }}
+                >
+                  QUÉ PAGA EL CLIENTE HOY
+                </span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPeriodosAPagarHoy(totalPeriodos)}
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      border:
+                        periodosSeleccionados === totalPeriodos
+                          ? '1.5px solid #B69A55'
+                          : '1px solid var(--aureus-border-subtle)',
+                      backgroundColor:
+                        periodosSeleccionados === totalPeriodos ? '#B69A55' : 'var(--aureus-bg-surface)',
+                      color: periodosSeleccionados === totalPeriodos ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Pagar todo al día
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPeriodosAPagarHoy(1)}
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: '10px',
+                      border:
+                        periodosSeleccionados < totalPeriodos
+                          ? '1.5px solid #B69A55'
+                          : '1px solid var(--aureus-border-subtle)',
+                      backgroundColor:
+                        periodosSeleccionados < totalPeriodos ? '#B69A55' : 'var(--aureus-bg-surface)',
+                      color: periodosSeleccionados < totalPeriodos ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    {esQuincenal ? 'Solo quincena anterior' : 'Solo semana anterior'}
+                  </button>
+                </div>
+
+                {totalPeriodos > 2 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--aureus-bg-surface)',
+                      border: '1px solid var(--aureus-border-subtle)'
+                    }}
+                  >
+                    <button
+                      type="button"
+                      disabled={periodosSeleccionados <= 1}
+                      onClick={() => setPeriodosAPagarHoy((prev) => Math.max(1, Number(prev) - 1))}
+                      aria-label="Restar una cuota"
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--aureus-border-subtle)',
+                        backgroundColor: periodosSeleccionados <= 1 ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-surface)',
+                        color: periodosSeleccionados <= 1 ? 'var(--aureus-text-muted)' : 'var(--aureus-text-primary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: periodosSeleccionados <= 1 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Minus size={14} strokeWidth={2.4} />
+                    </button>
+
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: 'var(--aureus-text-primary)'
+                      }}
+                    >
+                      Paga hoy: {periodosSeleccionados} de {totalPeriodos} {esQuincenal ? 'quincenas' : 'semanas'}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={periodosSeleccionados >= totalPeriodos}
+                      onClick={() => setPeriodosAPagarHoy((prev) => Math.min(totalPeriodos, Number(prev) + 1))}
+                      aria-label="Sumar una cuota"
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--aureus-border-subtle)',
+                        backgroundColor: periodosSeleccionados >= totalPeriodos ? 'var(--aureus-bg-muted)' : 'var(--aureus-bg-surface)',
+                        color: periodosSeleccionados >= totalPeriodos ? 'var(--aureus-text-muted)' : 'var(--aureus-text-primary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: periodosSeleccionados >= totalPeriodos ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Plus size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: semanasQueQuedanPendientes > 0 ? 'var(--aureus-gold-light)' : 'var(--aureus-green-light)',
+                    border: `1px solid ${semanasQueQuedanPendientes > 0 ? 'var(--aureus-border-gold)' : 'var(--aureus-green-border)'}`,
+                    color: semanasQueQuedanPendientes > 0 ? 'var(--aureus-gold-text)' : 'var(--aureus-green-text)',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    lineHeight: 1.4
+                  }}
+                >
+                  {semanasQueQuedanPendientes > 0
+                    ? `Paga hoy ${periodosSeleccionados} ${unidadSingularPlural} por ₡${montoBaseHoy.toLocaleString('en-US')}. Quedará pendiente ${semanasQueQuedanPendientes} ${unidadRestante} acumulada para la próxima ${esQuincenal ? 'quincena' : 'semana'}.`
+                    : `Cubre todas las cuotas pendientes más la de esta ${esQuincenal ? 'quincena' : 'semana'}. Quedará totalmente al día.`}
+                </div>
+              </div>
+
               {/* Recuadros superiores con desglose de atraso acumulado + cuota de hoy */}
               <div className="metrics-auto-grid">
                 <div className="metric-item">
                   <span className="metric-label">{labelPeriodos}</span>
-                  <strong className="metric-value red" style={{ color: '#dc2626' }}>{valorPeriodos}</strong>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#b91c1c', marginTop: '2px' }}>
+                  <strong className="metric-value red" style={{ color: 'var(--aureus-red-text)' }}>{valorPeriodos}</strong>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--aureus-red-text)', marginTop: '2px' }}>
                     Acumulado: {formatColones(montoAtrasoAcumulado)}
                   </span>
                 </div>
                 <div className="metric-item">
                   <span className="metric-label">CUOTA DE HOY</span>
-                  <strong className="metric-value" style={{ color: '#0f172a' }}>{formatColones(cuotaDeHoy)}</strong>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginTop: '2px' }}>
+                  <strong className="metric-value" style={{ color: 'var(--aureus-text-primary)' }}>{formatColones(cuotaDeHoy)}</strong>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--aureus-text-muted)', marginTop: '2px' }}>
                     Correspondiente al día de hoy
                   </span>
                 </div>
@@ -274,8 +454,8 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                   justifyContent: 'space-between',
                   padding: '16px 18px',
                   borderRadius: '14px',
-                  backgroundColor: esPositivoVerde ? '#D6E7D6' : '#FEF2F2',
-                  border: `1.5px solid ${esPositivoVerde ? '#8FB89A' : '#FECACA'}`,
+                  backgroundColor: esPositivoVerde ? 'var(--aureus-green-light)' : 'var(--aureus-red-light)',
+                  border: `1.5px solid ${esPositivoVerde ? 'var(--aureus-green-border)' : 'var(--aureus-red-border)'}`,
                   transition: 'all 0.25s ease',
                   marginTop: '14px'
                 }}
@@ -285,7 +465,7 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                     style={{
                       fontSize: '14px',
                       fontWeight: 800,
-                      color: esPositivoVerde ? '#0A3323' : '#991B1B'
+                      color: esPositivoVerde ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)'
                     }}
                   >
                     Total que debe dar hoy:
@@ -294,13 +474,15 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                     style={{
                       fontSize: '11.5px',
                       fontWeight: 600,
-                      color: esPositivoVerde ? '#1B4D37' : '#B91C1C'
+                      color: esPositivoVerde ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)'
                     }}
                   >
                     {esPositivoVerde
-                      ? `Cubre los ₡${deudaBaseTotal.toLocaleString('en-US')} acumulados más ₡${excedenteAdicional.toLocaleString('en-US')} adicionales`
+                      ? `Cubre los ₡${deudaBaseTotal.toLocaleString('en-US')} seleccionados más ₡${excedenteAdicional.toLocaleString('en-US')} adicionales`
                       : montoDigitado > 0
-                      ? `El monto digitado de ₡${montoDigitado.toLocaleString('en-US')} no cubre ni supera los ₡${deudaBaseTotal.toLocaleString('en-US')} acumulados`
+                      ? `El monto digitado de ₡${montoDigitado.toLocaleString('en-US')} no cubre ni supera los ₡${deudaBaseTotal.toLocaleString('en-US')} seleccionados`
+                      : semanasQueQuedanPendientes > 0
+                      ? `Abono de ${periodosSeleccionados} ${unidadSingularPlural} dejando ${semanasQueQuedanPendientes} ${unidadRestante} pendiente para la próxima ${esQuincenal ? 'quincena' : 'semana'}`
                       : `Suma de ${atrasos} ${atrasos === 1 ? (esQuincenal ? 'quincena sin pagar' : 'semana sin pagar') : (esQuincenal ? 'quincenas sin pagar' : 'semanas sin pagar')} más la cuota de hoy`}
                   </span>
                 </div>
@@ -310,7 +492,7 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                     fontSize: '20px',
                     fontWeight: 900,
                     letterSpacing: '-0.02em',
-                    color: esPositivoVerde ? '#1B4D37' : '#DC2626',
+                    color: esPositivoVerde ? 'var(--aureus-green-text)' : 'var(--aureus-red-text)',
                     flexShrink: 0,
                     marginLeft: '10px'
                   }}
@@ -329,9 +511,9 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
               <div
                 className="prompt-icon-wrapper w-12 h-12 rounded-full flex items-center justify-center"
                 style={{
-                  backgroundColor: '#D6E7D6',
-                  color: '#1B4D37',
-                  borderColor: '#8FB89A',
+                  backgroundColor: 'var(--aureus-green-light)',
+                  color: 'var(--aureus-green-text)',
+                  borderColor: 'var(--aureus-green-border)',
                   borderWidth: '1px',
                   borderStyle: 'solid'
                 }}
@@ -339,7 +521,11 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                 <CheckCircle2 size={28} strokeWidth={2.2} />
               </div>
               <p className="prompt-text">
-                ¿Confirmas que <strong className="client-highlight">{nombreCliente}</strong> pagó el total acumulado de <strong className="amount-highlight">{formatColones(deudaBaseTotal)}</strong>
+                ¿Confirmas que <strong className="client-highlight">{nombreCliente}</strong> pagó{' '}
+                {semanasQueQuedanPendientes > 0
+                  ? `el abono de ${periodosSeleccionados} ${unidadSingularPlural} por `
+                  : 'el total acumulado de '}
+                <strong className="amount-highlight">{formatColones(deudaBaseTotal)}</strong>
                 {montoMoratoriaReal > 0 && (
                   <> más <strong className="amount-highlight">{formatColones(montoMoratoriaReal)}</strong> de moratoria para un total de <strong className="amount-highlight">{formatColones(totalFinal)}</strong></>
                 )}?
@@ -348,7 +534,9 @@ export function PaymentModal({ client, isOpen, onClose, onConfirmPayment }) {
                 <span>Saldo actual: <strong>{formatColones(client.saldoRestante)}</strong> · Nuevo saldo: <strong>{formatColones(nuevoSaldoRestante)}</strong></span>
               </div>
               <div className="return-day-notice">
-                Se limpiará el atraso acumulado de este período y el cliente pasará a Cobros ya registrados.
+                {semanasQueQuedanPendientes > 0
+                  ? `El cliente pasará a Cobros ya registrados hoy y conservará ${semanasQueQuedanPendientes} ${unidadRestante} pendiente para su próximo día fijo de cobro.`
+                  : 'Se limpiará el atraso acumulado de este período y el cliente pasará a Cobros ya registrados.'}
               </div>
             </div>
           )}

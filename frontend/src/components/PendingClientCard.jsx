@@ -86,11 +86,11 @@ export function PendingClientCard({ client, onPayClick, onPassClick, onNoPayClic
               gap: '4px',
               fontSize: '11px',
               fontWeight: 700,
-              backgroundColor: '#e0f2fe',
-              color: '#0369a1',
+              backgroundColor: 'var(--aureus-gold-light)',
+              color: 'var(--aureus-gold-text)',
               padding: '2px 8px',
               borderRadius: '6px',
-              border: '1px solid #bae6fd'
+              border: '1px solid var(--aureus-border-gold)'
             }}
           >
             <Share2 size={12} strokeWidth={2.2} />
@@ -106,11 +106,11 @@ export function PendingClientCard({ client, onPayClick, onPassClick, onNoPayClic
               gap: '4px',
               fontSize: '11px',
               fontWeight: 700,
-              backgroundColor: '#ecfdf5',
-              color: '#065f46',
+              backgroundColor: 'var(--aureus-green-light)',
+              color: 'var(--aureus-green-text)',
               padding: '2px 8px',
               borderRadius: '6px',
-              border: '1px solid #a7f3d0'
+              border: '1px solid var(--aureus-green-border)'
             }}
           >
             <Share2 size={12} strokeWidth={2.2} />
@@ -127,8 +127,8 @@ export function PendingClientCard({ client, onPayClick, onPassClick, onNoPayClic
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '8px',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
+            backgroundColor: 'var(--aureus-red-light)',
+            border: '1px solid var(--aureus-red-border)',
             borderRadius: '12px',
             padding: '8px 12px',
             marginTop: '10px',
@@ -136,8 +136,8 @@ export function PendingClientCard({ client, onPayClick, onPassClick, onNoPayClic
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={16} strokeWidth={2.2} color="#dc2626" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#991b1b' }}>
+            <AlertTriangle size={16} strokeWidth={2.2} color="var(--aureus-red-text)" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-red-text)' }}>
               Atraso acumulado:{' '}
               <strong style={{ fontWeight: 800 }}>
                 {cobro.periodos_atrasados_acumulados}{' '}
@@ -156,8 +156,9 @@ export function PendingClientCard({ client, onPayClick, onPassClick, onNoPayClic
               style={{
                 fontSize: '11px',
                 fontWeight: 800,
-                color: '#b91c1c',
-                backgroundColor: '#fee2e2',
+                color: 'var(--aureus-red-text)',
+                backgroundColor: 'var(--aureus-red-light)',
+                border: '1px solid var(--aureus-red-border)',
                 padding: '2px 8px',
                 borderRadius: '9999px',
                 whiteSpace: 'nowrap',

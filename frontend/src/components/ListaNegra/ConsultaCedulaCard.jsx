@@ -9,7 +9,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { cleanCedulaDigits, formatCedulaCR } from '../../utils/formatters.js';
+import { cleanCedulaDigits, formatCedulaCR, formatPhone } from '../../utils/formatters.js';
 import { dbService } from '../../services/db.js';
 
 export function ConsultaCedulaCard({
@@ -114,11 +114,11 @@ export function ConsultaCedulaCard({
   return (
     <div
       style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #e2e8f0',
+        backgroundColor: 'var(--aureus-bg-surface)',
+        border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
         padding: '16px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        boxShadow: 'var(--aureus-card-shadow)',
         boxSizing: 'border-box',
         width: '100%',
         display: 'flex',
@@ -132,7 +132,7 @@ export function ConsultaCedulaCard({
           style={{
             fontSize: '16px',
             fontWeight: 800,
-            color: '#0f172a',
+            color: 'var(--aureus-text-primary)',
             margin: 0,
             lineHeight: 1.2,
           }}
@@ -143,12 +143,18 @@ export function ConsultaCedulaCard({
 
       {/* Barra de Búsqueda a 100% de ancho sin botón Foto */}
       <div
+        className="cf-search-pill"
         style={{
           width: '100%',
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
           boxSizing: 'border-box',
+          height: '44px',
+          borderRadius: '12px',
+          border: '1px solid var(--aureus-border-subtle)',
+          backgroundColor: 'var(--aureus-bg-elevated)',
+          transition: 'border-color 0.16s ease, box-shadow 0.16s ease'
         }}
       >
         {/* Icono dinámico a la izquierda: Search o Loader2 giratorio */}
@@ -160,7 +166,7 @@ export function ConsultaCedulaCard({
             alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'none',
-            color: isSearching ? '#0284c7' : '#94a3b8',
+            color: isSearching ? '#B69A55' : 'var(--aureus-text-muted)',
           }}
         >
           {isSearching ? (
@@ -177,15 +183,16 @@ export function ConsultaCedulaCard({
           placeholder="Buscar por nombre, cédula, teléfono o ubicación"
           style={{
             width: '100%',
-            height: '44px',
+            height: '100%',
             padding: '0 36px 0 38px',
             borderRadius: '12px',
-            border: '1px solid #cbd5e1',
+            border: 'none',
             outline: 'none',
+            boxShadow: 'none',
             fontSize: '14px',
             fontWeight: 600,
-            color: '#0f172a',
-            backgroundColor: '#f8fafc',
+            color: 'var(--aureus-text-primary)',
+            backgroundColor: 'transparent',
             boxSizing: 'border-box',
             fontFamily: 'inherit',
           }}
@@ -204,8 +211,8 @@ export function ConsultaCedulaCard({
               borderRadius: '9999px',
               border: 'none',
               outline: 'none',
-              backgroundColor: '#e2e8f0',
-              color: '#475569',
+              backgroundColor: 'var(--aureus-bg-muted)',
+              color: 'var(--aureus-text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -219,19 +226,19 @@ export function ConsultaCedulaCard({
         )}
       </div>
 
-      {/* ESTADO 1: EN LISTA NEGRA (Banner Rojo Grande de Alerta) */}
+      {/* ESTADO 1: EN LISTA NEGRA (Banner Gris Pizarra Ejecutivo de Alto Contraste) */}
       {resultado && resultado.enListaNegra && (
         <div
           style={{
-            backgroundColor: '#fef2f2',
-            border: '1.5px solid #f87171',
+            backgroundColor: 'var(--aureus-bg-elevated)',
+            border: '2px solid var(--aureus-border-gold)',
             borderRadius: '16px',
             padding: '16px',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
-            boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.1)',
+            boxShadow: '0 4px 10px -1px rgba(0, 0, 0, 0.14)',
             animation: 'fadeIn 0.2s ease',
           }}
         >
@@ -241,12 +248,12 @@ export function ConsultaCedulaCard({
                 width: '44px',
                 height: '44px',
                 borderRadius: '12px',
-                backgroundColor: '#fee2e2',
-                border: '1.5px solid #fecaca',
+                backgroundColor: '#1E293B',
+                border: '1.5px solid #334155',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#dc2626',
+                color: '#FFFFFF',
                 flexShrink: 0,
               }}
             >
@@ -257,7 +264,7 @@ export function ConsultaCedulaCard({
                 style={{
                   fontSize: '15px',
                   fontWeight: 900,
-                  color: '#991b1b',
+                  color: 'var(--aureus-text-primary)',
                   lineHeight: 1.25,
                 }}
               >
@@ -266,7 +273,7 @@ export function ConsultaCedulaCard({
               <div
                 style={{
                   fontSize: '12px',
-                  color: '#b91c1c',
+                  color: 'var(--aureus-text-secondary)',
                   fontWeight: 600,
                   marginTop: '2px',
                 }}
@@ -279,33 +286,33 @@ export function ConsultaCedulaCard({
           {/* Tarjeta interna de datos */}
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
               borderRadius: '12px',
-              border: '1px solid #fecaca',
+              border: '1px solid var(--aureus-border-subtle)',
               padding: '12px',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
             }}
           >
-            <div style={{ fontSize: '15px', fontWeight: 900, color: '#0f172a' }}>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: 'var(--aureus-text-primary)' }}>
               {nombreDisplay || 'Persona en Lista Negra'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               {cedulaDisplay && (
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
-                  Cédula: <strong style={{ color: '#0f172a' }}>{cedulaDisplay}</strong>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-muted)' }}>
+                  Cédula: <strong style={{ color: 'var(--aureus-text-primary)' }}>{cedulaDisplay}</strong>
                 </span>
               )}
               {registro.fecha_registro && (
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
-                  Ingreso: <strong style={{ color: '#0f172a' }}>{String(registro.fecha_registro).slice(0, 10)}</strong>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-muted)' }}>
+                  Ingreso: <strong style={{ color: 'var(--aureus-text-primary)' }}>{String(registro.fecha_registro).slice(0, 10)}</strong>
                 </span>
               )}
             </div>
             {registro.telefono && (
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
-                Teléfono: {registro.telefono}
+              <div style={{ fontSize: '11.5px', color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
+                Teléfono: {formatPhone(registro.telefono)}
               </div>
             )}
           </div>
@@ -318,10 +325,10 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 14px',
                 borderRadius: '10px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--aureus-border-subtle)',
                 outline: 'none',
-                backgroundColor: '#ffffff',
-                color: '#475569',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                color: 'var(--aureus-text-secondary)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -336,21 +343,21 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 16px',
                 borderRadius: '10px',
-                border: '1px solid #fca5a5',
+                border: '1px solid var(--aureus-border-subtle)',
                 outline: 'none',
-                backgroundColor: '#ffffff',
-                color: '#b91c1c',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                color: 'var(--aureus-text-primary)',
                 fontSize: '12px',
                 fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(220, 38, 38, 0.08)',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
                 fontFamily: 'inherit',
               }}
             >
-              <UserCheck size={15} strokeWidth={2.4} />
+              <UserCheck size={15} strokeWidth={2.4} style={{ color: 'var(--aureus-green-text)' }} />
               <span>Sacar de Lista Negra</span>
             </button>
           </div>
@@ -361,8 +368,8 @@ export function ConsultaCedulaCard({
       {resultado && !resultado.enListaNegra && resultado.tieneMorosidad && (
         <div
           style={{
-            backgroundColor: '#fef2f2',
-            border: '1.5px solid #f87171',
+            backgroundColor: 'var(--aureus-red-light)',
+            border: '1.5px solid var(--aureus-red-border)',
             borderRadius: '16px',
             padding: '16px',
             boxSizing: 'border-box',
@@ -379,12 +386,12 @@ export function ConsultaCedulaCard({
                 width: '44px',
                 height: '44px',
                 borderRadius: '12px',
-                backgroundColor: '#fee2e2',
-                border: '1.5px solid #fecaca',
+                backgroundColor: 'var(--aureus-red-light)',
+                border: '1.5px solid var(--aureus-red-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#dc2626',
+                color: 'var(--aureus-red-text)',
                 flexShrink: 0,
               }}
             >
@@ -395,16 +402,16 @@ export function ConsultaCedulaCard({
                 style={{
                   fontSize: '15px',
                   fontWeight: 900,
-                  color: '#991b1b',
+                  color: 'var(--aureus-red-text)',
                   lineHeight: 1.25,
                 }}
               >
-                Alerta de Morosidad en el Sistema
+                Alerta de Morosidad Activa
               </div>
               <div
                 style={{
                   fontSize: '12px',
-                  color: '#b91c1c',
+                  color: 'var(--aureus-red-text)',
                   fontWeight: 600,
                   marginTop: '2px',
                 }}
@@ -417,26 +424,26 @@ export function ConsultaCedulaCard({
           {/* Tarjeta interna con detalle del cliente y franja destacada de atrasos */}
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
               borderRadius: '12px',
-              border: '1px solid #fecaca',
+              border: '1px solid var(--aureus-red-border)',
               padding: '12px',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
             }}
           >
-            <div style={{ fontSize: '15px', fontWeight: 900, color: '#0f172a' }}>
+            <div style={{ fontSize: '15px', fontWeight: 900, color: 'var(--aureus-text-primary)' }}>
               {nombreDisplay || 'Cliente con Atrasos'}
             </div>
             {cedulaDisplay && (
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
-                Cédula: <strong style={{ color: '#0f172a' }}>{cedulaDisplay}</strong>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-muted)' }}>
+                Cédula: <strong style={{ color: 'var(--aureus-text-primary)' }}>{cedulaDisplay}</strong>
               </div>
             )}
             {registro.telefono && (
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
-                Teléfono: {registro.telefono}
+              <div style={{ fontSize: '11.5px', color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
+                Teléfono: {formatPhone(registro.telefono)}
               </div>
             )}
 
@@ -446,15 +453,15 @@ export function ConsultaCedulaCard({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #fca5a5',
+                backgroundColor: 'var(--aureus-red-light)',
+                border: '1px solid var(--aureus-red-border)',
                 borderRadius: '8px',
                 padding: '8px 10px',
                 marginTop: '4px',
               }}
             >
-              <AlertTriangle size={16} strokeWidth={2.4} style={{ color: '#b91c1c', flexShrink: 0 }} />
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#991b1b', lineHeight: 1.3 }}>
+              <AlertTriangle size={16} strokeWidth={2.4} style={{ color: 'var(--aureus-red-text)', flexShrink: 0 }} />
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--aureus-red-text)', lineHeight: 1.3 }}>
                 {registro.periodos_atrasados_acumulados}{' '}
                 {registro.modalidad === 'QUINCENAL'
                   ? (Number(registro.periodos_atrasados_acumulados) === 1 ? 'quincena sin pagar' : 'quincenas sin pagar')
@@ -473,10 +480,10 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 14px',
                 borderRadius: '10px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--aureus-border-subtle)',
                 outline: 'none',
-                backgroundColor: '#ffffff',
-                color: '#475569',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                color: 'var(--aureus-text-secondary)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -498,9 +505,9 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 16px',
                 borderRadius: '10px',
-                border: 'none',
+                border: '1px solid #334155',
                 outline: 'none',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#1E293B',
                 color: '#ffffff',
                 fontSize: '12px',
                 fontWeight: 800,
@@ -508,9 +515,12 @@ export function ConsultaCedulaCard({
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(220, 38, 38, 0.25)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
                 fontFamily: 'inherit',
+                transition: 'background-color 0.2s ease',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1E293B'; }}
             >
               <UserX size={15} strokeWidth={2.4} />
               <span>Registrar en Lista Negra</span>
@@ -523,8 +533,8 @@ export function ConsultaCedulaCard({
       {resultado && !resultado.enListaNegra && !resultado.tieneMorosidad && (
         <div
           style={{
-            backgroundColor: '#ecfdf5',
-            border: '1.5px solid #a7f3d0',
+            backgroundColor: 'var(--aureus-green-light)',
+            border: '1.5px solid var(--aureus-green-border)',
             borderRadius: '16px',
             padding: '16px',
             boxSizing: 'border-box',
@@ -541,12 +551,12 @@ export function ConsultaCedulaCard({
                 width: '44px',
                 height: '44px',
                 borderRadius: '12px',
-                backgroundColor: '#d1fae5',
-                border: '1.5px solid #a7f3d0',
+                backgroundColor: 'var(--aureus-green-light)',
+                border: '1.5px solid var(--aureus-green-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#059669',
+                color: 'var(--aureus-green-text)',
                 flexShrink: 0,
               }}
             >
@@ -557,7 +567,7 @@ export function ConsultaCedulaCard({
                 style={{
                   fontSize: '15px',
                   fontWeight: 900,
-                  color: '#065f46',
+                  color: 'var(--aureus-green-text)',
                   lineHeight: 1.25,
                 }}
               >
@@ -566,7 +576,7 @@ export function ConsultaCedulaCard({
               <div
                 style={{
                   fontSize: '12px',
-                  color: '#047857',
+                  color: 'var(--aureus-green-text)',
                   fontWeight: 600,
                   marginTop: '2px',
                 }}
@@ -579,9 +589,9 @@ export function ConsultaCedulaCard({
           {/* Datos del resultado */}
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--aureus-bg-surface)',
               borderRadius: '12px',
-              border: '1px solid #a7f3d0',
+              border: '1px solid var(--aureus-green-border)',
               padding: '12px',
               display: 'flex',
               flexDirection: 'column',
@@ -589,22 +599,22 @@ export function ConsultaCedulaCard({
             }}
           >
             {nombreDisplay ? (
-              <div style={{ fontSize: '15px', fontWeight: 900, color: '#0f172a' }}>
+              <div style={{ fontSize: '15px', fontWeight: 900, color: 'var(--aureus-text-primary)' }}>
                 {nombreDisplay}
               </div>
             ) : (
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
                 Persona no registrada previamente
               </div>
             )}
             {cedulaDisplay && (
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
-                Cédula: <strong style={{ color: '#0f172a' }}>{cedulaDisplay}</strong>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--aureus-text-muted)' }}>
+                Cédula: <strong style={{ color: 'var(--aureus-text-primary)' }}>{cedulaDisplay}</strong>
               </div>
             )}
             {registro.telefono && (
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
-                Teléfono: {registro.telefono}
+              <div style={{ fontSize: '11.5px', color: 'var(--aureus-text-muted)', fontWeight: 600 }}>
+                Teléfono: {formatPhone(registro.telefono)}
               </div>
             )}
           </div>
@@ -617,10 +627,10 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 14px',
                 borderRadius: '10px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--aureus-border-subtle)',
                 outline: 'none',
-                backgroundColor: '#ffffff',
-                color: '#475569',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                color: 'var(--aureus-text-secondary)',
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -642,9 +652,9 @@ export function ConsultaCedulaCard({
               style={{
                 padding: '8px 16px',
                 borderRadius: '10px',
-                border: 'none',
+                border: '1px solid #334155',
                 outline: 'none',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#1E293B',
                 color: '#ffffff',
                 fontSize: '12px',
                 fontWeight: 800,
@@ -652,9 +662,12 @@ export function ConsultaCedulaCard({
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(220, 38, 38, 0.25)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
                 fontFamily: 'inherit',
+                transition: 'background-color 0.2s ease',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1E293B'; }}
             >
               <UserX size={15} strokeWidth={2.4} />
               <span>Registrar en Lista Negra</span>

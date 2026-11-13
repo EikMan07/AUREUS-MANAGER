@@ -53,6 +53,8 @@ export function ClientsDirectory({
 
   // Abrir modal de edición desde opciones
   const handleOpenEdit = (client) => {
+    setIsOptionsOpen(false);
+    setOptionsClient(null);
     setEditingClient(client);
     setIsFormOpen(true);
   };
@@ -74,6 +76,8 @@ export function ClientsDirectory({
 
   // Iniciar flujo de Lista Negra
   const handleRequestBlacklist = (client) => {
+    setIsOptionsOpen(false);
+    setOptionsClient(null);
     setBlacklistTarget(client);
   };
 
@@ -86,6 +90,8 @@ export function ClientsDirectory({
 
   // Iniciar flujo de Eliminación (Papelera)
   const handleRequestDelete = (client) => {
+    setIsOptionsOpen(false);
+    setOptionsClient(null);
     setDeleteTarget(client);
   };
 
@@ -116,9 +122,9 @@ export function ClientsDirectory({
         </button>
       </section>
 
-      {/* 2.3. Buscador Instantáneo Multi-Criterio (sin placeholder, solo icono de lupa) */}
+      {/* 2.3. Buscador Instantáneo Multi-Criterio */}
       <section className="directory-search-wrapper" aria-label="Búsqueda de clientes">
-        <div className="directory-search-bar">
+        <div className="directory-search-bar cf-search-pill">
           <Search size={19} strokeWidth={1.75} className="search-input-icon" />
           <input
             type="text"
@@ -196,7 +202,7 @@ export function ClientsDirectory({
         question={`¿Estás seguro de que deseas enviar a ${formatFullName(blacklistTarget?.nombre, blacklistTarget?.apellidos)} a la Lista Negra?`}
         cancelText="Cancelar"
         confirmText="Confirmar"
-        confirmVariant="danger"
+        confirmVariant="slate"
         iconType="shield"
         stageVariant="lista_negra"
         clientName={formatFullName(blacklistTarget?.nombre, blacklistTarget?.apellidos)}

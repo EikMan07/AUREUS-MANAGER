@@ -56,6 +56,7 @@ if (!fs.existsSync(pkgPath)) {
   if (hayAuth) {
     if (!deps['jsonwebtoken']) add('error', pkgPath, 0, 'Hay autenticación pero falta "jsonwebtoken".');
     if (!deps['bcrypt'] && !deps['bcryptjs']) add('error', pkgPath, 0, 'Hay usuarios pero falta bcrypt/bcryptjs: las contraseñas deben cifrarse.');
+    if (!deps['cookie-parser']) add('warn', pkgPath, 0, 'Hay autenticación pero falta "cookie-parser" para gestionar cookies de sesión.');
     if (!deps['dotenv']) add('warn', pkgPath, 0, 'Falta "dotenv" para leer .env (JWT_SECRET, conexión a BD).');
     if (!deps['cors']) add('warn', pkgPath, 0, 'Falta "cors" para que el front pueda llamar al backend.');
   }
@@ -121,6 +122,7 @@ for (const f of files) {
   if (inDir(f, 'controllers') || inDir(f, 'routes')) {
     scan(src, f, /\.(create|bulkCreate)\s*\(\s*req\.body\s*[,)]/, 'warn', 'create(req.body) sin filtrar campos (mass assignment): selecciona los campos permitidos.');
     scan(src, f, /\.update\s*\(\s*req\.body\s*[,)]/, 'warn', 'update(req.body) sin filtrar campos (mass assignment).');
+    scan(src, f, /res\.(?:status\([^)]*\)\.)?(?:json|send)\s*\(\s*\{[^}]*\b(?:token|jwt)\s*:/, 'error', 'JWT devuelto en el cuerpo JSON: el token de sesión debe enviarse SOLO en cookie HttpOnly reforzada.');
 
     // async sin try/catch (heurística por función)
     const re = /(exports\.\w+|const\s+\w+)\s*=\s*async\s*\(\s*req\s*,\s*res[^)]*\)\s*=>\s*\{/g;
@@ -149,10 +151,39 @@ for (const f of files) {
       if (!/expiresIn/.test(trozo)) add('error', f, lineOf(src, m.index), 'jwt.sign sin expiresIn: el token debe expirar (25 min por inactividad).');
     }
   }
+  {
+    const re = /jwt\.verify\s*\(/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const trozo = src.slice(m.index, m.index + 250).split(')')[0];
+      if (!/algorithms\s*:/.test(trozo)) {
+        add('warn', f, lineOf(src, m.index), "jwt.verify sin algorithms explícito (ej. algorithms: ['HS256']): especifica el algoritmo para evitar ataques de degradación.");
+      }
+    }
+  }
   scan(src, f, /jwt\.(sign|verify)\s*\([^;]*?,\s*(['"`])[^'"`$]{3,}\2/, 'error', 'Secreto JWT escrito en el código: usa process.env.JWT_SECRET (.env).');
   scan(src, f, /expiresIn\s*:\s*['"`](?!25m['"`])[^'"`]+['"`]/, 'warn', 'expiresIn distinto de 25m: la sesión debe expirar a los 25 min de inactividad (usa JWT_EXPIRES_IN=25m).');
   scan(src, f, /console\.(log|info|debug)\([^)]*password/i, 'warn', 'console.log con una contraseña: no registres claves, ni siquiera en desarrollo.');
   scan(src, f, /\bpassword\s*={2,3}\s*[\w.]+/, 'warn', 'Comparación directa de contraseñas: usa bcrypt.compare.');
+
+  // ── Cookies seguras ──────────────────────────────────────────────────────
+  if (/\bres\.cookie\s*\(/.test(src)) {
+    const cookieMatches = src.match(/res\.cookie\s*\([^,]+,[^,]+(?:,\s*\{([^}]*)\})?\s*\)/g);
+    if (cookieMatches) {
+      for (const cm of cookieMatches) {
+        if (!/httpOnly\s*:\s*true/.test(cm)) {
+          add('error', f, lineOf(src, src.indexOf(cm)), 'res.cookie sin httpOnly: true (vulnerable a robo de sesión por XSS).');
+        }
+        if (!/sameSite\s*:\s*['"`](?:lax|strict)['"`]/i.test(cm) && !/sameSite\s*:/i.test(cm)) {
+          add('warn', f, lineOf(src, src.indexOf(cm)), 'res.cookie sin sameSite explícito ("lax" o "strict") para protección CSRF.');
+        }
+        if (/sameSite\s*:\s*['"`]none['"`]/i.test(cm) && !/secure\s*:\s*true/.test(cm)) {
+          add('error', f, lineOf(src, src.indexOf(cm)), 'SameSite=None sin Secure: true: los navegadores rechazarán la cookie.');
+        }
+      }
+    }
+  }
+
   if (/^usuario\.js$/i.test(nombre) && inDir(f, 'models')) {
     if (!/bcrypt/.test(src)) add('error', f, 1, 'El modelo Usuario no cifra la contraseña con bcrypt.');
     if (!/exclude\s*:\s*\[[^\]]*password/.test(src) && !/toJSON/.test(src))
@@ -162,9 +193,17 @@ for (const f of files) {
   if (inDir(f, 'routes') && !f.endsWith('.jsx') && f.startsWith(base + path.sep) && !/auth/i.test(nombre) && !/authMiddleware/.test(src))
     add('warn', f, 1, 'Rutas sin authMiddleware: solo registro y login deben ser públicas.');
 
-  // ── Front: sesión solo en AuthContext, nunca en localStorage ──────────────
-  scan(src, f, /\b(localStorage|sessionStorage)\.(setItem|getItem)\s*\(\s*['"`][^'"`]*(token|jwt|usuario|user|auth|sesion|session)[^'"`]*['"`]/i, 'error', 'Datos de sesión en localStorage/sessionStorage: guárdalos solo en AuthContext (memoria).');
-  scan(src, f, /document\.cookie\s*=\s*[^;]*(token|jwt)/i, 'error', 'Token en document.cookie legible por JS: guárdalo solo en AuthContext (memoria).');
+  // ── Front: sesión en cookie HttpOnly + CSRF, nunca en localStorage ───────
+  scan(src, f, /\b(localStorage|sessionStorage)\.(setItem|getItem)\s*\(\s*['"`][^'"`]*(token|jwt|usuario|user|auth|sesion|session)[^'"`]*['"`]/i, 'error', 'Datos de sesión en localStorage/sessionStorage: el token reside en la cookie HttpOnly y el usuario en memoria.');
+  scan(src, f, /document\.cookie\s*=\s*[^;]*(token|jwt)/i, 'error', 'Token en document.cookie legible por JS: la cookie de sesión debe ser emitida por el servidor con HttpOnly.');
+  if (/\.jsx?$/.test(nombre)) {
+    scan(src, f, /useState\s*\(\s*(?:['"`][^'"`]*token|token|jwt)\s*\)/i, 'warn', 'Posible almacenamiento de token JWT en estado de React (useState): el token reside en la cookie HttpOnly; en React solo reside el usuario y el csrfToken.');
+  }
+  if (/apiClient\.(js|jsx|ts|tsx)$/i.test(nombre) || (inDir(f, 'services') && /apiClient/i.test(nombre))) {
+    if (!/credentials\s*:\s*['"`]include['"`]/.test(src)) {
+      add('error', f, 1, 'apiClient sin credentials: "include": las cookies de sesión HttpOnly no se enviarán al backend en peticiones cross-origin.');
+    }
+  }
   if (/AuthContext/.test(nombre)) {
     if (!/25\s*\*\s*60\s*\*\s*1000|1500000|1_500_000/.test(src))
       add('warn', f, 1, 'AuthContext sin temporizador de inactividad de 25 min (25 * 60 * 1000).');
@@ -174,6 +213,55 @@ for (const f of files) {
   // ── SQL crudo inseguro ───────────────────────────────────────────────────
   scan(src, f, /\.query\s*\(\s*`[^`]*\$\{/, 'error', 'sequelize.query con interpolación ${}: riesgo de inyección SQL. Usa replacements/bind.');
   scan(src, f, /\.query\s*\(\s*(['"])[^'"]*\1\s*\+/, 'error', 'sequelize.query concatenando strings: riesgo de inyección SQL. Usa replacements/bind.');
+
+  // ── Middleware, validación y manejo de errores ────────────────────────────
+  if (/^app\.(js|cjs|mjs)$/i.test(nombre)) {
+    // 1. Manejador de errores centralizado
+    if (!/app\.use\s*\(\s*(\w*errorHandler|\([^)]*err[^)]*\)\s*=>)/.test(src) && !/errorHandler/.test(src)) {
+      add('warn', f, 1, 'app.js no registra un errorHandler: debe tener un middleware centralizado de errores al final.');
+    }
+
+    // 2. Comprobar si hay un middleware de error con menos de 4 argumentos
+    const errHandlerMatch = src.match(/app\.use\s*\(\s*\(([^)]+)\)\s*=>/g);
+    if (errHandlerMatch) {
+      for (const m of errHandlerMatch) {
+        if (/err/i.test(m)) {
+          const params = m.replace(/app\.use\s*\(\s*\(/, '').replace(/\)\s*=>/, '').split(',').map((s) => s.trim());
+          if (params.length > 0 && params.length < 4 && /err/i.test(params[0])) {
+            add('error', f, lineOf(src, src.indexOf(m)), `Middleware de error con ${params.length} parámetros: Express requiere exactamente 4 (err, req, res, next) para atrapar errores.`);
+          }
+        }
+      }
+    }
+
+    // 3. express.json() antes de las rutas
+    const jsonIdx = src.search(/app\.use\s*\(\s*express\.json\s*\(/);
+    const firstRouteIdx = src.search(/app\.use\s*\(\s*['"`]\/(api|auth|[a-z])/);
+    if (jsonIdx > -1 && firstRouteIdx > -1 && jsonIdx > firstRouteIdx) {
+      add('error', f, lineOf(src, jsonIdx), 'express.json() registrado después de las rutas: los controladores recibirán req.body undefined.');
+    }
+
+    // 4. Seguridad básica recomendada
+    if (!/helmet/.test(src)) {
+      add('warn', f, 1, 'app.js no usa "helmet": es recomendable agregar app.use(helmet()) para cabeceras HTTP de seguridad.');
+    }
+    if (!/cors/.test(src)) {
+      add('warn', f, 1, 'app.js no usa "cors": el frontend no podrá comunicarse con la API.');
+    }
+    if (/credentials\s*:\s*true/.test(src) && /origin\s*:\s*['"`]\*['"`]/.test(src)) {
+      add('error', f, lineOf(src, src.search(/credentials\s*:\s*true/)), "CORS con origin: '*' y credentials: true: los navegadores bloquean esta combinación. Usa un origen explícito (FRONTEND_URL).");
+    }
+    if (!/cookieParser\s*\(/.test(src)) {
+      add('warn', f, 1, 'app.js no usa "cookie-parser": necesario para leer cookies de sesión en req.cookies.');
+    }
+  }
+
+  // 5. Comprobar fugas de err.stack en producción
+  if (inDir(f, 'middlewares') || inDir(f, 'controllers')) {
+    if (/\bstack\s*:\s*err\.stack/.test(src) && !/process\.env\.NODE_ENV\s*===?\s*['"`]production['"`]/.test(src)) {
+      add('warn', f, lineOf(src, src.search(/\bstack\s*:\s*err\.stack/)), 'err.stack expuesto en la respuesta: ocúltalo en producción para no filtrar detalles internos.');
+    }
+  }
 }
 
 // ── Estructura ───────────────────────────────────────────────────────────────
@@ -193,7 +281,9 @@ if (!exists('src')) {
   if (!tieneArchivo('src/controllers', /^authController\.js$/i)) add('warn', path.join(base, 'src', 'controllers'), 0, 'Falta controllers/authController.js.');
   if (!tieneArchivo('src/routes', /^authRoutes\.js$/i)) add('warn', path.join(base, 'src', 'routes'), 0, 'Falta routes/authRoutes.js.');
   if (!tieneArchivo('src/middlewares', /^authMiddleware\.js$/i)) add('warn', path.join(base, 'src', 'middlewares'), 0, 'Falta middlewares/authMiddleware.js.');
+  if (!tieneArchivo('src/middlewares', /^csrf\.js$/i)) add('warn', path.join(base, 'src', 'middlewares'), 0, 'Falta middlewares/csrf.js (defensa anti-CSRF en capas).');
   if (!tieneArchivo('src/middlewares', /^validaciones/i)) add('warn', path.join(base, 'src', 'middlewares'), 0, 'Falta middlewares/validaciones.js.');
+  if (!tieneArchivo('src/utils', /^cookies\.js$/i)) add('warn', path.join(base, 'src', 'utils'), 0, 'Falta utils/cookies.js (gestión centralizada de cookies seguras).');
 }
 if (exists('app.js') && !exists('src', 'app.js')) add('warn', path.join(base, 'app.js'), 0, 'app.js está fuera de src/: muévelo a src/app.js.');
 
@@ -208,6 +298,15 @@ if (exists('.env')) {
   if (!/^DB_(NAME|HOST|USER)=|^DATABASE_URL=/m.test(envTxt)) add('warn', path.join(base, '.env'), 0, 'Falta la conexión a la BD en .env.');
   const m = envTxt.match(/^JWT_SECRET=(.*)$/m);
   if (m && m[1].trim().length < 32) add('warn', path.join(base, '.env'), 0, 'JWT_SECRET demasiado corto (usa ≥ 32 caracteres aleatorios).');
+  if (/NODE_ENV\s*=\s*production/i.test(envTxt) && /COOKIE_SECURE\s*=\s*false/i.test(envTxt)) {
+    add('error', path.join(base, '.env'), 0, 'Configuración peligrosa en .env: NODE_ENV=production con COOKIE_SECURE=false (la cookie de sesión exige Secure=true en producción).');
+  }
+  if (!/^COOKIE_SAMESITE=/m.test(envTxt)) {
+    add('warn', path.join(base, '.env'), 0, 'Falta COOKIE_SAMESITE en .env (se recomienda lax o strict).');
+  }
+  if (!/^CSRF_SECRET=/m.test(envTxt)) {
+    add('warn', path.join(base, '.env'), 0, 'Falta CSRF_SECRET en .env para la firma de tokens anti-CSRF.');
+  }
 } else {
   add('warn', path.join(base, '.env'), 0, 'No hay .env (PUERTO, conexión a BD, JWT_SECRET).');
 }

@@ -1,15 +1,17 @@
 import { Router } from 'express';
-import { login, registro, perfil } from '../controllers/authController.js';
+import { login, registro, yo, logout } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { verificarOrigen } from '../middlewares/csrf.js';
 
 const router = Router();
 
-// Rutas públicas de autenticación
-router.post('/login', login);
-router.post('/registro', registro);
+// Rutas públicas de autenticación (protegidas contra orígenes cruzados)
+router.post('/login', verificarOrigen, login);
+router.post('/registro', verificarOrigen, registro);
+router.post('/logout', verificarOrigen, logout);
 
-// Ruta protegida con authMiddleware
-router.get('/perfil', authMiddleware, perfil);
+// Rutas protegidas de sesión activa y renovación deslizante
+router.get('/yo', authMiddleware, yo);
+router.get('/perfil', authMiddleware, yo);
 
 export default router;
-
