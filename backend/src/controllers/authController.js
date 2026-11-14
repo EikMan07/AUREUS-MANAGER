@@ -53,6 +53,7 @@ function formatUsuarioPublico(u) {
       u.codigo_vinculacion || `CF-${String(u.id).slice(0, 8).toUpperCase()}`,
     foto_url: u.foto_url || null,
     creado_en: u.creado_en,
+    ultimo_acceso: u.ultimo_acceso || null,
   };
 }
 
@@ -182,7 +183,7 @@ export const login = async (req, res) => {
            actualizado_en = now()
        WHERE id = $1
        RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
-                 codigo_vinculacion, foto_url, creado_en;`,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
       [foundUser.id, codigoVinculacion]
     );
 
@@ -332,7 +333,7 @@ export const registro = async (req, res) => {
          ultimo_acceso
        ) VALUES ($1, $2, $3, true, now(), $4, 'ADMINISTRADOR', 'ACTIVA', $5, now())
        RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
-                 codigo_vinculacion, foto_url, creado_en;`,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
       [cleanUsername, cleanNombre, cleanCorreo, passwordHash, codigoVinculacion]
     );
 
@@ -375,7 +376,7 @@ export const yo = async (req, res) => {
 
     const { rows } = await query(
       `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,
-              codigo_vinculacion, foto_url, creado_en
+              codigo_vinculacion, foto_url, creado_en, ultimo_acceso
        FROM usuarios
        WHERE id = $1
        LIMIT 1;`,
@@ -435,4 +436,281 @@ export const logout = async (req, res) => {
   }
 };
 
-export default { login, registro, yo, perfil: yo, logout };
+export const actualizarPerfil = async (req, res) => {
+  try {
+    const authUserId = req.user?.id || req.usuario?.id;
+    if (!authUserId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'No autorizado',
+        userMessage: 'Debes iniciar sesión para actualizar tu perfil.',
+      });
+    }
+
+    const body = req.body || {};
+    const { rows: currentRows } = await query(
+      `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,
+              codigo_vinculacion, foto_url, creado_en, ultimo_acceso
+       FROM usuarios
+       WHERE id = $1
+       LIMIT 1;`,
+      [authUserId]
+    );
+
+    const existingUser = currentRows[0];
+    if (!existingUser) {
+      return res.status(404).json({
+        ok: false,
+        success: false,
+        status: 404,
+        error: 'Usuario no encontrado',
+        userMessage: 'No encontramos la cuenta solicitada.',
+      });
+    }
+
+    const cleanNombre =
+      body.nombre_completo !== undefined
+        ? String(body.nombre_completo || '').trim()
+        : existingUser.nombre_completo;
+
+    const rawUsernameInput =
+      body.username !== undefined
+        ? body.username
+        : body.usuario !== undefined
+          ? body.usuario
+          : existingUser.usuario;
+    const cleanUsername = String(rawUsernameInput || '').trim();
+
+    const cleanCorreo =
+      body.correo !== undefined
+        ? String(body.correo || '').trim().toLowerCase()
+        : String(existingUser.correo || '').trim().toLowerCase();
+
+    if (cleanNombre.length < 3 || cleanNombre.length > 150) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Nombre inválido',
+        userMessage: 'Ingresa un nombre completo de al menos 3 caracteres.',
+      });
+    }
+
+    if (!/^[A-Za-z0-9._-]{3,50}$/.test(cleanUsername)) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Nombre de usuario inválido',
+        userMessage:
+          'El nombre de usuario debe tener entre 3 y 50 caracteres válidos sin espacios.',
+      });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanCorreo) || cleanCorreo.length > 180) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Correo inválido',
+        userMessage: 'Ingresa un correo electrónico válido.',
+      });
+    }
+
+    let nextFotoUrl = existingUser.foto_url || null;
+    if (body.foto_url !== undefined) {
+      if (body.foto_url === null || body.foto_url === '') {
+        nextFotoUrl = null;
+      } else {
+        const candidateFoto = String(body.foto_url).trim();
+        const isDataImage = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(
+          candidateFoto
+        );
+        const isHttpImage = /^https?:\/\/.+$/i.test(candidateFoto);
+        if (!isDataImage && !isHttpImage) {
+          return res.status(400).json({
+            ok: false,
+            success: false,
+            status: 400,
+            error: 'Formato de fotografía inválido',
+            userMessage: 'Selecciona una imagen válida para tu perfil.',
+          });
+        }
+        if (candidateFoto.length > 2 * 1024 * 1024) {
+          return res.status(400).json({
+            ok: false,
+            success: false,
+            status: 400,
+            error: 'Fotografía demasiado grande',
+            userMessage: 'La fotografía excede el tamaño máximo permitido.',
+          });
+        }
+        nextFotoUrl = candidateFoto;
+      }
+    }
+
+    const { rows: duplicateUsers } = await query(
+      `SELECT id, usuario, correo
+       FROM usuarios
+       WHERE id <> $1
+         AND (LOWER(usuario) = LOWER($2) OR LOWER(correo) = LOWER($3))
+       LIMIT 1;`,
+      [authUserId, cleanUsername, cleanCorreo]
+    );
+
+    if (duplicateUsers.length > 0) {
+      const dup = duplicateUsers[0];
+      const sameUser =
+        String(dup.usuario || '').toLowerCase() === cleanUsername.toLowerCase();
+      return res.status(409).json({
+        ok: false,
+        success: false,
+        status: 409,
+        error: sameUser ? 'Usuario duplicado' : 'Correo duplicado',
+        userMessage: sameUser
+          ? 'Ese nombre de usuario ya está siendo utilizado por otra cuenta.'
+          : 'Ese correo electrónico ya está registrado en otra cuenta.',
+      });
+    }
+
+    const { rows: updatedRows } = await query(
+      `UPDATE usuarios
+       SET nombre_completo = $2,
+           usuario = $3,
+           correo = $4,
+           foto_url = $5,
+           actualizado_en = now()
+       WHERE id = $1
+       RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
+      [authUserId, cleanNombre, cleanUsername, cleanCorreo, nextFotoUrl]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      userMessage: 'Tu perfil se actualizó correctamente.',
+      usuario: formatUsuarioPublico(updatedRows[0]),
+    });
+  } catch (error) {
+    console.error('[Auth] Error actualizando perfil:', error);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      status: 500,
+      error: 'Error al actualizar perfil',
+      userMessage: 'No fue posible guardar los cambios de tu perfil.',
+    });
+  }
+};
+
+export const cambiarPassword = async (req, res) => {
+  try {
+    const authUserId = req.user?.id || req.usuario?.id;
+    if (!authUserId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'No autorizado',
+        userMessage: 'Debes iniciar sesión para cambiar tu contraseña.',
+      });
+    }
+
+    const body = req.body || {};
+    const passwordActual =
+      typeof body.password_actual === 'string' ? body.password_actual : '';
+    const passwordNueva =
+      typeof body.password_nueva === 'string' ? body.password_nueva : '';
+
+    if (!passwordActual || !passwordNueva) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Campos requeridos',
+        userMessage: 'Ingresa tu contraseña actual y la nueva contraseña.',
+      });
+    }
+
+    if (passwordNueva.length < 8) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Contraseña corta',
+        userMessage: 'La nueva contraseña debe tener al menos 8 caracteres.',
+      });
+    }
+
+    const { rows } = await query(
+      `SELECT id, password_hash, estado_cuenta
+       FROM usuarios
+       WHERE id = $1
+       LIMIT 1;`,
+      [authUserId]
+    );
+
+    const current = rows[0];
+    if (!current || current.estado_cuenta === 'SUSPENDIDA') {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'Sesión inválida',
+        userMessage: 'Tu sesión ya no es válida.',
+      });
+    }
+
+    const matches = await bcryptjs.compare(
+      passwordActual,
+      String(current.password_hash || '')
+    );
+
+    if (!matches) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Contraseña actual incorrecta',
+        userMessage: 'La contraseña actual ingresada no coincide.',
+      });
+    }
+
+    const newHash = await bcryptjs.hash(passwordNueva, 10);
+    await query(
+      `UPDATE usuarios
+       SET password_hash = $2,
+           actualizado_en = now()
+       WHERE id = $1;`,
+      [authUserId, newHash]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      userMessage: 'Tu contraseña se actualizó correctamente.',
+    });
+  } catch (error) {
+    console.error('[Auth] Error cambiando contraseña:', error);
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      status: 500,
+      error: 'Error al cambiar contraseña',
+      userMessage: 'No fue posible actualizar tu contraseña en este momento.',
+    });
+  }
+};
+
+export default {
+  login,
+  registro,
+  yo,
+  perfil: yo,
+  logout,
+  actualizarPerfil,
+  cambiarPassword,
+};

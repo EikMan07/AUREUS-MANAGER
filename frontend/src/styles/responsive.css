@@ -501,3 +501,52 @@ html, body, #root {
     height: 36px !important;
   }
 }
+
+/* =========================================================================
+   ADAPTACIÓN RESPONSIVA DE PERFIL EJECUTIVO Y ACCESIBILIDAD
+   ========================================================================= */
+@media screen and (max-width: 767px) {
+  .header-profile-btn {
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .header-profile-name {
+    display: none !important;
+  }
+  .profile-tabs-bar {
+    padding: 4px 12px 10px !important;
+  }
+  .profile-modal-container {
+    max-width: calc(100vw - 24px) !important;
+    box-sizing: border-box !important;
+  }
+  .profile-tab-btn {
+    font-size: 12px !important;
+    padding: 8px 4px !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .profile-modal-scroll {
+    padding: 14px !important;
+  }
+  .profile-option-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .profile-option-grid-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .header-profile-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .header-profile-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}

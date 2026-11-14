@@ -14,6 +14,8 @@ import { AlertModal } from '../../components/Modals/AlertModal';
 import { NotificacionesModal } from '../../components/NotificacionesModal';
 import { CompartirCobrosModal } from '../../components/Modals/CompartirCobrosModal';
 import { SenecaAssistantModal } from '../../components/Seneca/SenecaAssistantModal';
+import { UserProfileModal } from '../../components/Profile/UserProfileModal.jsx';
+import { useAccessibility } from '../../context/AccessibilityContext.jsx';
 import { BottomNav } from '../../components/Navigation/BottomNav';
 import { ClientsDirectory } from '../../components/Clients/ClientsDirectory';
 import { LoansDirectory } from '../../components/Loans/LoansDirectory';
@@ -53,6 +55,7 @@ const ACTIVE_MODULE_STORAGE_KEY = 'aureus_last_active_module';
 const VALID_ACTIVE_MODULES = ['cobros', 'clientes', 'prestamos', 'resumen', 'lista-negra', 'papelera'];
 
 export function DashboardPage() {
+  const { translateModule } = useAccessibility();
   const [clients, setClients] = useState([]);
   const [loans, setLoans] = useState([]);
   const [cobrosData, setCobrosData] = useState({
@@ -91,6 +94,7 @@ export function DashboardPage() {
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isCompartirModalOpen, setIsCompartirModalOpen] = useState(false);
   const [isSenecaOpen, setIsSenecaOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [vistaUsuarioId, setVistaUsuarioId] = useState(null);
   const [compartidosActivosDia, setCompartidosActivosDia] = useState([]);
   const [esVistaDelegada, setEsVistaDelegada] = useState(false);
@@ -818,19 +822,7 @@ export function DashboardPage() {
       <main className="mobile-screen-frame">
         {/* Top Bar Superior Claro Ejecutivo Aureus Manager */}
         <Header
-          title={
-            activeModule === 'clientes'
-              ? 'Clientes'
-              : activeModule === 'prestamos'
-              ? 'Préstamos'
-              : activeModule === 'resumen'
-              ? 'Resumen'
-              : activeModule === 'lista-negra'
-              ? 'Lista Negra'
-              : activeModule === 'papelera'
-              ? 'Papelera'
-              : 'Cobros'
-          }
+          title={translateModule(activeModule)}
           hasNotifications={porRevisarCount > 0}
           notificationCount={porRevisarCount}
           onOpenNotifications={() => {
@@ -838,6 +830,7 @@ export function DashboardPage() {
             loadNotificaciones();
           }}
           onOpenSeneca={() => setIsSenecaOpen(true)}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
         />
 
         {/* Contenido desplazable con espaciado dinámico para menú inferior o lateral */}
@@ -1284,6 +1277,12 @@ export function DashboardPage() {
         <SenecaAssistantModal
           isOpen={isSenecaOpen}
           onClose={() => setIsSenecaOpen(false)}
+        />
+
+        {/* Perfil de Usuario Ejecutivo y Accesibilidad */}
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
         />
 
         {/* Barra de Navegación Minimizable y Arrastrable (Abajo, Izquierda, Derecha) */}

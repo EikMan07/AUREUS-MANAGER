@@ -224,7 +224,7 @@ Table notificaciones {
 Table clientes {
   id uuid [pk, default: `gen_random_uuid()`, note: 'Generado en el celular en modo offline']
   cobrador_id uuid [not null, ref: > usuarios.id, note: 'Dueño del cliente']
-  cedula char(9) [null, note: 'Opcional: si se escribe o escanea por foto, debe tener 9 dígitos sin guiones, ej: 605090727']
+  cedula char(9) [null, note: 'Opcional: si se escribe o escanea por foto, debe tener 9 dígitos sin guiones, ej: 101110111']
   nombre varchar(100) [not null, note: '100% obligatorio: Nombre del cliente']
   apellidos varchar(120) [null, note: 'Opcional: Apellidos del cliente']
   telefono varchar(20) [not null, note: '100% obligatorio: Teléfono de contacto del cliente']

@@ -4,7 +4,7 @@
 // 1. Principal: la foto se reduce en el teléfono (máx. 1400px, JPEG 0.85) y se envía a POST /api/ocr/cedula,
 //    donde el servidor hace el OCR con un worker persistente y consulta Hacienda.
 // 2. Respaldo: si el servidor no responde, se usa OCR local con Tesseract.js en el navegador (tope 25 s).
-// 3. Extracción tolerante de 9 dígitos numéricos puros SIN guiones (ej: 605090727)
+// 3. Extracción tolerante de 9 dígitos numéricos puros SIN guiones (ej: 101110111)
 
 import Tesseract from 'tesseract.js';
 import { cleanCedulaDigits, formatCedulaCR } from '../utils/formatters.js';
@@ -21,7 +21,7 @@ export function toTitleCase(str = '') {
 
 /**
  * Separa un nombre oficial costarricense (formato Hacienda: Nombres de pila seguidos de los 2 apellidos al final)
- * Ejemplo: "EIKER MANUEL ABARCA MURILLO" -> Nombre: "Eiker Manuel", Apellidos: "Abarca Murillo"
+ * Ejemplo: "CARLOS ALBERTO ROJAS MORA" -> Nombre: "Carlos Alberto", Apellidos: "Rojas Mora"
  */
 export function parseOfficialFullName(rawFullName = '') {
   const words = rawFullName.trim().split(/\s+/).filter(Boolean);
@@ -35,8 +35,8 @@ export function parseOfficialFullName(rawFullName = '') {
   }
 
   // En Costa Rica toda persona tiene 2 apellidos que van SIEMPRE al final:
-  // - Las últimas 2 palabras son los Apellidos (ej. "Abarca Murillo")
-  // - Todas las palabras anteriores son el Nombre de pila (ej. "Eiker Manuel")
+  // - Las últimas 2 palabras son los Apellidos (ej. "Rojas Mora")
+  // - Todas las palabras anteriores son el Nombre de pila (ej. "Carlos Alberto")
   const apellidos = toTitleCase(words.slice(-2).join(' '));
   const nombre = toTitleCase(words.slice(0, -2).join(' '));
   return { nombre, apellidos };
@@ -189,7 +189,7 @@ function createRotatedCanvas(img, angleDeg = 0) {
  * - Elimina primero cualquier fecha DD/MM/YYYY para no confundirla con la cédula
  * - Convierte errores típicos de OCR como O/o por 0 e I/l por 1 en bloques de dígitos
  * - Busca patrón costarricense: provincia [1-9], tomo (4 dígitos), asiento (4 dígitos)
- * - Retorna estrictamente 9 dígitos seguidos sin guiones (ej. 605090727)
+ * - Retorna estrictamente 9 dígitos seguidos sin guiones (ej. 101110111)
  */
 export function parseCostaRicanCardText(rawText = '') {
   if (!rawText || typeof rawText !== 'string') return null;

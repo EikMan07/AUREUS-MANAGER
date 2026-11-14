@@ -31,6 +31,12 @@ if (typeof window !== 'undefined') {
  */
 export const playConfirmationChime = () => {
   try {
+    if (
+      typeof window !== 'undefined' &&
+      window.localStorage?.getItem('aureus_sound_enabled') === 'false'
+    ) {
+      return;
+    }
     const nowMs = Date.now();
     if (nowMs - lastChimePlayedAt < 120) return;
     lastChimePlayedAt = nowMs;

@@ -110,6 +110,7 @@ export async function apiFetch(ruta, opciones = {}) {
 
   if (
     respuesta.status === 401 &&
+    !opciones.skipUnauthorizedEvent &&
     !ruta.includes('/auth/login') &&
     !ruta.includes('/auth/registro')
   ) {
@@ -146,7 +147,7 @@ export async function registrarUsuario(payload) {
 }
 
 export async function obtenerSesionActual() {
-  return await apiFetch('/api/auth/yo');
+  return await apiFetch('/api/auth/yo', { skipUnauthorizedEvent: true });
 }
 
 export async function cerrarSesionUsuario() {
@@ -274,6 +275,23 @@ export async function consultarSeneca(pregunta, historial = []) {
   return await apiFetch('/api/seneca/consultar', {
     method: 'POST',
     body: { pregunta, historial }
+  });
+}
+
+// =========================================================================
+// PERFIL Y SEGURIDAD DEL USUARIO AUTENTICADO
+// =========================================================================
+export async function actualizarPerfilUsuario(payload) {
+  return await apiFetch('/api/auth/perfil', {
+    method: 'PUT',
+    body: payload
+  });
+}
+
+export async function cambiarPasswordUsuario(payload) {
+  return await apiFetch('/api/auth/password', {
+    method: 'PUT',
+    body: payload
   });
 }
 
