@@ -2,7 +2,7 @@
 
 - Estado: Aceptado
 - Fecha: 2026-11-13
-- Decide: Eiker Abarca, Desarrollador Principal y Arquitecto de Software
+- Decide: Equipo Aureus Manager, Arquitecto de Software Principal
 
 ## Contexto
 

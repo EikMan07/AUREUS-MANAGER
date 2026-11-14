@@ -25,8 +25,8 @@ export function parseOfficialFullName(rawFullName = '') {
   }
 
   // En Costa Rica toda persona tiene 2 apellidos que van SIEMPRE al final:
-  // - Las últimas 2 palabras son los Apellidos (ej. "Abarca Murillo")
-  // - Todas las palabras anteriores son el Nombre de pila (ej. "Eiker Manuel")
+  // - Las últimas 2 palabras son los Apellidos (ej. "Rojas Mora")
+  // - Todas las palabras anteriores son el Nombre de pila (ej. "Carlos Alberto")
   const apellidos = toTitleCase(words.slice(-2).join(' '));
   const nombre = toTitleCase(words.slice(0, -2).join(' '));
   return { nombre, apellidos };

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  Moon,
-  Sun,
   XCircle,
   CheckCircle2,
   Coins,
@@ -97,7 +95,7 @@ const SENECA_EXAMPLES = [
 export function LandingPage() {
   // Todos los Hooks declarados al inicio del componente antes de cualquier retorno condicional
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
   const { autenticado } = useAuth();
   const [activeNavSection, setActiveNavSection] = useState('seccion-problema');
 
@@ -205,31 +203,6 @@ export function LandingPage() {
           </nav>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <button
-              type="button"
-              data-testid="landing-theme-toggle"
-              className="aureus-landing-theme-btn"
-              onClick={toggleTheme}
-              aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '12px',
-                border: isDark ? '1px solid rgba(182, 154, 85, 0.45)' : '1px solid #D5C295',
-                backgroundColor: isDark ? '#1B2B40' : '#F7F2E4',
-                color: isDark ? '#E5C97B' : '#252A31',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0
-              }}
-            >
-              {isDark ? <Sun size={18} strokeWidth={2.3} color="#E5C97B" /> : <Moon size={18} strokeWidth={2.3} color="#252A31" />}
-            </button>
-
             <button
               type="button"
               data-testid="btn-entrar-header"

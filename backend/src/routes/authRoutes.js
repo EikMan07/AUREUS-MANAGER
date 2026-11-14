@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { login, registro, yo, logout } from '../controllers/authController.js';
+import {
+  login,
+  registro,
+  yo,
+  logout,
+  actualizarPerfil,
+  cambiarPassword,
+} from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { verificarOrigen } from '../middlewares/csrf.js';
 
@@ -13,5 +20,7 @@ router.post('/logout', verificarOrigen, logout);
 // Rutas protegidas de sesión activa y renovación deslizante
 router.get('/yo', authMiddleware, yo);
 router.get('/perfil', authMiddleware, yo);
+router.put('/perfil', authMiddleware, actualizarPerfil);
+router.put('/password', authMiddleware, cambiarPassword);
 
 export default router;

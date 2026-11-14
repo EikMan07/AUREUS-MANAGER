@@ -7,9 +7,7 @@ import {
   EyeOff,
   Lock,
   Mail,
-  Moon,
   ShieldCheck,
-  Sun,
   User,
   UserCheck,
 } from 'lucide-react';
@@ -22,13 +20,14 @@ export function LoginPage() {
   // Todos los Hooks declarados al inicio antes de cualquier retorno condicional
   const navigate = useNavigate();
   const location = useLocation();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
   const {
     autenticado,
     cargando,
     cookiesAceptadas,
     aceptarCookiesSeguridad,
     mensajeSesion,
+    limpiarMensajeSesion,
     login,
     registrar,
   } = useAuth();
@@ -49,12 +48,29 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [cookieWarning, setCookieWarning] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState('');
 
   useEffect(() => {
     if (cookiesAceptadas) {
       setCookieWarning(false);
     }
   }, [cookiesAceptadas]);
+
+  useEffect(() => {
+    if (mensajeSesion) {
+      setSessionNotice(mensajeSesion);
+      limpiarMensajeSesion?.();
+    }
+    try {
+      sessionStorage.removeItem('aureus_entered_app');
+      sessionStorage.removeItem('aureus_session_expired_notice');
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch {
+      // Ignorar restricciones de historial o almacenamiento
+    }
+  }, [mensajeSesion, limpiarMensajeSesion]);
 
   if (!cargando && autenticado) {
     const destino = location.state?.from?.pathname;
@@ -79,6 +95,7 @@ export function LoginPage() {
   const switchMode = (nextMode) => {
     setMode(nextMode);
     setError('');
+    setSessionNotice('');
     setCookieWarning(false);
   };
 
@@ -180,23 +197,46 @@ export function LoginPage() {
   const inputRowStyle = {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    backgroundColor: inputBg,
-    border: `1px solid ${borderSubtle}`,
-    borderRadius: '12px',
-    padding: '0 12px',
+    gap: '10px',
+    width: '100%',
+    height: '48px',
+    padding: '0 14px',
+    borderRadius: '14px',
     boxSizing: 'border-box',
+    overflow: 'hidden',
+    backgroundColor: isDark ? '#132032' : '#F8F6F0',
+    border: '1px solid var(--aureus-border-subtle)',
   };
 
   const inputStyle = {
-    width: '100%',
+    flex: 1,
     minWidth: 0,
+    width: '100%',
+    height: '100%',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    backgroundColor: 'transparent',
+    color: isDark ? '#F5F3ED' : '#252A31',
+    fontSize: '14.5px',
+    fontWeight: 600,
+    padding: 0,
+    margin: 0,
+    borderRadius: 0,
+  };
+
+  const eyeToggleBtnStyle = {
     background: 'transparent',
     border: 'none',
-    color: textPrimary,
-    padding: '12px 2px',
-    fontSize: '14px',
     outline: 'none',
+    boxShadow: 'none',
+    padding: '4px',
+    color: 'var(--aureus-text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
   };
 
   const labelStyle = {
@@ -259,37 +299,6 @@ export function LoginPage() {
         >
           <ArrowLeft size={16} strokeWidth={2.3} />
           <span>Volver a inicio</span>
-        </button>
-
-        <button
-          type="button"
-          data-testid="login-theme-toggle"
-          onClick={toggleTheme}
-          aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-          title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-          style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            border: isDark ? '1px solid rgba(182, 154, 85, 0.45)' : '1px solid #D5C295',
-            backgroundColor: isDark ? '#1B2B40' : '#F7F2E4',
-            color: isDark ? '#E5C97B' : '#B69A55',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            padding: 0,
-            flexShrink: 0,
-            boxShadow: isDark
-              ? '0 2px 10px rgba(0, 0, 0, 0.35)'
-              : '0 2px 6px rgba(182, 154, 85, 0.14)',
-          }}
-        >
-          {isDark ? (
-            <Sun size={19} strokeWidth={2.3} color="#E5C97B" />
-          ) : (
-            <Moon size={19} strokeWidth={2.3} color="#252A31" />
-          )}
         </button>
       </header>
 
@@ -406,9 +415,10 @@ export function LoginPage() {
             </button>
           </div>
 
-          {mensajeSesion && (
+          {sessionNotice && (
             <div
               role="status"
+              data-testid="login-session-notice"
               style={{
                 backgroundColor: isDark ? '#2C3542' : '#F7F2E4',
                 border: isDark ? '1px solid rgba(212, 180, 106, 0.45)' : '1px solid #D5C295',
@@ -423,7 +433,7 @@ export function LoginPage() {
               }}
             >
               <AlertCircle size={16} color={goldText} style={{ flexShrink: 0 }} />
-              <span>{mensajeSesion}</span>
+              <span>{sessionNotice}</span>
             </div>
           )}
 
@@ -498,7 +508,7 @@ export function LoginPage() {
                 <label htmlFor="login-identificador" style={labelStyle}>
                   USUARIO O CORREO ELECTRÓNICO *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <User size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="login-identificador"
@@ -509,6 +519,7 @@ export function LoginPage() {
                     onChange={(e) => setIdentificador(e.target.value)}
                     placeholder="Ingresa tu usuario o correo"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                 </div>
@@ -518,7 +529,7 @@ export function LoginPage() {
                 <label htmlFor="login-password" style={labelStyle}>
                   CONTRASEÑA *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <Lock size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="login-password"
@@ -529,21 +540,14 @@ export function LoginPage() {
                     onChange={(e) => setPasswordLogin(e.target.value)}
                     placeholder="Ingresa tu contraseña"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                   <button
                     type="button"
                     onClick={() => setShowLoginPassword((prev) => !prev)}
                     aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
+                    style={eyeToggleBtnStyle}
                   >
                     {showLoginPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
@@ -578,7 +582,7 @@ export function LoginPage() {
                 <label htmlFor="reg-nombre" style={labelStyle}>
                   NOMBRE COMPLETO *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <UserCheck size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="reg-nombre"
@@ -587,8 +591,9 @@ export function LoginPage() {
                     autoComplete="name"
                     value={nombreCompleto}
                     onChange={(e) => setNombreCompleto(e.target.value)}
-                    placeholder="Ej. Eiker Manuel Abarca Murillo"
+                    placeholder="Ingresa tu nombre y apellidos"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                 </div>
@@ -598,7 +603,7 @@ export function LoginPage() {
                 <label htmlFor="reg-username" style={labelStyle}>
                   NOMBRE DE USUARIO *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <User size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="reg-username"
@@ -607,8 +612,9 @@ export function LoginPage() {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Ej. eiker_abarca"
+                    placeholder="Ingresa un nombre de usuario"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                 </div>
@@ -618,7 +624,7 @@ export function LoginPage() {
                 <label htmlFor="reg-correo" style={labelStyle}>
                   CORREO ELECTRÓNICO *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <Mail size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="reg-correo"
@@ -627,8 +633,9 @@ export function LoginPage() {
                     autoComplete="email"
                     value={correo}
                     onChange={(e) => setCorreo(e.target.value)}
-                    placeholder="Ej. correo@ejemplo.com"
+                    placeholder="correo@dominio.com"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                 </div>
@@ -638,7 +645,7 @@ export function LoginPage() {
                 <label htmlFor="reg-password" style={labelStyle}>
                   CONTRASEÑA *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <Lock size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="reg-password"
@@ -649,21 +656,14 @@ export function LoginPage() {
                     onChange={(e) => setPasswordReg(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                   <button
                     type="button"
                     onClick={() => setShowRegPassword((prev) => !prev)}
                     aria-label={showRegPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
+                    style={eyeToggleBtnStyle}
                   >
                     {showRegPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
@@ -674,7 +674,7 @@ export function LoginPage() {
                 <label htmlFor="reg-confirm" style={labelStyle}>
                   CONFIRMAR CONTRASEÑA *
                 </label>
-                <div style={inputRowStyle}>
+                <div className="aureus-auth-field-wrapper" style={inputRowStyle}>
                   <Lock size={16} color={textMuted} style={{ flexShrink: 0 }} />
                   <input
                     id="reg-confirm"
@@ -685,21 +685,14 @@ export function LoginPage() {
                     onChange={(e) => setConfirmPasswordReg(e.target.value)}
                     placeholder="Repite tu contraseña"
                     required
+                    className="aureus-auth-input"
                     style={inputStyle}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                     aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                      color: textMuted,
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
+                    style={eyeToggleBtnStyle}
                   >
                     {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>

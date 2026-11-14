@@ -13,6 +13,7 @@ import {
   PanelBottom
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import { useAccessibility } from '../../context/AccessibilityContext.jsx';
 
 const STORAGE_DOCK_KEY = 'cf_nav_dock_position';
 const STORAGE_MINIMIZED_KEY = 'cf_nav_minimized';
@@ -55,6 +56,7 @@ function computeDropZone(clientX, clientY) {
 export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutChange }) {
   // Todos los Hooks al inicio del componente antes de cualquier retorno condicional
   const { isDark } = useTheme();
+  const { translateModule } = useAccessibility();
   const [dockPosition, setDockPosition] = useState(readInitialDockPosition);
   const [isMinimized, setIsMinimized] = useState(readInitialMinimized);
   const [isDragging, setIsDragging] = useState(false);
@@ -88,12 +90,12 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
   }, []);
 
   const modules = [
-    { id: 'cobros', label: 'Cobros', icon: Coins, enabled: true },
-    { id: 'clientes', label: 'Clientes', icon: Users, enabled: true },
-    { id: 'prestamos', label: 'Préstamos', icon: Landmark, enabled: true },
-    { id: 'resumen', label: 'Resumen', icon: BarChart3, enabled: true },
-    { id: 'lista-negra', label: 'Lista Negra', icon: ShieldAlert, enabled: true },
-    { id: 'papelera', label: 'Papelera', icon: Trash2, enabled: true },
+    { id: 'cobros', label: translateModule('cobros'), icon: Coins, enabled: true },
+    { id: 'clientes', label: translateModule('clientes'), icon: Users, enabled: true },
+    { id: 'prestamos', label: translateModule('prestamos'), icon: Landmark, enabled: true },
+    { id: 'resumen', label: translateModule('resumen'), icon: BarChart3, enabled: true },
+    { id: 'lista-negra', label: translateModule('lista-negra'), icon: ShieldAlert, enabled: true },
+    { id: 'papelera', label: translateModule('papelera'), icon: Trash2, enabled: true },
   ];
 
   const handleHamburgerPointerDown = (e) => {

@@ -1,30 +1,42 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Moon, Sun } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { AureusLogo } from './Common/AureusLogo.jsx';
 import SenecaBalanceIcon from './Common/SenecaBalanceIcon.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useAccessibility } from '../context/AccessibilityContext.jsx';
+
+function getProfileInitials(name, username) {
+  const source = String(name || username || 'AU').trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
 
 export function Header({
   title = 'Cobros',
   hasNotifications = false,
   notificationCount = 0,
   onOpenNotifications,
-  onOpenSeneca
+  onOpenSeneca,
+  onOpenProfile
 }) {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { isDark } = useTheme();
+  const { usuario } = useAuth();
+  const { t } = useAccessibility();
   const showBadge = notificationCount > 0 || hasNotifications;
+
+  const firstName = String(usuario?.nombre_completo || '')
+    .trim()
+    .split(/\s+/)[0] || usuario?.username || 'Perfil';
+  const profileInitials = getProfileInitials(usuario?.nombre_completo, usuario?.username);
 
   const handleOpenLandingInfo = () => {
     navigate('/bienvenida');
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
   };
 
   return (
@@ -116,7 +128,8 @@ export function Header({
               type="button"
               className="header-seneca-btn"
               onClick={onOpenSeneca}
-              aria-label="Abrir asesor Séneca"
+              aria-label={t('header.senecaTitle')}
+              title={t('header.senecaTitle')}
               style={{
                 width: '40px',
                 height: '40px',
@@ -143,41 +156,9 @@ export function Header({
 
           <button
             type="button"
-            className="header-icon-action"
-            onClick={toggleTheme}
-            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              border: isDark ? '1px solid rgba(182, 154, 85, 0.45)' : '1px solid #D5C295',
-              backgroundColor: isDark ? '#1B2B40' : '#F7F2E4',
-              color: isDark ? '#E5C97B' : '#B69A55',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              padding: 0,
-              outline: 'none',
-              boxShadow: isDark
-                ? '0 2px 10px rgba(0, 0, 0, 0.35)'
-                : '0 2px 6px rgba(182, 154, 85, 0.14)',
-              transition: 'all 0.22s ease',
-              flexShrink: 0,
-            }}
-          >
-            {isDark ? (
-              <Sun size={19} strokeWidth={2.3} color="#E5C97B" />
-            ) : (
-              <Moon size={19} strokeWidth={2.3} color="#252A31" />
-            )}
-          </button>
-
-          <button
-            type="button"
             className="notification-btn header-icon-action"
-            aria-label="Notificaciones"
-            title={notificationCount > 0 ? `${notificationCount} notificaciones activas` : 'Notificaciones'}
+            aria-label={t('header.notificationsTitle')}
+            title={notificationCount > 0 ? `${notificationCount} ${t('header.notificationsTitle')}` : t('header.notificationsTitle')}
             onClick={onOpenNotifications}
             style={{
               position: 'relative',
@@ -228,32 +209,20 @@ export function Header({
 
           <button
             type="button"
-            data-testid="btn-logout-header"
-            className="header-icon-action"
-            onClick={handleLogout}
-            aria-label="Cerrar sesión"
-            title="Cerrar sesión"
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: isDark ? '#1B2B40' : '#F7F2E4',
-              border: isDark ? '1px solid rgba(182, 154, 85, 0.45)' : '1px solid #D5C295',
-              color: isDark ? '#E5C97B' : '#252A31',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              padding: 0,
-              outline: 'none',
-              flexShrink: 0,
-              boxShadow: isDark
-                ? '0 2px 10px rgba(0, 0, 0, 0.35)'
-                : '0 2px 6px rgba(182, 154, 85, 0.14)',
-              transition: 'all 0.22s ease',
-            }}
+            data-testid="btn-profile-header"
+            className="header-profile-btn"
+            onClick={onOpenProfile}
+            aria-label={t('header.profileAria')}
+            title={t('header.profileAria')}
           >
-            <LogOut size={18} strokeWidth={2.2} color={isDark ? '#E5C97B' : '#B69A55'} />
+            <span className="header-profile-avatar">
+              {usuario?.foto_url ? (
+                <img src={usuario.foto_url} alt={firstName} />
+              ) : (
+                profileInitials
+              )}
+            </span>
+            <span className="header-profile-name">{firstName}</span>
           </button>
         </div>
       </div>

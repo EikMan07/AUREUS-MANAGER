@@ -9,6 +9,7 @@ import {
   registrarUsuario,
   obtenerSesionActual,
   cerrarSesionUsuario,
+  actualizarPerfilUsuario,
 } from '../services/apiClient.js';
 
 const INACTIVIDAD_MS = 25 * 60 * 1000;
@@ -229,6 +230,18 @@ export function AuthProvider({ children }) {
     };
   }, [updateCsrfToken]);
 
+  const actualizarPerfil = useCallback(async (payload) => {
+    const res = await actualizarPerfilUsuario(payload);
+    if (res?.usuario) {
+      setUsuario(res.usuario);
+    }
+    return res;
+  }, []);
+
+  const limpiarMensajeSesion = useCallback(() => {
+    setMensajeSesion('');
+  }, []);
+
   const autenticado = Boolean(usuario);
 
   // Temporizador de inactividad de 25 minutos
@@ -268,11 +281,13 @@ export function AuthProvider({ children }) {
       cookiesAceptadas,
       aceptarCookiesSeguridad,
       mensajeSesion,
+      limpiarMensajeSesion,
       login,
       registrar,
       registro: registrar,
       logout,
       recargarPerfil,
+      actualizarPerfil,
     }),
     [
       usuario,
@@ -282,10 +297,12 @@ export function AuthProvider({ children }) {
       cookiesAceptadas,
       aceptarCookiesSeguridad,
       mensajeSesion,
+      limpiarMensajeSesion,
       login,
       registrar,
       logout,
       recargarPerfil,
+      actualizarPerfil,
     ]
   );
 
