@@ -6,7 +6,8 @@ import {
   eliminarPersona,
   getResumenDiaParaCompartir,
   compartirCobrosDia,
-  dejarDeCompartirDia
+  dejarDeCompartirDia,
+  revertirCobroCompartido
 } from '../controllers/compartirCobrosController.js';
 
 const router = Router();
@@ -20,6 +21,8 @@ router.delete('/personas/:contactoId', eliminarPersona);
 
 router.get('/resumen-dia', getResumenDiaParaCompartir);
 router.post('/dia', compartirCobrosDia);
+router.post('/revertir-dia', dejarDeCompartirDia);
+router.post('/revertir-cobro/:agendaId', revertirCobroCompartido);
 router.delete('/dia', dejarDeCompartirDia);
 
 export default router;

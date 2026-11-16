@@ -10,11 +10,12 @@ import {
   obtenerSesionActual,
   cerrarSesionUsuario,
   actualizarPerfilUsuario,
+  aceptarConsentimientoLegalUsuario,
 } from '../services/apiClient.js';
 
 const INACTIVIDAD_MS = 25 * 60 * 1000;
 const COOKIE_CONSENT_STORAGE_KEY = 'aureus_cookie_consent_v1';
-const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'pointerdown', 'keydown', 'scroll', 'touchstart'];
 
 export const AuthContext = createContext(null);
 
@@ -55,7 +56,16 @@ export function AuthProvider({ children }) {
       setCsrfTokenState(null);
       setApiClientCsrfToken(null);
       setUsuario(null);
-      if (motivo === 'expirada') {
+      if (motivo === 'inactividad_25m') {
+        setMensajeSesion(
+          'Tu sesión se cerró automáticamente porque transcurrieron 25 minutos sin actividad en la página.'
+        );
+        try {
+          sessionStorage.setItem('aureus_inactivity_expired', '1');
+        } catch {
+          // Ignorar errores de storage
+        }
+      } else if (motivo === 'expirada') {
         setMensajeSesion('Tu sesión expiró por inactividad. Inicia sesión de nuevo.');
       } else {
         setMensajeSesion('');
@@ -151,6 +161,8 @@ export function AuthProvider({ children }) {
               password: arg1.password,
               cookiesAceptadas:
                 arg1.cookiesAceptadas !== undefined ? Boolean(arg1.cookiesAceptadas) : cookiesAceptadas,
+              terminosAceptados:
+                arg1.terminosAceptados !== undefined ? Boolean(arg1.terminosAceptados) : true,
             }
           : {
               nombre_completo: arg1,
@@ -158,6 +170,7 @@ export function AuthProvider({ children }) {
               correo: arg3,
               password: arg4,
               cookiesAceptadas: arg5 !== undefined ? Boolean(arg5) : cookiesAceptadas,
+              terminosAceptados: true,
             };
 
       const datos = await registrarUsuario(payload);
@@ -168,6 +181,9 @@ export function AuthProvider({ children }) {
       setMensajeSesion('');
       try {
         sessionStorage.setItem('aureus_entered_app', 'true');
+        if (datos?.usuario?.id) {
+          localStorage.setItem(`aureus_legal_consent_${datos.usuario.id}`, 'v1.0-2026');
+        }
       } catch {
         // Ignorar errores de storage
       }
@@ -238,6 +254,30 @@ export function AuthProvider({ children }) {
     return res;
   }, []);
 
+  const aceptarConsentimientoLegal = useCallback(async (version = 'v1.0-2026') => {
+    const res = await aceptarConsentimientoLegalUsuario(version);
+    const nowIso = new Date().toISOString();
+    setUsuario((prev) => {
+      if (res?.usuario) return res.usuario;
+      if (!prev) return prev;
+      return {
+        ...prev,
+        consentimiento_aceptado: true,
+        consentimiento_version: version,
+        consentimiento_aceptado_en: nowIso,
+      };
+    });
+    try {
+      const targetId = res?.usuario?.id || usuario?.id;
+      if (targetId) {
+        window.localStorage.setItem(`aureus_legal_consent_${targetId}`, version);
+      }
+    } catch {
+      // Ignorar errores de storage
+    }
+    return res;
+  }, [usuario?.id]);
+
   const limpiarMensajeSesion = useCallback(() => {
     setMensajeSesion('');
   }, []);
@@ -254,7 +294,10 @@ export function AuthProvider({ children }) {
       }
       inactivityTimerRef.current = setTimeout(() => {
         cerrarSesionUsuario().catch(() => {});
-        limpiarEstadoSesion('expirada');
+        limpiarEstadoSesion('inactividad_25m');
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.assign('/login');
+        }
       }, INACTIVIDAD_MS);
     };
 
@@ -288,6 +331,7 @@ export function AuthProvider({ children }) {
       logout,
       recargarPerfil,
       actualizarPerfil,
+      aceptarConsentimientoLegal,
     }),
     [
       usuario,
@@ -303,6 +347,7 @@ export function AuthProvider({ children }) {
       logout,
       recargarPerfil,
       actualizarPerfil,
+      aceptarConsentimientoLegal,
     ]
   );
 

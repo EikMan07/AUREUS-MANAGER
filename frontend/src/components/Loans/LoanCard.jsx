@@ -13,6 +13,8 @@ import {
   Check
 } from 'lucide-react';
 import { formatColones, getInitials, formatShortSpanishDate } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture';
 
 export function LoanCard({
   loan,
@@ -214,16 +216,20 @@ export function LoanCard({
   };
 
   const cuotas = Array.isArray(currentLoan.cuotas) ? currentLoan.cuotas : [];
+  const { isDark } = useTheme();
 
   return (
     <article
-      className="loan-card-container"
+      className="loan-card-container rb-spotlight-card"
+      onMouseMove={handleSpotlightMouseMove}
       onClick={() => {
         if (isSelectionMode && onToggleSelect && currentLoan?.id) {
           onToggleSelect(currentLoan.id);
         }
       }}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         width: '100%',
         boxSizing: 'border-box',
         padding: 'var(--card-padding, 16px)',
@@ -233,6 +239,7 @@ export function LoanCard({
         transition: 'all 0.15s ease'
       }}
     >
+      <ImperialCornerAccents isDark={isDark} />
       {/* 3.1. VISTA CONTRAÍDA (Encabezado y Resumen Principal) */}
       <div className="loan-card-header">
         <div className="loan-client-info">
@@ -384,9 +391,13 @@ export function LoanCard({
                   setActiveLoanId(item.id);
                 }}
                 style={{
-                  backgroundColor: isTabActive ? '#B69A55' : 'var(--aureus-bg-surface)',
-                  color: isTabActive ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-                  fontWeight: isTabActive ? 800 : 700,
+                  background: isTabActive
+                    ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                    : isDark
+                      ? 'rgba(22, 36, 54, 0.85)'
+                      : 'var(--aureus-bg-surface)',
+                  color: isTabActive ? '#101C2C' : isDark ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                  fontWeight: isTabActive ? 900 : 700,
                   boxShadow: isTabActive ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
                   borderRadius: '9px',
                   padding: '8px 10px',

@@ -7,12 +7,15 @@ import {
   X
 } from 'lucide-react';
 import { formatCedulaCR, matchesClientSearch, getInitials } from '../../utils/formatters.js';
+import { useTheme } from '../../context/ThemeContext.jsx';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture.jsx';
 
 export function ListaNegraCards({
   personas = [],
   isLoading = false,
   onSacarPersona
 }) {
+  const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filtrado inteligente por nombre, apellidos, cédula, teléfono o ubicación
@@ -25,7 +28,11 @@ export function ListaNegraCards({
 
   return (
     <div
+      className="rb-spotlight-card"
+      onMouseMove={handleSpotlightMouseMove}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         backgroundColor: 'var(--aureus-bg-surface)',
         border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
@@ -38,11 +45,13 @@ export function ListaNegraCards({
         gap: '14px',
       }}
     >
+      <ImperialCornerAccents isDark={isDark} />
       {/* Cabecera del Listado con Contador */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
             <h3
+              className="aureus-imperial-title"
               style={{
                 fontSize: '16px',
                 fontWeight: 800,

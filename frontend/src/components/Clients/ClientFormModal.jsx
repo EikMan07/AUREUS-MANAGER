@@ -10,7 +10,9 @@ import {
   Search,
   History,
   AlertCircle,
-  RotateCcw
+  RotateCcw,
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { dbService } from '../../services/db';
@@ -103,6 +105,9 @@ export function ClientFormModal({
   const [historialInfo, setHistorialInfo] = useState(null);
   const [isHistorialExpanded, setIsHistorialExpanded] = useState(false);
   const [checkingHistorial, setCheckingHistorial] = useState(false);
+  const [confirmingDeleteAntecedente, setConfirmingDeleteAntecedente] = useState(false);
+  const [deletingAntecedente, setDeletingAntecedente] = useState(false);
+  const [deletingLoanId, setDeletingLoanId] = useState(null);
 
   // Cierre de menús flotantes al hacer clic afuera
   useEffect(() => {
@@ -186,26 +191,15 @@ export function ClientFormModal({
   }, [client, isOpen, isEditing]);
 
   useEffect(() => {
-    if (!isOpen || isEditing) {
+    if (!isOpen || isEditing || tipoCliente !== 'COSTARRICENSE') {
       setHistorialInfo(null);
       setIsHistorialExpanded(false);
       setCheckingHistorial(false);
       return;
     }
 
-    const cedClean = cleanCedulaDigits(cedula);
-    const telDigits = String(telefono || '').replace(/\D+/g, '');
-    const telSecDigits = String(secondaryPhoneDigits || '').replace(/\D+/g, '');
-    const nomClean = String(nombre || '').trim();
-    const apeClean = String(apellidos || '').trim();
-
-    const shouldQuery =
-      (tipoCliente === 'COSTARRICENSE' && cedClean.length >= 9) ||
-      telDigits.length >= 8 ||
-      telSecDigits.length >= 8 ||
-      (nomClean.length >= 3 && (tipoCliente === 'EXTRANJERO' || apeClean.length >= 2));
-
-    if (!shouldQuery) {
+    const rawCedula = String(cedula || '').replace(/\D/g, '');
+    if (rawCedula.length !== 9) {
       setHistorialInfo(null);
       setIsHistorialExpanded(false);
       setCheckingHistorial(false);
@@ -217,30 +211,16 @@ export function ClientFormModal({
 
     const timer = setTimeout(async () => {
       try {
-        const storedTel =
-          telDigits.length >= 8
-            ? tipoCliente === 'EXTRANJERO'
-              ? buildStoredPhone(selectedCountry, telDigits)
-              : telDigits
-            : '';
-        const storedTelSec =
-          telSecDigits.length >= 8
-            ? tipoCliente === 'EXTRANJERO'
-              ? buildStoredPhone(selectedSecondaryCountry, telSecDigits)
-              : telSecDigits
-            : '';
-
         const res = await dbService.consultarHistorialArchivoCliente({
-          cedula: tipoCliente === 'COSTARRICENSE' && cedClean.length >= 9 ? cedClean : '',
-          telefono: storedTel,
-          telefono_secundario: storedTelSec,
-          nombre: nomClean,
-          apellidos: apeClean,
-          tipo_cliente: tipoCliente
+          cedula: rawCedula
         });
 
         if (cancelled) return;
-        if (res?.encontrado && res?.cliente_historico) {
+        const responseCedula = String(
+          res?.cedula || res?.cliente_historico?.cedula || ''
+        ).replace(/\D/g, '');
+
+        if (res?.encontrado && res?.cliente_historico && responseCedula === rawCedula) {
           setHistorialInfo((prev) => {
             if (prev?.cliente_historico?.id !== res.cliente_historico.id) {
               setIsHistorialExpanded(false);
@@ -266,18 +246,7 @@ export function ClientFormModal({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [
-    isOpen,
-    isEditing,
-    tipoCliente,
-    cedula,
-    telefono,
-    selectedCountry,
-    secondaryPhoneDigits,
-    selectedSecondaryCountry,
-    nombre,
-    apellidos
-  ]);
+  }, [isOpen, isEditing, tipoCliente, cedula]);
 
   if (!isOpen) return null;
 
@@ -1456,7 +1425,7 @@ export function ClientFormModal({
 
                       {prestamosHist.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {prestamosHist.slice(0, 3).map((pr, idx) => (
+                          {prestamosHist.map((pr, idx) => (
                             <div
                               key={pr.id || idx}
                               style={{
@@ -1469,6 +1438,7 @@ export function ClientFormModal({
                                 color: 'var(--aureus-text-secondary)',
                                 display: 'flex',
                                 flexWrap: 'wrap',
+                                alignItems: 'center',
                                 gap: '6px',
                                 justifyContent: 'space-between'
                               }}
@@ -1477,50 +1447,276 @@ export function ClientFormModal({
                                 Monto {formatColonesLocal(pr.monto_prestado ?? 0)} · Abonado{' '}
                                 {formatColonesLocal(pr.monto_pagado_acumulado ?? 0)}
                               </span>
-                              <span
-                                style={{
-                                  fontWeight: 800,
-                                  color:
-                                    Number(pr.saldo_por_pagar ?? 0) > 0
-                                      ? isDark
-                                        ? '#F87171'
-                                        : '#C65D58'
-                                      : isDark
-                                        ? '#34D399'
-                                        : '#397D67'
-                                }}
-                              >
-                                Saldo {formatColonesLocal(pr.saldo_por_pagar ?? 0)}
-                              </span>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                <span
+                                  style={{
+                                    fontWeight: 800,
+                                    color:
+                                      Number(pr.saldo_por_pagar ?? 0) > 0
+                                        ? isDark
+                                          ? '#F87171'
+                                          : '#C65D58'
+                                        : isDark
+                                          ? '#34D399'
+                                          : '#397D67'
+                                  }}
+                                >
+                                  Saldo {formatColonesLocal(pr.saldo_por_pagar ?? 0)}
+                                </span>
+                                {pr.id && (
+                                  <button
+                                    type="button"
+                                    data-testid={`btn-eliminar-prestamo-antecedente-${pr.id}`}
+                                    disabled={deletingLoanId === pr.id || deletingAntecedente}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        setDeletingLoanId(pr.id);
+                                        const resp = await dbService.eliminarPrestamoDeAntecedente(pr.id);
+                                        if (resp?.antecedenteEliminadoPorCompleto) {
+                                          setHistorialInfo(null);
+                                          setConfirmingDeleteAntecedente(false);
+                                          setIsHistorialExpanded(false);
+                                          if (onShowAlert) {
+                                            onShowAlert(
+                                              'success',
+                                              'Antecedente depurado',
+                                              'Se eliminó el último préstamo archivado y se limpió el antecedente.'
+                                            );
+                                          }
+                                        } else if (resp?.resumenActualizado) {
+                                          const rest = Array.isArray(resp.prestamosRestantes)
+                                            ? resp.prestamosRestantes
+                                            : [];
+                                          const updatedHist = resp.resumenActualizado;
+                                          setHistorialInfo((prev) => {
+                                            if (!prev) return null;
+                                            return {
+                                              ...prev,
+                                              cliente_historico: {
+                                                ...(prev.cliente_historico || {}),
+                                                ...updatedHist
+                                              },
+                                              antecedente: {
+                                                ...(prev.antecedente || {}),
+                                                ...updatedHist,
+                                                totalPrestamosHistoricos: Number(
+                                                  updatedHist.total_prestamos_historicos || rest.length
+                                                ),
+                                                totalAbonado: Number(
+                                                  updatedHist.total_pagado_acumulado || 0
+                                                ),
+                                                saldoPendienteAcumulado: Number(
+                                                  updatedHist.saldo_pendiente_acumulado || 0
+                                                )
+                                              },
+                                              prestamos: rest,
+                                              registros: rest
+                                            };
+                                          });
+                                          if (onShowAlert) {
+                                            onShowAlert(
+                                              'success',
+                                              'Préstamo archivado eliminado',
+                                              'El préstamo no finiquitado fue eliminado del antecedente.'
+                                            );
+                                          }
+                                        }
+                                      } catch (err) {
+                                        if (onShowAlert) {
+                                          onShowAlert(
+                                            'error',
+                                            'No se pudo eliminar',
+                                            err?.userMessage || 'No fue posible eliminar el préstamo del antecedente.'
+                                          );
+                                        }
+                                      } finally {
+                                        setDeletingLoanId(null);
+                                      }
+                                    }}
+                                    title="Eliminar este préstamo del antecedente"
+                                    style={{
+                                      width: '24px',
+                                      height: '24px',
+                                      borderRadius: '7px',
+                                      border: '1px solid rgba(198, 93, 88, 0.35)',
+                                      backgroundColor: isDark
+                                        ? 'rgba(198, 93, 88, 0.14)'
+                                        : 'rgba(198, 93, 88, 0.1)',
+                                      color: isDark ? '#F87171' : '#C65D58',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      padding: 0
+                                    }}
+                                  >
+                                    <Trash2 size={13} strokeWidth={2.2} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
                       )}
 
-                      {canAutocomplete && (
-                        <button
-                          type="button"
-                          data-testid="btn-autocompletar-historial"
-                          onClick={handleAutocompletarHistorial}
-                          style={{
-                            alignSelf: 'flex-start',
-                            padding: '7px 12px',
-                            borderRadius: '10px',
-                            border: `1px solid ${palette.border}`,
-                            backgroundColor: 'var(--aureus-bg-elevated)',
-                            color: 'var(--aureus-text-primary)',
-                            fontSize: '12px',
-                            fontWeight: 800,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <RotateCcw size={13} strokeWidth={2.3} />
-                          <span>Autocompletar datos anteriores</span>
-                        </button>
-                      )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: '8px',
+                          justifyContent: 'space-between'
+                        }}
+                      >
+                        {canAutocomplete && (
+                          <button
+                            type="button"
+                            data-testid="btn-autocompletar-historial"
+                            onClick={handleAutocompletarHistorial}
+                            style={{
+                              padding: '7px 12px',
+                              borderRadius: '10px',
+                              border: `1px solid ${palette.border}`,
+                              backgroundColor: 'var(--aureus-bg-elevated)',
+                              color: 'var(--aureus-text-primary)',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <RotateCcw size={13} strokeWidth={2.3} />
+                            <span>Autocompletar datos anteriores</span>
+                          </button>
+                        )}
+
+                        {!confirmingDeleteAntecedente ? (
+                          <button
+                            type="button"
+                            data-testid="btn-eliminar-antecedente"
+                            onClick={() => setConfirmingDeleteAntecedente(true)}
+                            style={{
+                              padding: '7px 12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(198, 93, 88, 0.42)',
+                              backgroundColor: isDark
+                                ? 'rgba(198, 93, 88, 0.14)'
+                                : 'rgba(198, 93, 88, 0.08)',
+                              color: isDark ? '#F87171' : '#B91C1C',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={13} strokeWidth={2.3} />
+                            <span>Eliminar antecedente</span>
+                          </button>
+                        ) : (
+                          <div
+                            style={{
+                              width: '100%',
+                              marginTop: '4px',
+                              padding: '9px 11px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(198, 93, 88, 0.45)',
+                              backgroundColor: isDark
+                                ? 'rgba(198, 93, 88, 0.12)'
+                                : 'rgba(198, 93, 88, 0.07)',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px'
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: 700,
+                                color: isDark ? '#FCA5A5' : '#991B1B'
+                              }}
+                            >
+                              ¿Confirmas eliminar este antecedente y sus préstamos archivados?
+                            </span>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                disabled={deletingAntecedente}
+                                onClick={() => setConfirmingDeleteAntecedente(false)}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--aureus-border-subtle)',
+                                  backgroundColor: 'var(--aureus-bg-elevated)',
+                                  color: 'var(--aureus-text-primary)',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                data-testid="btn-confirmar-eliminar-antecedente"
+                                disabled={deletingAntecedente}
+                                onClick={async () => {
+                                  const targetKey =
+                                    histCliente.id ||
+                                    histCliente.archivoId ||
+                                    histCliente.cedula ||
+                                    cleanCedulaDigits(cedula);
+                                  if (!targetKey) return;
+                                  try {
+                                    setDeletingAntecedente(true);
+                                    await dbService.eliminarAntecedenteCliente(targetKey);
+                                    setHistorialInfo(null);
+                                    setConfirmingDeleteAntecedente(false);
+                                    setIsHistorialExpanded(false);
+                                    if (onShowAlert) {
+                                      onShowAlert(
+                                        'success',
+                                        'Antecedente eliminado',
+                                        'El antecedente y todos sus préstamos archivados fueron eliminados.'
+                                      );
+                                    }
+                                  } catch (err) {
+                                    if (onShowAlert) {
+                                      onShowAlert(
+                                        'error',
+                                        'Error al eliminar antecedente',
+                                        err?.userMessage || 'No se pudo eliminar el antecedente registrado.'
+                                      );
+                                    }
+                                  } finally {
+                                    setDeletingAntecedente(false);
+                                  }
+                                }}
+                                style={{
+                                  padding: '6px 11px',
+                                  borderRadius: '8px',
+                                  border: '1px solid #C65D58',
+                                  backgroundColor: '#C65D58',
+                                  color: '#FFFFFF',
+                                  fontSize: '11.5px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {deletingAntecedente
+                                  ? 'Eliminando...'
+                                  : 'Sí, eliminar antecedente y préstamos'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2168,6 +2364,27 @@ export function ClientFormModal({
                   'Guardar Cliente'
                 )}
               </button>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '7px',
+                padding: '9px 11px',
+                borderRadius: '11px',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                border: '1px solid var(--aureus-border-subtle)',
+                fontSize: '11.5px',
+                lineHeight: 1.42,
+                color: 'var(--aureus-text-muted)',
+                marginTop: '4px'
+              }}
+            >
+              <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#B69A55' }} />
+              <span>
+                Datos resguardados de forma privada bajo tu custodia conforme a la Ley 8968. La consulta tributaria es informativa y nunca puntúa ni descarta personas automáticamente.
+              </span>
             </div>
           </form>
         )}

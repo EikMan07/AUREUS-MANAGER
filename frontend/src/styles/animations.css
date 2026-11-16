@@ -54,7 +54,7 @@ button:active:not(:disabled):not(.no-hover-lift),
 }
 
 /* 2. Efecto de Foco Ejecutivo en Buscadores e Inputs */
-input:not(.directory-search-input):not(.segmented-tabs-search-input):not(.client-select-native-input):not(.cf-search-input):focus,
+input:not(.directory-search-input):not(.segmented-tabs-search-input):not(.client-select-native-input):not(.cf-search-input):not(.aureus-auth-input):focus,
 select:focus,
 textarea:focus,
 .input-currency-wrapper:focus-within {
@@ -542,6 +542,127 @@ input[style*="background-color: transparent"]:focus {
   transform: none !important;
 }
 
+@keyframes aureusTabFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.aureus-compartir-tab-panel {
+  animation: aureusTabFadeSlide 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.aureus-compartir-overlay {
+  transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.aureus-compartir-overlay.is-closing {
+  transition: opacity 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.aureus-compartir-card {
+  transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.aureus-compartir-card.is-closing {
+  transition: opacity 220ms cubic-bezier(0.32, 0.72, 0, 1),
+              transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.aureus-compartir-collapsible {
+  overflow: hidden;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: max-height, opacity, transform;
+}
+
+/* ==========================================================================
+   7. REACT BITS PRO — SPOTLIGHT CARD, HALO PULSE & NEOCLASSICAL KEYFRAMES
+   ========================================================================== */
+
+@keyframes rbHaloPulse {
+  0%, 100% {
+    box-shadow: 0 0 28px rgba(212, 180, 106, 0.36), inset 0 0 18px rgba(212, 180, 106, 0.24);
+  }
+  50% {
+    box-shadow: 0 0 46px rgba(212, 180, 106, 0.62), inset 0 0 28px rgba(212, 180, 106, 0.42);
+  }
+}
+
+@keyframes aureusGoldShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes aureusRomanRingSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aureusFloatParticle {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.28;
+  }
+  50% {
+    transform: translateY(-16px) translateX(6px);
+    opacity: 0.78;
+  }
+}
+
+.rb-halo-ring {
+  animation: rbHaloPulse 3.6s ease-in-out infinite;
+}
+
+.rb-spotlight-card {
+  position: relative;
+  border-top: 1px solid rgba(212, 180, 106, 0.35);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s ease,
+              border-color 0.22s ease;
+}
+
+.rb-spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    380px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(212, 180, 106, 0.16),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.26s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.rb-spotlight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -8px rgba(16, 28, 44, 0.14), 0 4px 12px -2px rgba(182, 154, 85, 0.18);
+}
+
+.rb-spotlight-card:hover::before {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn-new-client:hover::after,
   .btn-save-client:hover::after,
@@ -550,10 +671,15 @@ input[style*="background-color: transparent"]:focus {
   }
   .white-summary-card:hover,
   .client-card:hover,
-  .loan-card-container:hover {
+  .loan-card-container:hover,
+  .rb-spotlight-card:hover {
     transform: none !important;
   }
-  .cf-hamburger-pulse-ring {
+  .cf-hamburger-pulse-ring,
+  .rb-halo-ring {
+    animation: none !important;
+  }
+  .aureus-compartir-tab-panel {
     animation: none !important;
   }
 }

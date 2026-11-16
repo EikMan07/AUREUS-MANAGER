@@ -1,95 +1,132 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import PrivateRoutes from './PrivateRoutes.jsx';
-import DashboardPage from '../pages/Dashboard/DashboardPage.jsx';
-import LandingPage from '../pages/Landing/LandingPage.jsx';
-import LoginPage from '../pages/Login/LoginPage.jsx';
-import { HttpErrorPage } from '../pages/Errors/HttpErrorPage.jsx';
-import { NotFoundPage } from '../pages/NotFound/NotFoundPage.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
-import { AureusLogo } from '../components/Common/AureusLogo.jsx';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import LoginPage from '../pages/Login/LoginPage';
+import DashboardPage from '../pages/Dashboard/DashboardPage';
+import AdminDashboardPage from '../pages/Admin/AdminDashboardPage';
+import LandingPage from '../pages/Landing/LandingPage';
+import HttpErrorPage from '../pages/Errors/HttpErrorPage';
+import { useAuth } from '../context/AuthContext';
 
-function RootEntryRoute() {
-  const { autenticado, cargando } = useAuth();
-  const { isDark } = useTheme();
+/**
+ * Ruta Raíz Inteligente ("/"):
+ * - Primera visita de la pestaña de navegador: muestra la página informativa
+ *   de bienvenida tanto a visitantes nuevos como a usuarios con sesión guardada,
+ *   permitiendo leer la información o pulsar "Ir al panel" / "Iniciar sesión".
+ * - Si el usuario ya ingresó al panel durante esta sesión de pestaña,
+ *   permanece en su panel correspondiente (/admin para ADMINISTRADOR, /dashboard para COBRADOR).
+ */
+const RootEntryRoute = () => {
+  const { autenticado, cargando, usuario } = useAuth();
 
   if (cargando) {
-    return (
-      <div
-        style={{
-          minHeight: '100dvh',
-          width: '100%',
-          backgroundColor: isDark ? '#101C2C' : '#F5F3ED',
-          color: isDark ? '#F5F3ED' : '#252A31',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '14px',
-        }}
-      >
-        <AureusLogo size={42} />
-        <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: isDark ? '#CBD5E1' : '#4A5058' }}>
-          Verificando sesión...
-        </p>
-      </div>
-    );
+    return null;
   }
 
-  let hasEnteredApp = false;
+  let enteredAppThisTab = false;
   try {
-    hasEnteredApp = sessionStorage.getItem('aureus_entered_app') === 'true';
-  } catch {
-    hasEnteredApp = false;
+    enteredAppThisTab = sessionStorage.getItem('aureus_entered_app') === 'true';
+  } catch (_) {
+    enteredAppThisTab = false;
   }
 
-  return autenticado && hasEnteredApp ? <DashboardPage /> : <LandingPage />;
-}
-
-function DashboardEntryRoute() {
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('aureus_entered_app', 'true');
-    } catch {
-      // Ignorar errores de storage
+  if (autenticado && enteredAppThisTab) {
+    if (usuario?.rol === 'ADMINISTRADOR') {
+      return <Navigate to="/admin" replace />;
     }
-  }, []);
+    return <DashboardPage />;
+  }
+
+  return <LandingPage />;
+};
+
+/**
+ * Ruta Protegida del Panel de Prestamista ("/dashboard"):
+ * - Si el usuario es ADMINISTRADOR, redirige siempre a "/admin".
+ * - Registra que el usuario ya entró activamente al panel en esta pestaña.
+ */
+const DashboardEntryRoute = () => {
+  const { autenticado, cargando, usuario } = useAuth();
+  const location = useLocation();
+
+  if (cargando) {
+    return null;
+  }
+
+  if (!autenticado) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (usuario?.rol === 'ADMINISTRADOR') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  try {
+    sessionStorage.setItem('aureus_entered_app', 'true');
+  } catch (_) {
+    // Ignorar en modo privado estricto
+  }
 
   return <DashboardPage />;
-}
+};
 
-export function Routing() {
+/**
+ * Ruta Exclusiva del Administrador Único ("/admin"):
+ * - Si no está autenticado, redirige a "/login".
+ * - Si está autenticado pero su rol no es ADMINISTRADOR, presenta HttpErrorPage 403.
+ */
+const AdminEntryRoute = () => {
+  const { autenticado, cargando, usuario } = useAuth();
+  const location = useLocation();
+
+  if (cargando) {
+    return null;
+  }
+
+  if (!autenticado) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (usuario?.rol !== 'ADMINISTRADOR') {
+    return <HttpErrorPage code={403} />;
+  }
+
+  try {
+    sessionStorage.setItem('aureus_entered_app', 'true');
+  } catch (_) {
+    // Ignorar en modo privado estricto
+  }
+
+  return <AdminDashboardPage />;
+};
+
+function Routing() {
   return (
     <Router>
       <Routes>
-        {/* Acceso principal público o retorno al panel si ya está autenticado */}
+        {/* Entrada Principal: Bienvenida informativa al abrir la app */}
         <Route path="/" element={<RootEntryRoute />} />
 
-        {/* Página Web Informativa Ejecutiva de Aureus Manager */}
+        {/* Página informativa pública accesible en cualquier momento */}
         <Route path="/bienvenida" element={<LandingPage />} />
         <Route path="/informacion" element={<LandingPage />} />
 
-        {/* Pantalla ejecutiva de inicio de sesión y creación de cuenta */}
+        {/* Acceso a la Cuenta */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Rutas privadas estrictamente protegidas */}
-        <Route element={<PrivateRoutes />}>
-          <Route path="/dashboard" element={<DashboardEntryRoute />} />
-        </Route>
+        {/* Panel Exclusivo del Administrador Único */}
+        <Route path="/admin" element={<AdminEntryRoute />} />
 
-        {/* Pantallas ejecutivas dedicadas para errores HTTP 4xx */}
-        <Route path="/400" element={<HttpErrorPage code={400} />} />
-        <Route path="/error-400" element={<HttpErrorPage code={400} />} />
-        <Route path="/401" element={<HttpErrorPage code={401} />} />
-        <Route path="/error-401" element={<HttpErrorPage code={401} />} />
-        <Route path="/403" element={<HttpErrorPage code={403} />} />
-        <Route path="/error-403" element={<HttpErrorPage code={403} />} />
-        <Route path="/404" element={<NotFoundPage />} />
-        <Route path="/error-404" element={<NotFoundPage />} />
+        {/* Panel Principal Protegido de Prestamistas */}
+        <Route path="/dashboard" element={<DashboardEntryRoute />} />
 
-        {/* Captura comodín para cualquier ruta inexistente */}
-        <Route path="*" element={<NotFoundPage />} />
+        {/* Pantallas de Estado HTTP 401, 403, 404 y 500 */}
+        <Route path="/error/401" element={<HttpErrorPage code={401} />} />
+        <Route path="/error/403" element={<HttpErrorPage code={403} />} />
+        <Route path="/error/404" element={<HttpErrorPage code={404} />} />
+        <Route path="/error/500" element={<HttpErrorPage code={500} />} />
+
+        {/* Cualquier ruta inexistente presenta la pantalla formal 404 */}
+        <Route path="*" element={<HttpErrorPage code={404} />} />
       </Routes>
     </Router>
   );

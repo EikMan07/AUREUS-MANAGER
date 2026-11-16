@@ -1,13 +1,16 @@
 import React, { useId } from 'react';
+import { useTheme } from '../../context/ThemeContext.jsx';
 
 /**
  * Logotipo vectorial oficial de Aureus Manager:
- * Escudo hexagonal abierto dorado y letra "A" geométrica facetada 3D sobre fondo oscuro.
+ * Escudo hexagonal abierto dorado y letra "A" geométrica facetada 3D adaptable a Modo Claro y Modo Oscuro.
  *
  * @param {number} [size=40] - Tamaño cuadrado en píxeles
  */
 export function AureusLogo({ size = 40 }) {
   const uid = useId().replace(/:/g, '');
+  const themeCtx = useTheme();
+  const isDark = Boolean(themeCtx?.isDark);
   const bgId = `aureusBg-${uid}`;
   const shieldId = `aureusShield-${uid}`;
   const brightId = `aureusBright-${uid}`;
@@ -22,9 +25,14 @@ export function AureusLogo({ size = 40 }) {
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: radius,
-        background: 'linear-gradient(135deg, #1E2936 0%, #101823 100%)',
-        border: '1px solid rgba(198, 164, 86, 0.52)',
-        boxShadow: '0 4px 12px rgba(16, 24, 35, 0.24)',
+        background: isDark
+          ? 'linear-gradient(135deg, #1E2936 0%, #101823 100%)'
+          : '#F7F2E4',
+        backgroundColor: isDark ? '#101C2C' : '#F7F2E4',
+        border: isDark ? '1px solid rgba(198, 164, 86, 0.52)' : '1px solid #D5C295',
+        boxShadow: isDark
+          ? '0 4px 12px rgba(16, 24, 35, 0.24)'
+          : '0 4px 12px rgba(182, 154, 85, 0.16)',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',

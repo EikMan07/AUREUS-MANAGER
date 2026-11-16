@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Share2,
@@ -14,11 +15,14 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Clock,
-  RotateCcw
+  RotateCcw,
+  AtSign,
+  KeyRound,
+  Trash2
 } from 'lucide-react';
 import { dbService } from '../../services/db.js';
+import { useTheme } from '../../context/ThemeContext';
 import {
   formatColones,
   formatISODateToFullSpanish,
@@ -34,6 +38,12 @@ export function CompartirCobrosModal({
   onCobrosCompartidos,
   onShowAlert
 }) {
+  const { isDark } = useTheme();
+  const [personaToDelete, setPersonaToDelete] = useState(null);
+  const [isDeletingPersona, setIsDeletingPersona] = useState(false);
+  const [isDeleteAlertClosing, setIsDeleteAlertClosing] = useState(false);
+  const deleteAlertTimerRef = useRef(null);
+
   // Helper para alertar al usuario tolerando tanto objetos como argumentos posicionales
   const triggerAlert = useCallback((titleOrObj, message, buttonText = 'Entendido', iconType = 'alert') => {
     if (!onShowAlert) return;
@@ -195,13 +205,134 @@ export function CompartirCobrosModal({
     setPersonaSeleccionadaId((prevId) => (prevId === personaId ? null : personaId));
   };
 
-  // 6. Formulario para agregar nueva persona
+  // 6. Estado de animación fluida entrada / salida del modal
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const shouldRenderRef = useRef(isOpen);
+  const closeTimerRef = useRef(null);
+
+  useEffect(() => {
+    shouldRenderRef.current = shouldRender;
+  }, [shouldRender]);
+
+  useEffect(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    if (isOpen) {
+      setShouldRender(true);
+      shouldRenderRef.current = true;
+      setIsClosing(false);
+      setIsVisible(false);
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        if (raf2) cancelAnimationFrame(raf2);
+      };
+    }
+
+    if (shouldRenderRef.current) {
+      setIsClosing(true);
+      setIsVisible(false);
+      closeTimerRef.current = setTimeout(() => {
+        setShouldRender(false);
+        shouldRenderRef.current = false;
+        setIsClosing(false);
+        closeTimerRef.current = null;
+      }, 220);
+      return () => {
+        if (closeTimerRef.current) {
+          clearTimeout(closeTimerRef.current);
+          closeTimerRef.current = null;
+        }
+      };
+    }
+    return undefined;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (deleteAlertTimerRef.current) {
+        clearTimeout(deleteAlertTimerRef.current);
+        deleteAlertTimerRef.current = null;
+      }
+      setPersonaToDelete(null);
+      setIsDeletingPersona(false);
+      setIsDeleteAlertClosing(false);
+    }
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+      if (deleteAlertTimerRef.current) {
+        clearTimeout(deleteAlertTimerRef.current);
+      }
+    };
+  }, [isOpen]);
+
+  const triggerClose = useCallback(() => {
+    if (isClosing) return;
+    if (deleteAlertTimerRef.current) {
+      clearTimeout(deleteAlertTimerRef.current);
+      deleteAlertTimerRef.current = null;
+    }
+    setPersonaToDelete(null);
+    setIsDeletingPersona(false);
+    setIsDeleteAlertClosing(false);
+    setIsClosing(true);
+    setIsVisible(false);
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = setTimeout(() => {
+      setShouldRender(false);
+      shouldRenderRef.current = false;
+      setIsClosing(false);
+      closeTimerRef.current = null;
+      if (onClose) onClose();
+    }, 220);
+  }, [isClosing, onClose]);
+
+  // Abrir y cancelar modal de alerta antes de eliminar persona vinculada
+  const handleRequestEliminarPersona = useCallback((persona, event) => {
+    if (event) event.stopPropagation();
+    if (!persona) return;
+    if (deleteAlertTimerRef.current) {
+      clearTimeout(deleteAlertTimerRef.current);
+      deleteAlertTimerRef.current = null;
+    }
+    setIsDeleteAlertClosing(false);
+    setPersonaToDelete(persona);
+  }, []);
+
+  const handleCancelEliminarPersona = useCallback(() => {
+    if (isDeletingPersona) return;
+    setIsDeleteAlertClosing(true);
+    if (deleteAlertTimerRef.current) {
+      clearTimeout(deleteAlertTimerRef.current);
+    }
+    deleteAlertTimerRef.current = setTimeout(() => {
+      setPersonaToDelete(null);
+      setIsDeleteAlertClosing(false);
+      deleteAlertTimerRef.current = null;
+    }, 180);
+  }, [isDeletingPersona]);
+
+  // 7. Formulario para vincular nueva persona exclusivamente por usuario o código
   const [isAddingNewPerson, setIsAddingNewPerson] = useState(false);
-  const [newPersonNombre, setNewPersonNombre] = useState('');
-  const [newPersonUsuario, setNewPersonUsuario] = useState('');
+  const [newPersonUsername, setNewPersonUsername] = useState('');
+  const [newPersonCodigo, setNewPersonCodigo] = useState('');
   const [isSavingPerson, setIsSavingPerson] = useState(false);
 
-  // 7. Estado de envío o proceso
+  // 8. Estado de envío o proceso
   const [isSharing, setIsSharing] = useState(false);
   const [isUnsharing, setIsUnsharing] = useState(false);
 
@@ -231,7 +362,7 @@ export function CompartirCobrosModal({
   const loadPersonas = useCallback(async (queryStr = '') => {
     try {
       const res = await dbService.getPersonasCompartir(queryStr);
-      if (res && res.success) {
+      if (res && (res.success || res.ok)) {
         setMisPersonas(Array.isArray(res.misPersonas) ? res.misPersonas : []);
         setResultadosBusqueda(Array.isArray(res.resultadosBusqueda) ? res.resultadosBusqueda : []);
       }
@@ -258,7 +389,7 @@ export function CompartirCobrosModal({
       setIsSearching(true);
       try {
         const res = await dbService.getPersonasCompartir(searchTerm.trim());
-        if (res && res.success) {
+        if (res && (res.success || res.ok)) {
           setResultadosBusqueda(res.resultadosBusqueda || []);
         }
       } catch (e) {
@@ -270,18 +401,22 @@ export function CompartirCobrosModal({
     return () => clearTimeout(timer);
   }, [isOpen, searchTerm]);
 
-  // Manejo de tecla Escape para cerrar
+  // Manejo de tecla Escape para cerrar suavemente
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        if (personaToDelete) {
+          handleCancelEliminarPersona();
+        } else {
+          triggerClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, personaToDelete, handleCancelEliminarPersona, triggerClose]);
 
   // Alternar selección de un cobro específico
   const toggleSelectCobro = (id) => {
@@ -314,6 +449,23 @@ export function CompartirCobrosModal({
     return cobrosSeleccionados.reduce((sum, c) => sum + Number(c.monto_cuota || 0), 0);
   }, [cobrosSeleccionados]);
 
+  // Filtrado local de personas vinculadas: únicamente usuario o código de vinculación
+  const filteredPersonas = useMemo(() => {
+    const rawTerm = String(searchTerm || '').trim().replace(/^@+/, '').toLowerCase();
+    if (!rawTerm) return misPersonas;
+    const hexTerm = rawTerm.replace(/^cf-/i, '');
+    return misPersonas.filter((p) => {
+      const uname = String(p.usuario || p.username || '').trim().replace(/^@+/, '').toLowerCase();
+      const codigo = String(p.codigo_vinculacion || p.codigo_id || '').trim().toLowerCase();
+      const codigoHex = codigo.replace(/^cf-/i, '');
+      return (
+        uname.includes(rawTerm) ||
+        codigo.includes(rawTerm) ||
+        (hexTerm.length > 0 && codigoHex.includes(hexTerm))
+      );
+    });
+  }, [misPersonas, searchTerm]);
+
   // Persona actualmente seleccionada en el selector
   const personaSeleccionada = useMemo(() => {
     return (
@@ -329,32 +481,92 @@ export function CompartirCobrosModal({
     return cobrosDelDia.filter((c) => c.compartido_con_usuario_id === personaSeleccionadaId);
   }, [cobrosDelDia, personaSeleccionadaId]);
 
-  // Registrar nueva persona y vincularla
+  // Buscar cuenta existente por nombre de usuario o código de vinculación
   const handleGuardarNuevaPersona = async (e) => {
     e.preventDefault();
-    if (!newPersonNombre.trim() || !newPersonUsuario.trim()) {
-      triggerAlert('Datos incompletos', 'Indica el nombre completo y el nombre de usuario de la persona.', 'Entendido', 'alert');
+    const cleanUsername = newPersonUsername.trim().replace(/^@+/, '');
+    const cleanCodigo = newPersonCodigo.trim().toUpperCase();
+
+    if (!cleanUsername && !cleanCodigo) {
+      triggerAlert(
+        'Datos requeridos',
+        'Ingresa el nombre de usuario o el código de la persona para vincularla.',
+        'Entendido',
+        'alert'
+      );
       return;
     }
+
     setIsSavingPerson(true);
     try {
       const res = await dbService.agregarPersonaCompartir({
-        nombre_completo: newPersonNombre.trim(),
-        usuario: newPersonUsuario.trim()
+        username: cleanUsername || undefined,
+        codigo: cleanCodigo || undefined
       });
-      if (res && res.success && res.persona) {
+      if (res && (res.ok || res.success) && res.persona) {
         await loadPersonas('');
         setPersonaSeleccionadaId(res.persona.usuario_id);
         setIsAddingNewPerson(false);
-        setNewPersonNombre('');
-        setNewPersonUsuario('');
+        setNewPersonUsername('');
+        setNewPersonCodigo('');
+        if (res.yaVinculada) {
+          triggerAlert(
+            'Información',
+            res.userMessage || 'Esta persona ya se encuentra en tu lista.',
+            'Entendido',
+            'alert'
+          );
+        }
       } else {
-        triggerAlert('Atención', res.userMessage || 'No se pudo vincular a la persona.', 'Entendido', 'alert');
+        triggerAlert('Atención', res?.userMessage || 'No se pudo vincular a la persona.', 'Entendido', 'alert');
       }
     } catch (err) {
       triggerAlert('Atención', err.userMessage || 'No se pudo vincular a la persona.', 'Entendido', 'alert');
     } finally {
       setIsSavingPerson(false);
+    }
+  };
+
+  const handleConfirmEliminarPersona = async () => {
+    if (!personaToDelete || isDeletingPersona) return;
+    const targetId = personaToDelete.contacto_id || personaToDelete.id || personaToDelete.usuario_id;
+    const targetUsuarioId = personaToDelete.usuario_id || personaToDelete.id;
+    if (!targetId) return;
+
+    setIsDeletingPersona(true);
+    try {
+      const res = await dbService.eliminarPersonaCompartir(targetId);
+      if (res && (res.ok || res.success)) {
+        if (
+          personaSeleccionadaId === targetUsuarioId ||
+          personaSeleccionadaId === targetId
+        ) {
+          setPersonaSeleccionadaId(null);
+        }
+        setMisPersonas((prev) =>
+          prev.filter(
+            (item) =>
+              item.contacto_id !== targetId &&
+              item.usuario_id !== targetUsuarioId &&
+              item.id !== targetId
+          )
+        );
+        await loadPersonas('');
+        if (searchTerm.trim()) {
+          const searchRes = await dbService.getPersonasCompartir(searchTerm.trim());
+          if (searchRes && (searchRes.ok || searchRes.success)) {
+            setResultadosBusqueda(searchRes.resultadosBusqueda || []);
+          }
+        }
+        setPersonaToDelete(null);
+        setIsDeleteAlertClosing(false);
+      } else {
+        triggerAlert('Atención', res?.userMessage || 'No se pudo desvincular a la persona.', 'Entendido', 'alert');
+      }
+    } catch (err) {
+      triggerAlert('Atención', err.userMessage || 'No se pudo desvincular a la persona.', 'Entendido', 'alert');
+    } finally {
+      setIsDeletingPersona(false);
     }
   };
 
@@ -364,7 +576,7 @@ export function CompartirCobrosModal({
       const res = await dbService.agregarPersonaCompartir({
         contacto_usuario_id: usuarioId
       });
-      if (res && res.success) {
+      if (res && (res.ok || res.success)) {
         await loadPersonas('');
         setPersonaSeleccionadaId(usuarioId);
         setSearchTerm('');
@@ -405,7 +617,7 @@ export function CompartirCobrosModal({
           'Listo',
           'success'
         );
-        onClose();
+        triggerClose();
       } else {
         triggerAlert('Atención', res.userMessage || 'No se pudieron compartir los cobros.', 'Entendido', 'alert');
       }
@@ -456,41 +668,61 @@ export function CompartirCobrosModal({
     });
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
+
+  const canSubmitLink = Boolean(newPersonUsername.trim() || newPersonCodigo.trim());
 
   const fechaTextoActual = formatISODateToFullSpanish(fechaSeleccionada);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        backgroundColor: 'rgba(10, 15, 30, 0.72)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        padding: '16px 12px',
-        overflowY: 'auto',
-        fontFamily: 'inherit'
-      }}
-      onClick={onClose}
-    >
+    <>
+    {typeof document !== 'undefined' &&
+      createPortal(
       <div
+        className={`aureus-compartir-overlay${isClosing ? ' is-closing' : ''}`}
+        data-testid="compartir-modal-overlay"
+        data-state={isClosing ? 'closing' : isVisible ? 'open' : 'entering'}
         style={{
-          width: '100%',
-          maxWidth: '560px',
-          backgroundColor: 'var(--aureus-bg-surface)',
-          border: '1px solid var(--aureus-border-subtle)',
-          borderRadius: '20px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-          overflow: 'hidden',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100020,
+          backgroundColor: 'rgba(10, 15, 30, 0.72)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '92vh',
-          marginTop: 'env(safe-area-inset-top, 10px)'
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px 12px 88px 12px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
+          fontFamily: 'inherit',
+          opacity: isVisible && !isClosing ? 1 : 0,
+          pointerEvents: isClosing ? 'none' : 'auto'
+        }}
+        onClick={triggerClose}
+      >
+        <div
+          className={`aureus-compartir-card${isClosing ? ' is-closing' : ''}`}
+          data-testid="compartir-modal-card"
+          style={{
+            width: '100%',
+            maxWidth: '560px',
+            backgroundColor: 'var(--aureus-bg-surface)',
+            border: '1px solid var(--aureus-border-subtle)',
+            borderRadius: '20px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: 'calc(100dvh - 108px)',
+            margin: 'auto',
+            opacity: isVisible && !isClosing ? 1 : 0,
+          transform:
+            isVisible && !isClosing
+              ? 'scale(1) translateY(0)'
+              : isClosing
+              ? 'scale(0.95) translateY(10px)'
+              : 'scale(0.94) translateY(14px)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -502,6 +734,7 @@ export function CompartirCobrosModal({
             padding: '18px 20px',
             color: 'var(--aureus-text-primary)',
             position: 'relative',
+            flexShrink: 0,
             borderBottom: '1px solid var(--aureus-border-subtle)',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
           }}
@@ -557,7 +790,8 @@ export function CompartirCobrosModal({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={triggerClose}
+              data-testid="compartir-close-btn"
               style={{
                 width: '34px',
                 height: '34px',
@@ -569,7 +803,7 @@ export function CompartirCobrosModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'background-color 0.15s ease'
+                transition: 'background-color 0.15s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
               aria-label="Cerrar ventana"
             >
@@ -583,6 +817,7 @@ export function CompartirCobrosModal({
           style={{
             padding: '16px 20px',
             overflowY: 'auto',
+            scrollBehavior: 'smooth',
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
@@ -1064,7 +1299,7 @@ export function CompartirCobrosModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
               <Users size={15} />
@@ -1089,7 +1324,7 @@ export function CompartirCobrosModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
               <FileDown size={15} />
@@ -1101,7 +1336,7 @@ export function CompartirCobrosModal({
           {/* PESTAÑA 1: ENVIAR A PERSONA */}
           {/* ================================================================= */}
           {tabAccion === 'ENVIAR_PERSONA' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="aureus-compartir-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Barra superior de contactos: Buscador y Botón Agregar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div
@@ -1121,7 +1356,7 @@ export function CompartirCobrosModal({
                   <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--aureus-text-muted)' }} />
                   <input
                     type="text"
-                    placeholder="Buscar por nombre, usuario o código..."
+                    placeholder="Buscar por nombre de usuario o código..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{
@@ -1140,7 +1375,8 @@ export function CompartirCobrosModal({
 
                 <button
                   type="button"
-                  onClick={() => setIsAddingNewPerson(!isAddingNewPerson)}
+                  data-testid="compartir-toggle-add-person-btn"
+                  onClick={() => setIsAddingNewPerson((prev) => !prev)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1151,9 +1387,10 @@ export function CompartirCobrosModal({
                     color: isAddingNewPerson ? 'var(--aureus-text-primary)' : '#FFFFFF',
                     fontSize: '12px',
                     fontWeight: 800,
-                    border: isAddingNewPerson ? '1px solid var(--aureus-border-subtle)' : 'none',
+                    border: isAddingNewPerson ? '1px solid var(--aureus-border-subtle)' : '1px solid #B69A55',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                   }}
                 >
                   <UserPlus size={15} />
@@ -1161,90 +1398,189 @@ export function CompartirCobrosModal({
                 </button>
               </div>
 
-              {/* MINI FORMULARIO PARA AGREGAR NUEVA PERSONA */}
-              {isAddingNewPerson && (
+              {/* SUBPANEL DESPLEGABLE FLUIDO: VINCULAR PERSONA POR USUARIO O CÓDIGO */}
+              <div
+                className="aureus-compartir-collapsible"
+                data-testid="compartir-add-person-panel"
+                data-expanded={isAddingNewPerson ? 'true' : 'false'}
+                aria-hidden={!isAddingNewPerson}
+                style={{
+                  overflow: 'hidden',
+                  maxHeight: isAddingNewPerson ? '420px' : '0px',
+                  opacity: isAddingNewPerson ? 1 : 0,
+                  transform: isAddingNewPerson ? 'translateY(0)' : 'translateY(-6px)',
+                  marginBottom: isAddingNewPerson ? '0px' : '-12px',
+                  pointerEvents: isAddingNewPerson ? 'auto' : 'none',
+                  transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
+              >
                 <form
                   onSubmit={handleGuardarNuevaPersona}
                   style={{
                     backgroundColor: 'var(--aureus-bg-surface)',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    padding: '14px',
+                    borderRadius: '14px',
                     border: '1px solid var(--aureus-border-gold)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '10px'
                   }}
                 >
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--aureus-gold-text)', textTransform: 'uppercase' }}>
-                    Registrar y vincular nueva persona
-                  </span>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: 'var(--aureus-gold-text)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        display: 'block'
+                      }}
+                    >
+                      Vincular persona por usuario o código
+                    </span>
+                    <p
+                      style={{
+                        fontSize: '11.5px',
+                        color: 'var(--aureus-text-muted)',
+                        margin: '4px 0 0 0',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      Ingresa el nombre de usuario o el código único de la persona registrada para agregarla a tu lista.
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))',
+                      gap: '12px'
+                    }}
+                  >
                     <div>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-secondary)', display: 'block', marginBottom: '3px' }}>
-                        Nombre completo
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ej. Mario Solís Gómez"
-                        value={newPersonNombre}
-                        onChange={(e) => setNewPersonNombre(e.target.value)}
+                      <label
+                        htmlFor="compartir-link-username"
                         style={{
-                          width: '100%',
-                          padding: '7px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--aureus-border-subtle)',
-                          backgroundColor: 'var(--aureus-bg-elevated)',
-                          color: 'var(--aureus-text-primary)',
-                          fontSize: '12px',
-                          outline: 'none'
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--aureus-text-secondary)',
+                          display: 'block',
+                          marginBottom: '5px'
                         }}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--aureus-text-secondary)', display: 'block', marginBottom: '3px' }}>
+                      >
                         Nombre de usuario
                       </label>
-                      <input
-                        type="text"
-                        placeholder="Ej. mariosolis"
-                        value={newPersonUsuario}
-                        onChange={(e) => setNewPersonUsuario(e.target.value)}
+                      <div
+                        className="aureus-auth-field-wrapper"
                         style={{
-                          width: '100%',
-                          padding: '7px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--aureus-border-subtle)',
-                          backgroundColor: 'var(--aureus-bg-elevated)',
-                          color: 'var(--aureus-text-primary)',
-                          fontSize: '12px',
-                          outline: 'none'
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '0 10px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--aureus-border-subtle)'
                         }}
-                        required
-                      />
+                      >
+                        <AtSign size={16} color="var(--aureus-text-muted)" style={{ flexShrink: 0 }} />
+                        <input
+                          id="compartir-link-username"
+                          type="text"
+                          className="aureus-auth-input"
+                          placeholder="Ej. usuario_cobrador"
+                          value={newPersonUsername}
+                          onChange={(e) => setNewPersonUsername(e.target.value)}
+                          tabIndex={isAddingNewPerson ? 0 : -1}
+                          autoComplete="off"
+                          style={{
+                            width: '100%',
+                            fontSize: '12px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="compartir-link-codigo"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--aureus-text-secondary)',
+                          display: 'block',
+                          marginBottom: '5px'
+                        }}
+                      >
+                        Código de vinculación
+                      </label>
+                      <div
+                        className="aureus-auth-field-wrapper"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '0 10px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--aureus-border-subtle)'
+                        }}
+                      >
+                        <KeyRound size={16} color="var(--aureus-text-muted)" style={{ flexShrink: 0 }} />
+                        <input
+                          id="compartir-link-codigo"
+                          type="text"
+                          className="aureus-auth-input"
+                          placeholder="Ej. CF-8A4F29B1"
+                          value={newPersonCodigo}
+                          onChange={(e) => setNewPersonCodigo(e.target.value.toUpperCase())}
+                          tabIndex={isAddingNewPerson ? 0 : -1}
+                          autoComplete="off"
+                          style={{
+                            width: '100%',
+                            fontSize: '12px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em'
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                     <button
                       type="submit"
-                      disabled={isSavingPerson}
+                      data-testid="compartir-submit-link-btn"
+                      disabled={isSavingPerson || !canSubmitLink}
+                      tabIndex={isAddingNewPerson ? 0 : -1}
                       style={{
-                        padding: '7px 14px',
-                        backgroundColor: '#B69A55',
-                        color: '#FFFFFF',
-                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        backgroundColor: canSubmitLink ? '#B69A55' : 'var(--aureus-bg-elevated)',
+                        color: canSubmitLink ? '#101C2C' : 'var(--aureus-text-muted)',
+                        borderRadius: '10px',
                         fontSize: '12px',
-                        fontWeight: 800,
-                        border: 'none',
-                        cursor: 'pointer'
+                        fontWeight: 900,
+                        border: canSubmitLink ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
+                        cursor: isSavingPerson || !canSubmitLink ? 'not-allowed' : 'pointer',
+                        opacity: isSavingPerson ? 0.75 : 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                       }}
                     >
-                      {isSavingPerson ? 'Guardando...' : 'Guardar y vincular'}
+                      <UserPlus size={14} strokeWidth={2.5} />
+                      <span>{isSavingPerson ? 'Buscando...' : 'Buscar y vincular'}</span>
                     </button>
                   </div>
                 </form>
-              )}
+              </div>
 
               {/* LISTA DE RESULTADOS DE BÚSQUEDA */}
               {searchTerm.trim() && resultadosBusqueda.length > 0 && (
@@ -1257,11 +1593,12 @@ export function CompartirCobrosModal({
                   }}
                 >
                   <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', display: 'block', marginBottom: '6px' }}>
-                    Resultados de búsqueda
+                    {isSearching ? 'Buscando cuentas...' : 'Resultados de búsqueda'}
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
                     {resultadosBusqueda.map((res) => {
                       const isSelected = personaSeleccionadaId === res.usuario_id;
+                      const codigoDisplay = res.codigo_vinculacion || res.codigo_id;
                       return (
                         <div
                           key={res.usuario_id}
@@ -1275,7 +1612,7 @@ export function CompartirCobrosModal({
                             backgroundColor: isSelected ? 'var(--aureus-gold-light)' : 'var(--aureus-bg-elevated)',
                             border: isSelected ? '1.5px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
                             cursor: 'pointer',
-                            transition: 'all 0.15s ease'
+                            transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                           }}
                         >
                           <div>
@@ -1283,7 +1620,7 @@ export function CompartirCobrosModal({
                               {res.nombre_completo}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
-                              @{res.usuario} · {res.codigo_id}
+                              @{res.usuario} · {codigoDisplay}
                             </div>
                           </div>
                           {!res.ya_vinculado ? (
@@ -1301,7 +1638,8 @@ export function CompartirCobrosModal({
                                 border: '1px solid var(--aureus-border-gold)',
                                 fontSize: '11px',
                                 fontWeight: 700,
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                transition: 'all 0.18s ease'
                               }}
                             >
                               Vincular
@@ -1321,7 +1659,7 @@ export function CompartirCobrosModal({
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  transition: 'all 0.15s ease'
+                                  transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                                 }}
                               >
                                 {isSelected && <Check size={11} strokeWidth={3} color="#ffffff" />}
@@ -1348,25 +1686,33 @@ export function CompartirCobrosModal({
                   <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--aureus-text-muted)', textTransform: 'uppercase' }}>
                     Personas vinculadas para cobrar
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
-                    {misPersonas.length} en la lista
+                  <span data-testid="compartir-personas-count" style={{ fontSize: '11px', color: 'var(--aureus-text-muted)' }}>
+                    {searchTerm.trim()
+                      ? `${filteredPersonas.length} de ${misPersonas.length} en la lista`
+                      : `${misPersonas.length} en la lista`}
                   </span>
                 </div>
 
                 {misPersonas.length === 0 ? (
                   <div style={{ padding: '20px', textAlign: 'center', color: 'var(--aureus-text-muted)', fontSize: '12.5px' }}>
-                    Aún no has vinculado personas. Toca el botón <strong>Agregar persona</strong> para dar de alta a un cobrador o compañero.
+                    Aún no has vinculado personas. Toca el botón <strong>Agregar persona</strong> para vincular una cuenta por nombre de usuario o código.
+                  </div>
+                ) : filteredPersonas.length === 0 ? (
+                  <div style={{ padding: '18px', textAlign: 'center', color: 'var(--aureus-text-muted)', fontSize: '12.5px' }}>
+                    No se encontraron contactos vinculados que coincidan con ese usuario o código.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                    {misPersonas.map((p) => {
+                    {filteredPersonas.map((p) => {
                       const isSelected = personaSeleccionadaId === p.usuario_id;
                       const yaCompartidos = cobrosDelDia.filter((c) => c.compartido_con_usuario_id === p.usuario_id);
+                      const codigoDisplay = p.codigo_vinculacion || p.codigo_id;
 
                       return (
                         <div
                           key={p.contacto_id || p.usuario_id}
                           onClick={() => handleTogglePersona(p.usuario_id)}
+                          data-testid={`compartir-persona-card-${p.usuario}`}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1376,10 +1722,10 @@ export function CompartirCobrosModal({
                             backgroundColor: isSelected ? 'var(--aureus-gold-light)' : 'var(--aureus-bg-elevated)',
                             border: isSelected ? '1.5px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
                             cursor: 'pointer',
-                            transition: 'all 0.15s ease'
+                            transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                             <div
                               style={{
                                 width: '32px',
@@ -1392,24 +1738,34 @@ export function CompartirCobrosModal({
                                 justifyContent: 'center',
                                 fontSize: '12px',
                                 fontWeight: 800,
-                                transition: 'all 0.15s ease'
+                                flexShrink: 0,
+                                transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                               }}
                             >
                               {(p.nombre_completo || 'C').charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--aureus-text-primary)' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: '12.5px',
+                                  fontWeight: 800,
+                                  color: 'var(--aureus-text-primary)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
                                 {p.nombre_completo}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--aureus-text-muted)', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <span>@{p.usuario}</span>
                                 <span>·</span>
-                                <span style={{ fontWeight: 700, color: 'var(--aureus-gold-text)' }}>{p.codigo_id}</span>
+                                <span style={{ fontWeight: 700, color: 'var(--aureus-gold-text)' }}>{codigoDisplay}</span>
                               </div>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                             {yaCompartidos.length > 0 && (
                               <span
                                 style={{
@@ -1424,6 +1780,28 @@ export function CompartirCobrosModal({
                                 {yaCompartidos.length} cobros asignados
                               </span>
                             )}
+                            <button
+                              type="button"
+                              data-testid={`compartir-unlink-btn-${p.usuario}`}
+                              onClick={(e) => handleRequestEliminarPersona(p, e)}
+                              title="Desvincular persona"
+                              aria-label="Desvincular persona"
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--aureus-border-subtle)',
+                                backgroundColor: 'var(--aureus-bg-surface)',
+                                color: 'var(--aureus-text-muted)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                              }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
                             <div
                               style={{
                                 width: '20px',
@@ -1434,7 +1812,7 @@ export function CompartirCobrosModal({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                transition: 'all 0.15s ease'
+                                transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                               }}
                             >
                               {isSelected && <Check size={12} strokeWidth={3} color="#ffffff" />}
@@ -1533,7 +1911,7 @@ export function CompartirCobrosModal({
           {/* PESTAÑA 2: DESCARGAR ARCHIVO PDF */}
           {/* ================================================================= */}
           {tabAccion === 'DESCARGAR_PDF' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="aureus-compartir-tab-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div
                 style={{
                   backgroundColor: 'var(--aureus-bg-surface)',
@@ -1633,7 +2011,206 @@ export function CompartirCobrosModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
+  )}
+    {personaToDelete &&
+      typeof document !== 'undefined' &&
+      createPortal(
+        <div
+          data-testid="compartir-delete-alert-overlay"
+          onClick={handleCancelEliminarPersona}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100030,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            backgroundColor: 'rgba(10, 18, 30, 0.74)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            opacity: isDeleteAlertClosing ? 0 : 1,
+            transition: 'opacity 0.18s ease'
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="compartir-delete-alert-title"
+            data-testid="compartir-delete-alert-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '410px',
+              width: '100%',
+              padding: '26px 24px',
+              borderRadius: '22px',
+              backgroundColor: isDark ? '#162436' : '#FFFFFF',
+              border: isDark ? '1px solid rgba(240, 128, 122, 0.42)' : '1px solid #F5C6CB',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.42)',
+              textAlign: 'center',
+              transform: isDeleteAlertClosing ? 'scale(0.95) translateY(8px)' : 'scale(1) translateY(0)',
+              transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                margin: '0 auto 14px auto',
+                borderRadius: '50%',
+                backgroundColor: isDark ? 'rgba(240, 128, 122, 0.14)' : '#FCEEE9',
+                border: isDark ? '1px solid rgba(240, 128, 122, 0.4)' : '1px solid #F5C6CB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Trash2 size={25} color={isDark ? '#F0807A' : '#C65D58'} />
+            </div>
+
+            <h3
+              id="compartir-delete-alert-title"
+              style={{
+                fontSize: '18.5px',
+                fontWeight: 900,
+                color: 'var(--aureus-text-primary)',
+                margin: '0 0 8px 0'
+              }}
+            >
+              ¿Eliminar persona vinculada?
+            </h3>
+
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: '14px',
+                backgroundColor: isDark ? '#132032' : '#F8F6F0',
+                border: '1px solid var(--aureus-border-subtle)',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                textAlign: 'left'
+              }}
+            >
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: isDark ? '#D4B46A' : '#B69A55',
+                  color: '#101C2C',
+                  fontWeight: 900,
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                {(personaToDelete.nombre_completo || personaToDelete.usuario || personaToDelete.username || 'C')
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 800,
+                    color: 'var(--aureus-text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {personaToDelete.nombre_completo || personaToDelete.usuario || personaToDelete.username}
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: isDark ? '#D4B46A' : '#876B2D',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <span>@{personaToDelete.usuario || personaToDelete.username}</span>
+                  <span>·</span>
+                  <span>{personaToDelete.codigo_vinculacion || personaToDelete.codigo_id}</span>
+                </div>
+              </div>
+            </div>
+
+            <p
+              style={{
+                fontSize: '13.5px',
+                lineHeight: 1.55,
+                color: 'var(--aureus-text-secondary)',
+                margin: '0 0 22px 0'
+              }}
+            >
+              ¿Estás seguro de que deseas retirar a esta persona de tu lista para compartir cobros? Si la necesitas más adelante, podrás volver a agregarla con su usuario o código.
+            </p>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px'
+              }}
+            >
+              <button
+                type="button"
+                data-testid="compartir-delete-cancel-btn"
+                onClick={handleCancelEliminarPersona}
+                disabled={isDeletingPersona}
+                style={{
+                  height: '44px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  color: 'var(--aureus-text-primary)',
+                  fontWeight: 800,
+                  fontSize: '14px',
+                  cursor: isDeletingPersona ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingPersona ? 0.7 : 1
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                data-testid="compartir-delete-confirm-btn"
+                onClick={handleConfirmEliminarPersona}
+                disabled={isDeletingPersona}
+                style={{
+                  height: '44px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  backgroundColor: '#C65D58',
+                  color: '#FFFFFF',
+                  fontWeight: 900,
+                  fontSize: '14px',
+                  cursor: isDeletingPersona ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingPersona ? 0.8 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>{isDeletingPersona ? 'Eliminando...' : 'Sí, eliminar'}</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 

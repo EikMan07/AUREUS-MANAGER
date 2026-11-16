@@ -4,6 +4,21 @@ import { query } from '../config/db.js';
 import { firmarToken } from '../middlewares/authMiddleware.js';
 import { setSessionCookie, clearSessionCookie } from '../utils/cookies.js';
 import { generarTokenCsrf } from '../middlewares/csrf.js';
+import { redactarPII } from '../utils/piiRedactor.js';
+
+export const CONSENT_CURRENT_VERSION = 'v1.0-2026';
+
+let consentColumnsReady = false;
+async function ensureConsentColumns() {
+  if (consentColumnsReady) return;
+  await query(`
+    ALTER TABLE usuarios
+      ADD COLUMN IF NOT EXISTS consentimiento_aceptado boolean DEFAULT false,
+      ADD COLUMN IF NOT EXISTS consentimiento_version varchar(24) DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS consentimiento_aceptado_en timestamptz DEFAULT NULL;
+  `);
+  consentColumnsReady = true;
+}
 
 const LOGIN_RATE_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_RATE_MAX_ATTEMPTS = 10;
@@ -54,6 +69,9 @@ function formatUsuarioPublico(u) {
     foto_url: u.foto_url || null,
     creado_en: u.creado_en,
     ultimo_acceso: u.ultimo_acceso || null,
+    consentimiento_aceptado: Boolean(u.consentimiento_aceptado),
+    consentimiento_version: u.consentimiento_version || null,
+    consentimiento_aceptado_en: u.consentimiento_aceptado_en || null,
   };
 }
 
@@ -114,9 +132,12 @@ export const login = async (req, res) => {
       });
     }
 
+    await ensureConsentColumns();
+
     const { rows } = await query(
       `SELECT id, usuario, nombre_completo, correo, password_hash, rol, estado_cuenta,
-              codigo_vinculacion, foto_url, creado_en
+              codigo_vinculacion, foto_url, creado_en,
+              consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en
        FROM usuarios
        WHERE LOWER(correo) = LOWER($1) OR LOWER(usuario) = LOWER($1)
        LIMIT 1;`,
@@ -141,7 +162,7 @@ export const login = async (req, res) => {
         success: false,
         status: 403,
         error: 'Cuenta suspendida',
-        userMessage: 'Esta cuenta se encuentra suspendida temporalmente.',
+        userMessage: 'Tu cuenta se encuentra suspendida temporalmente por la administración.',
       });
     }
 
@@ -183,7 +204,8 @@ export const login = async (req, res) => {
            actualizado_en = now()
        WHERE id = $1
        RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
-                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
       [foundUser.id, codigoVinculacion]
     );
 
@@ -213,6 +235,8 @@ export const login = async (req, res) => {
 
 export const registro = async (req, res) => {
   try {
+    await ensureConsentColumns();
+
     const {
       nombre_completo,
       username,
@@ -220,6 +244,7 @@ export const registro = async (req, res) => {
       correo,
       password,
       cookiesAceptadas,
+      terminosAceptados,
     } = req.body || {};
 
     if (cookiesAceptadas !== true) {
@@ -318,6 +343,7 @@ export const registro = async (req, res) => {
 
     const passwordHash = await bcryptjs.hash(cleanPassword, 10);
     const codigoVinculacion = await generateUniqueLinkingCode();
+    const aceptaConsentimiento = terminosAceptados === true || cookiesAceptadas === true;
 
     const { rows: createdRows } = await query(
       `INSERT INTO usuarios (
@@ -330,11 +356,26 @@ export const registro = async (req, res) => {
          rol,
          estado_cuenta,
          codigo_vinculacion,
-         ultimo_acceso
-       ) VALUES ($1, $2, $3, true, now(), $4, 'ADMINISTRADOR', 'ACTIVA', $5, now())
+         ultimo_acceso,
+         consentimiento_aceptado,
+         consentimiento_version,
+         consentimiento_aceptado_en
+       ) VALUES (
+         $1, $2, $3, true, now(), $4, 'COBRADOR', 'ACTIVA', $5, now(),
+         $6, CASE WHEN $6 THEN $7 ELSE NULL END, CASE WHEN $6 THEN now() ELSE NULL END
+       )
        RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
-                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
-      [cleanUsername, cleanNombre, cleanCorreo, passwordHash, codigoVinculacion]
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
+      [
+        cleanUsername,
+        cleanNombre,
+        cleanCorreo,
+        passwordHash,
+        codigoVinculacion,
+        aceptaConsentimiento,
+        CONSENT_CURRENT_VERSION,
+      ]
     );
 
     const newUser = createdRows[0];
@@ -374,9 +415,12 @@ export const yo = async (req, res) => {
       });
     }
 
+    await ensureConsentColumns();
+
     const { rows } = await query(
       `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,
-              codigo_vinculacion, foto_url, creado_en, ultimo_acceso
+              codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+              consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en
        FROM usuarios
        WHERE id = $1
        LIMIT 1;`,
@@ -584,7 +628,8 @@ export const actualizarPerfil = async (req, res) => {
            actualizado_en = now()
        WHERE id = $1
        RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
-                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso;`,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
       [authUserId, cleanNombre, cleanUsername, cleanCorreo, nextFotoUrl]
     );
 
@@ -694,13 +739,175 @@ export const cambiarPassword = async (req, res) => {
       userMessage: 'Tu contraseña se actualizó correctamente.',
     });
   } catch (error) {
-    console.error('[Auth] Error cambiando contraseña:', error);
+    console.error(redactarPII(`[Auth] Error cambiando contraseña: ${error?.message || error}`));
     return res.status(500).json({
       ok: false,
       success: false,
       status: 500,
       error: 'Error al cambiar contraseña',
       userMessage: 'No fue posible actualizar tu contraseña en este momento.',
+    });
+  }
+};
+
+export const aceptarConsentimientoLegal = async (req, res) => {
+  try {
+    const authUserId = req.user?.id || req.usuario?.id;
+    if (!authUserId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'No autorizado',
+        userMessage: 'Debes iniciar sesión para registrar tu consentimiento.',
+      });
+    }
+
+    await ensureConsentColumns();
+
+    const rawVersion = String(req.body?.version || CONSENT_CURRENT_VERSION).trim();
+    const version = rawVersion && rawVersion.length <= 24 ? rawVersion : CONSENT_CURRENT_VERSION;
+
+    const { rows } = await query(
+      `UPDATE usuarios
+       SET consentimiento_aceptado = true,
+           consentimiento_version = $2,
+           consentimiento_aceptado_en = now(),
+           actualizado_en = now()
+       WHERE id = $1
+       RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
+                 codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
+      [authUserId, version]
+    );
+
+    const updatedUser = rows[0];
+    if (!updatedUser) {
+      return res.status(404).json({
+        ok: false,
+        success: false,
+        status: 404,
+        error: 'Usuario no encontrado',
+        userMessage: 'No encontramos la cuenta solicitada.',
+      });
+    }
+
+    try {
+      await query(
+        `INSERT INTO bitacora_actividad (usuario_id, accion, entidad, entidad_id, detalle)
+         VALUES ($1, 'CONSENTIMIENTO_LEGAL_ACEPTADO', 'usuarios', $1, $2);`,
+        [authUserId, JSON.stringify({ version, marco: 'Ley 8968 CR' })]
+      );
+    } catch {
+      // Continuar sin abortar si bitacora_actividad tiene esquema distinto
+    }
+
+    return res.status(200).json({
+      ok: true,
+      success: true,
+      userMessage: 'Consentimiento legal registrado correctamente.',
+      usuario: formatUsuarioPublico(updatedUser),
+    });
+  } catch (error) {
+    console.error(redactarPII(`[Auth] Error registrando consentimiento: ${error?.message || error}`));
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      status: 500,
+      error: 'Error al registrar consentimiento',
+      userMessage: 'No fue posible registrar tu consentimiento en este momento.',
+    });
+  }
+};
+
+export const exportarMisDatosPersonales = async (req, res) => {
+  try {
+    const authUserId = req.user?.id || req.usuario?.id;
+    if (!authUserId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'No autorizado',
+        userMessage: 'Debes iniciar sesión para exportar tus datos.',
+      });
+    }
+
+    await ensureConsentColumns();
+
+    const { rows: userRows } = await query(
+      `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,
+              codigo_vinculacion, creado_en, ultimo_acceso,
+              consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en
+       FROM usuarios
+       WHERE id = $1
+       LIMIT 1;`,
+      [authUserId]
+    );
+
+    const u = userRows[0];
+    if (!u) {
+      return res.status(404).json({
+        ok: false,
+        success: false,
+        status: 404,
+        error: 'Usuario no encontrado',
+        userMessage: 'No encontramos la cuenta solicitada.',
+      });
+    }
+
+    const { rows: countRows } = await query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM clientes WHERE cobrador_id = $1::uuid) AS clientes_activos,
+         (SELECT COUNT(*)::int FROM prestamos WHERE cobrador_id = $1::uuid) AS prestamos_vigentes,
+         (
+           (SELECT COUNT(*)::int FROM clientes_baneados WHERE cobrador_id = $1::uuid AND fecha_borrado_definitivo > now()) +
+           (SELECT COUNT(*)::int FROM prestamos_baneados WHERE cobrador_id = $1::uuid AND fecha_borrado_definitivo > now())
+         ) AS registros_en_papelera;`,
+      [authUserId]
+    );
+
+    const stats = countRows[0] || {
+      clientes_activos: 0,
+      prestamos_vigentes: 0,
+      registros_en_papelera: 0,
+    };
+
+    const titular = {
+      id: u.id,
+      username: u.usuario,
+      nombre_completo: u.nombre_completo,
+      correo: u.correo,
+      rol: u.rol,
+      estado: u.estado_cuenta,
+      codigo_vinculacion:
+        u.codigo_vinculacion || `CF-${String(u.id).slice(0, 8).toUpperCase()}`,
+      creado_en: u.creado_en,
+      ultimo_acceso: u.ultimo_acceso || null,
+      consentimiento_aceptado: Boolean(u.consentimiento_aceptado),
+      consentimiento_version: u.consentimiento_version || null,
+      consentimiento_aceptado_en: u.consentimiento_aceptado_en || null,
+    };
+
+    return res.status(200).json({
+      ok: true,
+      exportado_en: new Date().toISOString(),
+      marco_legal: 'Ley 8968 de Costa Rica — Derechos ARCO de Acceso y Portabilidad',
+      titular,
+      resumen_operativo: {
+        clientes_activos: Number(stats.clientes_activos || 0),
+        prestamos_vigentes: Number(stats.prestamos_vigentes || 0),
+        registros_en_papelera: Number(stats.registros_en_papelera || 0),
+      },
+    });
+  } catch (error) {
+    console.error(redactarPII(`[Auth] Error exportando datos ARCO: ${error?.message || error}`));
+    return res.status(500).json({
+      ok: false,
+      success: false,
+      status: 500,
+      error: 'Error al exportar datos',
+      userMessage: 'No fue posible preparar el archivo con tus datos en este momento.',
     });
   }
 };
@@ -713,4 +920,6 @@ export default {
   logout,
   actualizarPerfil,
   cambiarPassword,
+  aceptarConsentimientoLegal,
+  exportarMisDatosPersonales,
 };

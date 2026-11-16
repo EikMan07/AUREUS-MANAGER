@@ -472,9 +472,17 @@ export function NuevoRegistroModal({
                 color: 'var(--aureus-text-secondary)',
                 lineHeight: 1.4,
                 fontFamily: 'inherit',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '5px',
               }}
             >
-              Esta persona quedará marcada con impedimento y se suspenderán sus préstamos activos.
+              <span>
+                Esta persona quedará marcada con impedimento y se suspenderán sus préstamos activos.
+              </span>
+              <span style={{ fontSize: '11.5px', color: 'var(--aureus-text-muted)' }}>
+                Registro de carácter estrictamente privado e interno para tu control de riesgo. Al registrar a una persona, confirmas contar con respaldo real del incumplimiento.
+              </span>
             </div>
 
             {/* Botones de acción */}

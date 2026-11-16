@@ -19,6 +19,7 @@ AUREUS-MANAGER/
 │       ├── pages/
 │       │   ├── Landing/          # Portal web informativo ejecutivo (LandingPage.jsx)
 │       │   ├── Login/            # Acceso, registro de cuenta y consentimiento de cookies (LoginPage.jsx)
+│       │   ├── Admin/            # Panel Exclusivo del Administrador Único (AdminDashboardPage.jsx)
 │       │   ├── Dashboard/        # Panel operativo principal de 6 módulos (DashboardPage.jsx)
 │       │   └── Errors/           # Pantallas ejecutivas para errores HTTP 4xx (HttpErrorPage.jsx)
 │       ├── routes/               # Enrutamiento completo y guardia de rutas privadas (PrivateRoutes.jsx)
@@ -149,6 +150,9 @@ Todos los endpoints operativos están protegidos mediante `authMiddleware.js` (c
 | :--- | :--- | :--- |
 | `GET` | `/api/clientes` | Directorio de clientes activos ordenados cronológicamente. |
 | `GET` | `/api/clientes/historial-archivo/consultar` | Detector de antecedentes en archivo histórico permanente de eliminados definitivos. |
+| `GET` | `/api/clientes/historial-archivo/lista` | Listado completo de antecedentes archivados y sus préstamos no finiquitados. |
+| `DELETE` | `/api/clientes/historial-archivo/:archivoId` | Eliminación permanente de antecedente completo y sus préstamos archivados. |
+| `DELETE` | `/api/clientes/historial-archivo/prestamo/:prestamoArchivoId` | Eliminación individual de préstamo archivado con recálculo automático del antecedente. |
 | `POST` | `/api/clientes` | Registro idempotente de clientes nacionales y extranjeros con soporte de teléfono secundario e internacional. |
 | `PUT` | `/api/clientes/:id` | Actualización de datos del cliente con control de versión. |
 | `POST` | `/api/clientes/:id/papelera` | Envío a papelera por 30 días con respaldo transaccional de préstamos. |
@@ -197,6 +201,20 @@ Todos los endpoints operativos están protegidos mediante `authMiddleware.js` (c
 | :--- | :--- | :--- |
 | `GET` | `/api/notificaciones` | Bandejas `Por revisar` y `Revisadas` con persistencia en PostgreSQL. |
 | `POST` | `/api/notificaciones/marcar-vista` | Marcado persistente de alertas revisadas por el usuario autenticado. |
+
+### Consola Exclusiva del Administrador Único (`/api/admin`)
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/admin/resumen` | Métricas globales agregadas de plataforma sin acceso a datos privados de deudores. |
+| `GET` | `/api/admin/prestamistas` | Directorio administrativo de cuentas con rol `COBRADOR` y conteos operativos. |
+| `POST` | `/api/admin/prestamistas` | Alta de nueva cuenta de prestamista verificada con `bcrypt`. |
+| `PUT` | `/api/admin/prestamistas/:id` | Actualización de datos de cuenta de prestamista. |
+| `PATCH` | `/api/admin/prestamistas/:id/estado` | Suspensión temporal (`SUSPENDIDA`) o reactivación (`ACTIVA`) de prestamista. |
+| `POST` | `/api/admin/prestamistas/:id/password` | Restablecimiento administrativo de contraseña (mínimo 8 caracteres o credencial temporal). |
+| `DELETE` | `/api/admin/prestamistas/:id` | Retiro definitivo de cuenta de prestamista y limpieza transaccional asociada. |
+| `GET` | `/api/admin/depuracion/antecedentes` | Resumen agregado de antecedentes archivados y papeleras por prestamista. |
+| `DELETE` | `/api/admin/depuracion/antecedentes/:targetId` | Purga administrativa de antecedentes, papelera o ambos para un prestamista. |
+| `GET` | `/api/admin/auditoria` | Consulta de bitácora inmutable con redacción automática de PII conforme a la Ley N.° 8968. |
 
 ---
 

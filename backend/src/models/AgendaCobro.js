@@ -6,6 +6,9 @@ export default (sequelize, DataTypes) => {
       AgendaCobro.belongsTo(models.Prestamo, { foreignKey: 'prestamo_id', as: 'prestamo' });
       AgendaCobro.belongsTo(models.Cliente, { foreignKey: 'cliente_id', as: 'cliente' });
       AgendaCobro.belongsTo(models.Usuario, { foreignKey: 'cobrador_id', as: 'cobrador' });
+      AgendaCobro.belongsTo(models.Usuario, { foreignKey: 'compartido_con_usuario_id', as: 'compartidoConUsuario' });
+      AgendaCobro.belongsTo(models.Usuario, { foreignKey: 'compartido_por_usuario_id', as: 'compartidoPorUsuario' });
+      AgendaCobro.belongsTo(models.Usuario, { foreignKey: 'gestionado_por_usuario_id', as: 'gestionadoPorUsuario' });
       AgendaCobro.hasMany(models.PagoPrestamo, { foreignKey: 'agenda_cobro_id', as: 'pagos' });
     }
   }
@@ -34,6 +37,12 @@ export default (sequelize, DataTypes) => {
       },
       fecha_hora_registro_pago: { type: DataTypes.DATE, allowNull: true },
       fecha_proximo_cobro: { type: DataTypes.DATEONLY, allowNull: true },
+      compartido_con_usuario_id: { type: DataTypes.UUID, allowNull: true },
+      compartido_por_usuario_id: { type: DataTypes.UUID, allowNull: true },
+      compartido_en: { type: DataTypes.DATE, allowNull: true },
+      gestionado_por_usuario_id: { type: DataTypes.UUID, allowNull: true },
+      gestionado_accion: { type: DataTypes.STRING(30), allowNull: true },
+      gestionado_en: { type: DataTypes.DATE, allowNull: true },
       version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     },
     { sequelize, modelName: 'AgendaCobro', tableName: 'agenda_cobros', timestamps: false }

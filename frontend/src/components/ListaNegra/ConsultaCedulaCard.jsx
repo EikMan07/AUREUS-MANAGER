@@ -11,12 +11,15 @@ import {
 } from 'lucide-react';
 import { cleanCedulaDigits, formatCedulaCR, formatPhone } from '../../utils/formatters.js';
 import { dbService } from '../../services/db.js';
+import { useTheme } from '../../context/ThemeContext.jsx';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture.jsx';
 
 export function ConsultaCedulaCard({
   onSacarPersona,
   onOpenNuevoRegistro,
   onShowAlert
 }) {
+  const { isDark } = useTheme();
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [resultado, setResultado] = useState(null);
@@ -113,7 +116,11 @@ export function ConsultaCedulaCard({
 
   return (
     <div
+      className="rb-spotlight-card"
+      onMouseMove={handleSpotlightMouseMove}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         backgroundColor: 'var(--aureus-bg-surface)',
         border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
@@ -126,9 +133,11 @@ export function ConsultaCedulaCard({
         gap: '14px',
       }}
     >
+      <ImperialCornerAccents isDark={isDark} />
       {/* Cabecera de la Tarjeta */}
       <div>
         <h3
+          className="aureus-imperial-title"
           style={{
             fontSize: '16px',
             fontWeight: 800,

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export function SegmentedTabs({
   activeTab,
@@ -12,6 +13,7 @@ export function SegmentedTabs({
   searchQuery = '',
   onSearchChange
 }) {
+  const { isDark } = useTheme();
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -110,21 +112,33 @@ export function SegmentedTabs({
           role="tab"
           aria-selected={activeTab === 'pendientes'}
           onClick={() => onTabChange('pendientes')}
-          className={`tab-btn ${activeTab === 'pendientes' ? 'active' : ''}`}
+          className={`tab-btn segmented-tab-btn ${activeTab === 'pendientes' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeTab === 'pendientes' ? '#B69A55' : 'transparent',
-            color: activeTab === 'pendientes' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeTab === 'pendientes' ? 800 : 700,
-            boxShadow: activeTab === 'pendientes' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeTab === 'pendientes'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeTab === 'pendientes' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeTab === 'pendientes' ? 900 : 700,
+            boxShadow: activeTab === 'pendientes' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
           }}
         >
           <span className="tab-btn-label">Pendientes</span>
           <span
-            className="tab-counter-badge green"
-            style={{
-              backgroundColor: activeTab === 'pendientes' ? 'rgba(255, 255, 255, 0.24)' : '#397D67',
-              color: '#FFFFFF',
-            }}
+            className={`tab-counter-badge ${activeTab === 'pendientes' ? '' : 'green'}`}
+            style={
+              activeTab === 'pendientes'
+                ? {
+                    backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                    border: '1px solid rgba(16, 28, 44, 0.32)',
+                    color: '#101C2C',
+                    fontWeight: 900,
+                  }
+                : {
+                    backgroundColor: '#397D67',
+                    color: '#FFFFFF',
+                  }
+            }
           >
             {pendingCount}
           </span>
@@ -136,12 +150,15 @@ export function SegmentedTabs({
           role="tab"
           aria-selected={activeTab === 'registrados'}
           onClick={() => onTabChange('registrados')}
-          className={`tab-btn ${activeTab === 'registrados' ? 'active' : ''}`}
+          className={`tab-btn segmented-tab-btn ${activeTab === 'registrados' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeTab === 'registrados' ? '#B69A55' : 'transparent',
-            color: activeTab === 'registrados' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeTab === 'registrados' ? 800 : 700,
-            boxShadow: activeTab === 'registrados' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeTab === 'registrados'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeTab === 'registrados' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeTab === 'registrados' ? 900 : 700,
+            boxShadow: activeTab === 'registrados' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
           }}
         >
           <span className="tab-btn-label">Registrados</span>
@@ -153,22 +170,34 @@ export function SegmentedTabs({
           role="tab"
           aria-selected={activeTab === 'atrasados'}
           onClick={() => onTabChange('atrasados')}
-          className={`tab-btn ${activeTab === 'atrasados' ? 'active' : ''}`}
+          className={`tab-btn segmented-tab-btn ${activeTab === 'atrasados' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeTab === 'atrasados' ? '#B69A55' : 'transparent',
-            color: activeTab === 'atrasados' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeTab === 'atrasados' ? 800 : 700,
-            boxShadow: activeTab === 'atrasados' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeTab === 'atrasados'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeTab === 'atrasados' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeTab === 'atrasados' ? 900 : 700,
+            boxShadow: activeTab === 'atrasados' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
           }}
         >
           <span className="tab-btn-label">Atrasados</span>
           {atrasadosCount > 0 && (
             <span
-              className="tab-counter-badge red"
-              style={{
-                backgroundColor: '#C65D58',
-                color: '#FFFFFF',
-              }}
+              className={`tab-counter-badge ${activeTab === 'atrasados' ? '' : 'red'}`}
+              style={
+                activeTab === 'atrasados'
+                  ? {
+                      backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                      border: '1px solid rgba(16, 28, 44, 0.32)',
+                      color: '#101C2C',
+                      fontWeight: 900,
+                    }
+                  : {
+                      backgroundColor: '#C65D58',
+                      color: '#FFFFFF',
+                    }
+              }
             >
               {atrasadosCount}
             </span>

@@ -113,17 +113,20 @@ export async function getResumenMetricas(req, res) {
       WHERE cobrador_id = $1 AND estado = 'REGISTRADO';
     `;
 
-    // 3. Total Prestado y Préstamos Vigentes
+    // 3. Total Prestado y Préstamos Vigentes (definición unificada: cliente ACTIVO, saldo > 0, periodos_pendientes > 0)
     const sqlPrestamosVigentes = `
       SELECT
-        COALESCE(SUM(monto_prestado), 0)::numeric AS total_prestado,
-        COUNT(id)::int AS prestamos_vigentes_count,
-        COALESCE(SUM(monto_total_financiar - monto_prestado), 0)::numeric AS ganancia_proyectada,
-        COALESCE(SUM(saldo_por_pagar), 0)::numeric AS saldo_por_cobrar,
-        COUNT(CASE WHEN periodos_atrasados_acumulados > 0 OR estado = 'ATRASADO' THEN 1 END)::int AS prestamos_con_atraso
-      FROM prestamos
-      WHERE cobrador_id = $1
-        AND estado IN ('ACTIVO', 'ATRASADO', 'ARREGLO_PAGO', 'RENOVADO');
+        COALESCE(SUM(p.monto_prestado), 0)::numeric AS total_prestado,
+        COUNT(p.id)::int AS prestamos_vigentes_count,
+        COALESCE(SUM(p.monto_total_financiar - p.monto_prestado), 0)::numeric AS ganancia_proyectada,
+        COALESCE(SUM(p.saldo_por_pagar), 0)::numeric AS saldo_por_cobrar,
+        COUNT(CASE WHEN p.periodos_atrasados_acumulados > 0 OR p.estado = 'ATRASADO'::public.estado_prestamo THEN 1 END)::int AS prestamos_con_atraso
+      FROM prestamos p
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE p.cobrador_id = $1::uuid
+        AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0;
     `;
 
     // 4. Moratorias acumuladas cobradas
@@ -140,8 +143,9 @@ export async function getResumenMetricas(req, res) {
         COUNT(CASE WHEN a.estado = 'REGISTRADO' THEN 1 END)::int AS cobradas,
         COUNT(a.id)::int AS evaluadas
       FROM agenda_cobros a
-      JOIN prestamos p ON a.prestamo_id = p.id
-      WHERE a.cobrador_id = $1
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE a.cobrador_id = $1::uuid
         AND (a.estado IN ('REGISTRADO', 'NO_PAGO') OR a.fecha_cobro_actual <= $2::date)
       GROUP BY p.modalidad;
     `;
@@ -152,10 +156,16 @@ export async function getResumenMetricas(req, res) {
         COALESCE(SUM(p.saldo_por_pagar), 0)::numeric AS capital_arreglos,
         COUNT(DISTINCT p.id)::int AS arreglos_count
       FROM prestamos p
-      WHERE p.cobrador_id = $1
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE p.cobrador_id = $1::uuid
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
         AND (
-          p.estado = 'ARREGLO_PAGO'
-          OR EXISTS (SELECT 1 FROM arreglos_pago ap WHERE ap.prestamo_id = p.id AND ap.activo = true)
+          p.estado = 'ARREGLO_PAGO'::public.estado_prestamo
+          OR (
+            p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+            AND EXISTS (SELECT 1 FROM arreglos_pago ap WHERE ap.prestamo_id = p.id AND ap.activo = true)
+          )
         );
     `;
 
@@ -170,9 +180,12 @@ export async function getResumenMetricas(req, res) {
           p.periodos_atrasados_acumulados
         FROM clientes c
         JOIN prestamos p ON p.cliente_id = c.id
-        WHERE c.cobrador_id = $1
-          AND c.estado = 'ACTIVO'
-          AND p.estado IN ('ACTIVO', 'ATRASADO', 'ARREGLO_PAGO', 'RENOVADO')
+        WHERE c.cobrador_id = $1::uuid
+          AND c.estado = 'ACTIVO'::public.estado_cliente
+          AND p.cobrador_id = $1::uuid
+          AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+          AND COALESCE(p.saldo_por_pagar, 0) > 0
+          AND COALESCE(p.periodos_pendientes, 0) > 0
       ),
       clientes_clasificados AS (
         SELECT 

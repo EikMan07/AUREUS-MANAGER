@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, RotateCcw, Send, Loader2, MapPin } from 'lucide-react';
 import SenecaBalanceIcon from '../Common/SenecaBalanceIcon.jsx';
+import { ImperialCornerAccents } from '../Common/ClassicalAppArchitecture.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { consultarSeneca, obtenerResumenSeneca } from '../../services/db.js';
 import { sanitizeUserFacingMessage } from '../../services/apiClient.js';
@@ -51,6 +53,7 @@ function normalizeQuestionKey(value) {
 }
 
 export function SenecaAssistantModal({ isOpen, onClose }) {
+  // Todos los Hooks declarados al inicio antes de cualquier retorno condicional
   const { isDark } = useTheme();
   const [messages, setMessages] = useState([]);
   const [askedQuestions, setAskedQuestions] = useState([]);
@@ -59,8 +62,84 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [quickSummary, setQuickSummary] = useState(null);
 
+  const [windowPos, setWindowPos] = useState({ x: null, y: null });
+  const [isDraggingChat, setIsDraggingChat] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 640
+  );
+
+  const chatWindowRef = useRef(null);
+  const dragOffsetRef = useRef({ offsetX: 0, offsetY: 0 });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  const clampPosition = useCallback((x, y) => {
+    if (typeof window === 'undefined') return { x, y };
+    const rect = chatWindowRef.current
+      ? chatWindowRef.current.getBoundingClientRect()
+      : { width: window.innerWidth < 640 ? window.innerWidth - 20 : 410, height: 520 };
+    const minX = 8;
+    const maxX = Math.max(8, window.innerWidth - rect.width - 8);
+    const minY = 8;
+    const maxY = Math.max(8, window.innerHeight - rect.height - 8);
+    return {
+      x: Math.min(Math.max(x, minX), maxX),
+      y: Math.min(Math.max(y, minY), maxY),
+    };
+  }, []);
+
+  const handleHeaderPointerDown = useCallback((e) => {
+    if (e.target && typeof e.target.closest === 'function' && e.target.closest('button')) {
+      return;
+    }
+    if (!chatWindowRef.current) return;
+    const rect = chatWindowRef.current.getBoundingClientRect();
+    dragOffsetRef.current = {
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+    };
+    setWindowPos({ x: rect.left, y: rect.top });
+    setIsDraggingChat(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDraggingChat) return undefined;
+
+    const handlePointerMove = (e) => {
+      const nextX = e.clientX - dragOffsetRef.current.offsetX;
+      const nextY = e.clientY - dragOffsetRef.current.offsetY;
+      const { x: clampedX, y: clampedY } = clampPosition(nextX, nextY);
+      setWindowPos({ x: clampedX, y: clampedY });
+    };
+
+    const handlePointerUp = () => {
+      setIsDraggingChat(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [isDraggingChat, clampPosition]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleResize = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobileViewport(mobile);
+      setWindowPos((prev) => {
+        if (prev.x === null || prev.y === null) return prev;
+        return clampPosition(prev.x, prev.y);
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [clampPosition]);
 
   const askedSet = useMemo(() => new Set(askedQuestions), [askedQuestions]);
 
@@ -192,6 +271,7 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
   }, []);
 
   if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
   const surfaceBg = isDark ? '#162436' : '#FFFFFF';
   const appBg = isDark ? '#101C2C' : '#F5F3ED';
@@ -204,51 +284,88 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
   const secondaryText = isDark ? '#CBD5E1' : '#4A5058';
   const mutedText = isDark ? '#94A3B8' : '#6E757F';
 
-  return (
+  const hasCustomPos = windowPos.x !== null && windowPos.y !== null;
+
+  const positionStyle = hasCustomPos
+    ? {
+        top: `${windowPos.y}px`,
+        left: `${windowPos.x}px`,
+        right: 'auto',
+      }
+    : isMobileViewport
+      ? {
+          top: '14px',
+          left: '10px',
+          right: 'auto',
+        }
+      : {
+          top: '78px',
+          right: '22px',
+          left: 'auto',
+        };
+
+  return createPortal(
     <div
+      ref={chatWindowRef}
       role="dialog"
-      aria-modal="true"
+      aria-modal="false"
       aria-label="Séneca asesor informativo"
-      onClick={onClose}
+      data-testid="seneca-floating-window"
+      onClick={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        backgroundColor: isDark ? 'rgba(6, 11, 19, 0.72)' : 'rgba(16, 28, 44, 0.48)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        padding: '12px',
-        boxSizing: 'border-box',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          height: 'min(760px, calc(100dvh - 24px))',
-          maxHeight: 'calc(100dvh - 24px)',
-          backgroundColor: appBg,
-          borderRadius: '20px',
-          border: `1px solid ${goldBorder}`,
-          boxShadow: isDark
+        zIndex: 10050,
+        width: isMobileViewport ? 'calc(100vw - 20px)' : '410px',
+        maxWidth: 'calc(100vw - 16px)',
+        height: isMobileViewport ? 'calc(100dvh - 110px)' : 'min(580px, calc(100dvh - 116px))',
+        maxHeight: isMobileViewport ? 'calc(100dvh - 110px)' : 'calc(100dvh - 116px)',
+        backgroundColor: appBg,
+        borderRadius: isMobileViewport ? '22px' : '24px',
+        border: `1px solid ${goldBorder}`,
+        boxShadow: isDraggingChat
+          ? '0 28px 68px rgba(0, 0, 0, 0.55), 0 0 0 1.5px rgba(212, 180, 106, 0.55)'
+          : isDark
             ? '0 24px 60px rgba(0, 0, 0, 0.55)'
             : '0 20px 50px rgba(37, 42, 49, 0.22)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        transition: isDraggingChat ? 'none' : 'box-shadow 0.2s ease',
+        ...positionStyle,
+      }}
+    >
+      <ImperialCornerAccents isDark={isDark} />
+      {/* Cabecera Fija Arrastrable */}
+      <div
+        data-testid="seneca-drag-header"
+        onPointerDown={handleHeaderPointerDown}
+        style={{
+          flexShrink: 0,
+          padding: '8px 16px 12px 16px',
+          backgroundColor: surfaceBg,
+          borderBottom: `1px solid ${borderSubtle}`,
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
-          boxSizing: 'border-box',
+          cursor: isDraggingChat ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          touchAction: 'none',
         }}
       >
-        {/* Cabecera Fija */}
+        {/* Píldora de agarre dorada */}
+        <div
+          aria-hidden="true"
+          style={{
+            width: '36px',
+            height: '4px',
+            borderRadius: '9999px',
+            backgroundColor: isDark ? 'rgba(212, 180, 106, 0.35)' : 'rgba(182, 154, 85, 0.45)',
+            margin: '0 auto 6px auto',
+          }}
+        />
+
         <div
           style={{
-            flexShrink: 0,
-            padding: '14px 16px',
-            backgroundColor: surfaceBg,
-            borderBottom: `1px solid ${borderSubtle}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -274,6 +391,7 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
 
             <div style={{ minWidth: 0 }}>
               <h2
+                className="aureus-imperial-title"
                 style={{
                   margin: 0,
                   fontWeight: 900,
@@ -347,6 +465,7 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
             </button>
           </div>
         </div>
+      </div>
 
         {/* Área de Conversación */}
         <div
@@ -881,9 +1000,21 @@ export function SenecaAssistantModal({ isOpen, onClose }) {
               <Send size={17} strokeWidth={2.2} color="#101C2C" />
             </button>
           </div>
+          <div
+            style={{
+              marginTop: '6px',
+              fontSize: '11px',
+              lineHeight: 1.35,
+              color: mutedText,
+              textAlign: 'center',
+              fontWeight: 600,
+            }}
+          >
+            Séneca IA es un asesor de solo lectura; no toma decisiones automatizadas ni sustituye la verificación en tus módulos.
+          </div>
         </form>
-      </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

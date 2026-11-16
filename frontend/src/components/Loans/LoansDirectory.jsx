@@ -7,6 +7,12 @@ import { PaymentAgreementModal } from './PaymentAgreementModal';
 import { ConfirmModal } from '../Clients/ConfirmModal';
 import { ConfirmEliminarPrestamosModal } from './ConfirmEliminarPrestamosModal';
 import { formatColones, matchesClientSearch } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  ClassicalLaurelDivider,
+  ImperialCornerAccents,
+  handleSpotlightMouseMove
+} from '../Common/ClassicalAppArchitecture';
 
 /**
  * Clasifica cada préstamo individualmente en una de las 3 categorías:
@@ -22,6 +28,9 @@ function getLoanCategory(loan) {
   const monto = Number(loan.monto_prestado ?? loan.amount ?? 0);
   const totalP = Number(loan.total_periodos || 0);
   const pagadosP = Number(loan.periodos_pagados || 0);
+  const pendientesP = loan.periodos_pendientes !== undefined && loan.periodos_pendientes !== null
+    ? Number(loan.periodos_pendientes)
+    : null;
   const atrasos = Number(loan.periodos_atrasados_acumulados || 0);
 
   // 1. REGISTRADOS (Préstamos ya realizados / finiquitados al 100%)
@@ -31,6 +40,7 @@ function getLoanCategory(loan) {
     estado === 'PAGADO' ||
     estado === 'REGISTRADO' ||
     (monto > 0 && saldo <= 0) ||
+    (pendientesP !== null && pendientesP <= 0) ||
     (totalP > 0 && pagadosP >= totalP)
   ) {
     return 'REGISTRADOS';
@@ -57,6 +67,7 @@ export function LoansDirectory({
   onDeleteLoans,
   onShowAlert
 }) {
+  const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modales principales
@@ -303,7 +314,7 @@ export function LoansDirectory({
       {/* 2.2. Encabezado de Sección y Botones de Acción */}
       <section className="directory-header-row" aria-label="Cabecera de préstamos">
         <div className="directory-header-info">
-          <h2 className="directory-main-heading">{mainHeading}</h2>
+          <h2 className="directory-main-heading aureus-imperial-title">{mainHeading}</h2>
           <p className="directory-count-subtitle">{countSubtitle}</p>
         </div>
 
@@ -341,6 +352,8 @@ export function LoansDirectory({
           </button>
         </div>
       </section>
+
+      <ClassicalLaurelDivider compact isDark={isDark} />
 
       {/* Barra de Acciones del Modo de Selección Múltiple */}
       {isSelectionMode && (
@@ -489,22 +502,34 @@ export function LoansDirectory({
           role="tab"
           aria-selected={activeCategory === 'PENDIENTES'}
           onClick={() => handleTabChange('PENDIENTES')}
-          className={`loans-category-tab ${activeCategory === 'PENDIENTES' ? 'active' : ''}`}
+          className={`loans-category-tab segmented-tab-btn ${activeCategory === 'PENDIENTES' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeCategory === 'PENDIENTES' ? '#B69A55' : 'transparent',
-            color: activeCategory === 'PENDIENTES' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeCategory === 'PENDIENTES' ? 800 : 700,
-            boxShadow: activeCategory === 'PENDIENTES' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeCategory === 'PENDIENTES'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeCategory === 'PENDIENTES' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeCategory === 'PENDIENTES' ? 900 : 700,
+            boxShadow: activeCategory === 'PENDIENTES' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
             border: activeCategory === 'PENDIENTES' ? '1px solid #B69A55' : 'none',
           }}
         >
           <span className="loans-tab-label">Pendientes</span>
           <span
             className="loans-tab-badge"
-            style={{
-              backgroundColor: activeCategory === 'PENDIENTES' ? 'rgba(255, 255, 255, 0.24)' : 'var(--aureus-green-light)',
-              color: activeCategory === 'PENDIENTES' ? '#FFFFFF' : 'var(--aureus-green-text)'
-            }}
+            style={
+              activeCategory === 'PENDIENTES'
+                ? {
+                    backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                    border: '1px solid rgba(16, 28, 44, 0.32)',
+                    color: '#101C2C',
+                    fontWeight: 900,
+                  }
+                : {
+                    backgroundColor: 'var(--aureus-green-light)',
+                    color: 'var(--aureus-green-text)',
+                  }
+            }
           >
             {categoryCounts.pendientes}
           </span>
@@ -516,12 +541,15 @@ export function LoansDirectory({
           role="tab"
           aria-selected={activeCategory === 'REGISTRADOS'}
           onClick={() => handleTabChange('REGISTRADOS')}
-          className={`loans-category-tab ${activeCategory === 'REGISTRADOS' ? 'active' : ''}`}
+          className={`loans-category-tab segmented-tab-btn ${activeCategory === 'REGISTRADOS' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeCategory === 'REGISTRADOS' ? '#B69A55' : 'transparent',
-            color: activeCategory === 'REGISTRADOS' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeCategory === 'REGISTRADOS' ? 800 : 700,
-            boxShadow: activeCategory === 'REGISTRADOS' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeCategory === 'REGISTRADOS'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeCategory === 'REGISTRADOS' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeCategory === 'REGISTRADOS' ? 900 : 700,
+            boxShadow: activeCategory === 'REGISTRADOS' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
             border: activeCategory === 'REGISTRADOS' ? '1px solid #B69A55' : 'none',
           }}
         >
@@ -529,10 +557,19 @@ export function LoansDirectory({
           {categoryCounts.registrados > 0 && (
             <span
               className="loans-tab-badge"
-              style={{
-                backgroundColor: activeCategory === 'REGISTRADOS' ? 'rgba(255, 255, 255, 0.2)' : 'var(--aureus-bg-elevated)',
-                color: activeCategory === 'REGISTRADOS' ? '#ffffff' : 'var(--aureus-text-secondary)'
-              }}
+              style={
+                activeCategory === 'REGISTRADOS'
+                  ? {
+                      backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                      border: '1px solid rgba(16, 28, 44, 0.32)',
+                      color: '#101C2C',
+                      fontWeight: 900,
+                    }
+                  : {
+                      backgroundColor: 'var(--aureus-bg-elevated)',
+                      color: isDark ? '#FFFFFF' : 'var(--aureus-text-secondary)',
+                    }
+              }
             >
               {categoryCounts.registrados}
             </span>
@@ -545,12 +582,15 @@ export function LoansDirectory({
           role="tab"
           aria-selected={activeCategory === 'ATRASADOS'}
           onClick={() => handleTabChange('ATRASADOS')}
-          className={`loans-category-tab ${activeCategory === 'ATRASADOS' ? 'active' : ''}`}
+          className={`loans-category-tab segmented-tab-btn ${activeCategory === 'ATRASADOS' ? 'active' : ''}`}
           style={{
-            backgroundColor: activeCategory === 'ATRASADOS' ? '#B69A55' : 'transparent',
-            color: activeCategory === 'ATRASADOS' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-            fontWeight: activeCategory === 'ATRASADOS' ? 800 : 700,
-            boxShadow: activeCategory === 'ATRASADOS' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+            background:
+              activeCategory === 'ATRASADOS'
+                ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                : 'transparent',
+            color: activeCategory === 'ATRASADOS' ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
+            fontWeight: activeCategory === 'ATRASADOS' ? 900 : 700,
+            boxShadow: activeCategory === 'ATRASADOS' ? '0 2px 6px rgba(182, 154, 85, 0.28)' : 'none',
             border: activeCategory === 'ATRASADOS' ? '1px solid #B69A55' : 'none',
           }}
         >
@@ -558,21 +598,39 @@ export function LoansDirectory({
           {categoryCounts.atrasados > 0 ? (
             <span
               className="loans-tab-badge"
-              style={{
-                backgroundColor: activeCategory === 'ATRASADOS' ? '#C65D58' : 'var(--aureus-red-light)',
-                color: activeCategory === 'ATRASADOS' ? '#FFFFFF' : 'var(--aureus-red-text)',
-                border: activeCategory === 'ATRASADOS' ? 'none' : '1px solid var(--aureus-red-border)'
-              }}
+              style={
+                activeCategory === 'ATRASADOS'
+                  ? {
+                      backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                      border: '1px solid rgba(16, 28, 44, 0.32)',
+                      color: '#101C2C',
+                      fontWeight: 900,
+                    }
+                  : {
+                      backgroundColor: 'var(--aureus-red-light)',
+                      color: 'var(--aureus-red-text)',
+                      border: '1px solid var(--aureus-red-border)',
+                    }
+              }
             >
               {categoryCounts.atrasados}
             </span>
           ) : (
             <span
               className="loans-tab-badge"
-              style={{
-                backgroundColor: activeCategory === 'ATRASADOS' ? 'rgba(255, 255, 255, 0.2)' : 'var(--aureus-bg-elevated)',
-                color: activeCategory === 'ATRASADOS' ? '#ffffff' : 'var(--aureus-text-muted)'
-              }}
+              style={
+                activeCategory === 'ATRASADOS'
+                  ? {
+                      backgroundColor: 'rgba(16, 28, 44, 0.18)',
+                      border: '1px solid rgba(16, 28, 44, 0.32)',
+                      color: '#101C2C',
+                      fontWeight: 900,
+                    }
+                  : {
+                      backgroundColor: 'var(--aureus-bg-elevated)',
+                      color: isDark ? '#FFFFFF' : 'var(--aureus-text-muted)',
+                    }
+              }
             >
               0
             </span>
@@ -603,11 +661,16 @@ export function LoansDirectory({
             );
           })
         ) : (
-          <div className="state-empty-box">
+          <div
+            className="state-empty-box rb-spotlight-card"
+            onMouseMove={handleSpotlightMouseMove}
+            style={{ position: 'relative', overflow: 'hidden' }}
+          >
+            <ImperialCornerAccents isDark={isDark} />
             <div className="empty-icon-circle">
               <Landmark size={32} strokeWidth={1.75} className="empty-icon" />
             </div>
-            <h4 className="empty-title">
+            <h4 className="empty-title aureus-imperial-title">
               {searchTerm.trim()
                 ? 'Sin resultados para la búsqueda'
                 : activeCategory === 'PENDIENTES'

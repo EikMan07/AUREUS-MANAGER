@@ -1,8 +1,11 @@
 import React from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { getInitials, formatFullName, formatCedulaCR, formatPhone } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture';
 
 export function ClientCard({ client, onOptionsClick }) {
+  const { isDark } = useTheme();
   const initials = getInitials(client?.nombre, client?.apellidos);
   const fullName = formatFullName(client?.nombre, client?.apellidos);
 
@@ -16,9 +19,24 @@ export function ClientCard({ client, onOptionsClick }) {
   const cleanDetalles = (client?.detalles || '').trim();
 
   return (
-    <article className="client-directory-card" aria-label={`Cliente ${fullName}`}>
-      {/* Izquierda: Avatar Circular con iniciales */}
-      <div className="client-avatar-container" aria-hidden="true">
+    <article
+      className="client-directory-card rb-spotlight-card"
+      aria-label={`Cliente ${fullName}`}
+      onMouseMove={handleSpotlightMouseMove}
+      style={{ position: 'relative', overflow: 'hidden' }}
+    >
+      <ImperialCornerAccents isDark={isDark} />
+      {/* Izquierda: Avatar Circular con iniciales y doble anillo Dorado Aureus */}
+      <div
+        className="client-avatar-container"
+        aria-hidden="true"
+        style={{
+          border: isDark ? '1.5px solid #D4B46A' : '1.5px solid #B69A55',
+          boxShadow: isDark
+            ? '0 0 0 3px rgba(212, 180, 106, 0.16)'
+            : '0 0 0 3px rgba(182, 154, 85, 0.16)',
+        }}
+      >
         <span className="client-avatar-text">{initials}</span>
       </div>
 

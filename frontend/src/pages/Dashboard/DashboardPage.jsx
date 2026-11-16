@@ -15,7 +15,16 @@ import { NotificacionesModal } from '../../components/NotificacionesModal';
 import { CompartirCobrosModal } from '../../components/Modals/CompartirCobrosModal';
 import { SenecaAssistantModal } from '../../components/Seneca/SenecaAssistantModal';
 import { UserProfileModal } from '../../components/Profile/UserProfileModal.jsx';
+import { MandatoryConsentModal } from '../../components/Legal/MandatoryConsentModal.jsx';
 import { useAccessibility } from '../../context/AccessibilityContext.jsx';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  ClassicalArchitecturalBackdrop,
+  FlutedPilasters,
+  ClassicalLaurelDivider,
+  ImperialCornerAccents,
+  handleSpotlightMouseMove
+} from '../../components/Common/ClassicalAppArchitecture';
 import { BottomNav } from '../../components/Navigation/BottomNav';
 import { ClientsDirectory } from '../../components/Clients/ClientsDirectory';
 import { LoansDirectory } from '../../components/Loans/LoansDirectory';
@@ -54,8 +63,38 @@ import {
 const ACTIVE_MODULE_STORAGE_KEY = 'aureus_last_active_module';
 const VALID_ACTIVE_MODULES = ['cobros', 'clientes', 'prestamos', 'resumen', 'lista-negra', 'papelera'];
 
+const getCobroClientGroupKey = (item) => {
+  if (!item) return 'unknown';
+  if (item.cliente_id || item.clienteId) {
+    return `id:${item.cliente_id || item.clienteId}`;
+  }
+  const cleanCed = String(item.cedula || item.cliente_cedula || '').replace(/\D/g, '');
+  if (cleanCed) return `ced:${cleanCed}`;
+  const fullName = `${item.nombre || item.cliente_nombre || item.name || ''} ${item.apellidos || item.cliente_apellidos || ''}`
+    .trim()
+    .toLowerCase();
+  return `name:${fullName || item.id}`;
+};
+
+const groupCobrosByClient = (list = []) => {
+  const groupsMap = new Map();
+  for (const item of list) {
+    const clientKey = getCobroClientGroupKey(item);
+    if (!groupsMap.has(clientKey)) {
+      groupsMap.set(clientKey, []);
+    }
+    groupsMap.get(clientKey).push(item);
+  }
+  return Array.from(groupsMap.entries()).map(([clientKey, items]) => ({
+    clientKey,
+    primaryCobro: items[0],
+    cobros: items
+  }));
+};
+
 export function DashboardPage() {
   const { translateModule } = useAccessibility();
+  const { isDark } = useTheme();
   const [clients, setClients] = useState([]);
   const [loans, setLoans] = useState([]);
   const [cobrosData, setCobrosData] = useState({
@@ -94,11 +133,7 @@ export function DashboardPage() {
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isCompartirModalOpen, setIsCompartirModalOpen] = useState(false);
   const [isSenecaOpen, setIsSenecaOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [vistaUsuarioId, setVistaUsuarioId] = useState(null);
-  const [compartidosActivosDia, setCompartidosActivosDia] = useState([]);
-  const [esVistaDelegada, setEsVistaDelegada] = useState(false);
-  const [destinatarioInfo, setDestinatarioInfo] = useState(null);
+  const [profileModalState, setProfileModalState] = useState({ isOpen: false, section: 'perfil' });
   const [notificaciones, setNotificaciones] = useState([]);
   const [isNotificacionesLoading, setIsNotificacionesLoading] = useState(false);
   // Almacén en memoria persistente de IDs revisados durante la sesión + localStorage
@@ -217,22 +252,18 @@ export function DashboardPage() {
     }
   }, []);
 
-  // Función para recargar cobros reales desde PostgreSQL para la fecha actual (con soporte de vista delegada)
-  const loadCobros = useCallback(async (fechaISO, targetVistaUsuarioId = undefined) => {
+  // Función para recargar cobros reales desde PostgreSQL para la fecha actual
+  const loadCobros = useCallback(async (fechaISO) => {
     try {
       const targetDate = fechaISO || currentDayInfo.dateISO;
-      const activeVistaId = targetVistaUsuarioId !== undefined ? targetVistaUsuarioId : vistaUsuarioId;
-      const res = await dbService.getCobros(targetDate, activeVistaId);
+      const res = await dbService.getCobros(targetDate);
       if (res && res.metricas) {
         setCobrosData(res);
-        setCompartidosActivosDia(res.compartidos_activos_dia || []);
-        setEsVistaDelegada(Boolean(res.es_vista_delegada));
-        setDestinatarioInfo(res.destinatario || null);
       }
     } catch (err) {
       console.error('Error cargando cobros:', err);
     }
-  }, [currentDayInfo.dateISO, vistaUsuarioId]);
+  }, [currentDayInfo.dateISO]);
 
   // Función para recargar préstamos reales desde PostgreSQL
   const loadLoans = useCallback(async () => {
@@ -269,12 +300,19 @@ export function DashboardPage() {
     }
   }, []);
 
-  const handleCobrosCompartidos = useCallback(async (fechaISO, destinatarioId) => {
+  const handleCobrosCompartidos = useCallback(async (fechaISO) => {
     await loadCobros(fechaISO || currentDayInfo.dateISO);
     await loadNotificaciones();
-    if (destinatarioId) {
-      setVistaUsuarioId(destinatarioId);
-      await loadCobros(fechaISO || currentDayInfo.dateISO, destinatarioId);
+  }, [currentDayInfo.dateISO, loadCobros, loadNotificaciones]);
+
+  const handleRevertirCobroCompartido = useCallback(async (agendaId) => {
+    if (!agendaId) return;
+    try {
+      await dbService.revertirCobroCompartido(agendaId);
+      await loadCobros(currentDayInfo.dateISO);
+      await loadNotificaciones();
+    } catch (err) {
+      console.error('Error al retirar envio compartido:', err);
     }
   }, [currentDayInfo.dateISO, loadCobros, loadNotificaciones]);
 
@@ -320,8 +358,18 @@ export function DashboardPage() {
   const handleNavigateFromNotification = useCallback((notif) => {
     if (!notif) return;
 
-    if (notif.fecha) {
-      const [y, m, d] = notif.fecha.split('-').map(Number);
+    let targetFecha = typeof notif.fecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(notif.fecha)
+      ? notif.fecha.slice(0, 10)
+      : null;
+
+    if (!targetFecha) {
+      const text = `${notif.titulo || ''} ${notif.mensaje || ''}`;
+      const match = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      if (match) targetFecha = match[1];
+    }
+
+    if (targetFecha) {
+      const [y, m, d] = targetFecha.split('-').map(Number);
       const targetDateObj = new Date(y, m - 1, d, 12, 0, 0);
       setSelectedDate(targetDateObj);
       setSelectedDayKey(getDayKeyFromDate(targetDateObj));
@@ -331,6 +379,10 @@ export function DashboardPage() {
 
     if (notif.tab) {
       setActiveTab(notif.tab);
+    } else if (/cobro realizado|pago de|no pago/i.test(`${notif.titulo || ''}`)) {
+      setActiveTab('registrados');
+    } else {
+      setActiveTab('pendientes');
     }
 
     setIsNotificationCenterOpen(false);
@@ -372,20 +424,35 @@ export function DashboardPage() {
     return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage);
   }, [handleNavigateFromNotification]);
 
-  // Efecto inicial y recarga al cambiar fecha o vista de usuario
+  // Efecto inicial y recarga al cambiar fecha
   useEffect(() => {
     async function loadAll() {
       setIsLoading(true);
       await Promise.all([
         loadClients(),
-        loadCobros(currentDayInfo.dateISO, vistaUsuarioId),
+        loadCobros(currentDayInfo.dateISO),
         loadLoans(),
         loadNotificaciones()
       ]);
       setIsLoading(false);
     }
     loadAll();
-  }, [currentDayInfo.dateISO, vistaUsuarioId, loadClients, loadCobros, loadLoans, loadNotificaciones]);
+  }, [currentDayInfo.dateISO, loadClients, loadCobros, loadLoans, loadNotificaciones]);
+
+  // Sincronización en tiempo real al cambiar entre Cobros, Préstamos, Resumen o Papelera
+  useEffect(() => {
+    if (
+      activeModule === 'cobros' ||
+      activeModule === 'prestamos' ||
+      activeModule === 'resumen' ||
+      activeModule === 'papelera'
+    ) {
+      Promise.all([
+        loadCobros(currentDayInfo.dateISO),
+        loadLoans()
+      ]).catch(() => {});
+    }
+  }, [activeModule, currentDayInfo.dateISO, loadCobros, loadLoans]);
 
   // Normalizar datos de cobros para las tarjetas del frontend
   const normalizedPendientes = useMemo(() => {
@@ -466,6 +533,21 @@ export function DashboardPage() {
     if (!term) return normalizedAtrasados;
     return normalizedAtrasados.filter(c => matchesClientSearch(c, term));
   }, [normalizedAtrasados, cobroSearchTerm]);
+
+  const groupedPendientes = useMemo(
+    () => groupCobrosByClient(filteredPendientes),
+    [filteredPendientes]
+  );
+
+  const groupedRegistrados = useMemo(
+    () => groupCobrosByClient(filteredRegistrados),
+    [filteredRegistrados]
+  );
+
+  const groupedAtrasados = useMemo(
+    () => groupCobrosByClient(filteredAtrasados),
+    [filteredAtrasados]
+  );
 
   // Métricas financieras reales desde PostgreSQL
   const totalPrestado = cobrosData.metricas?.totalPrestado || 0;
@@ -696,7 +778,11 @@ export function DashboardPage() {
   const handleBlacklistClient = async (client) => {
     try {
       await dbService.sendClientToBlacklist(client.id);
-      await Promise.all([loadClients(), loadCobros(currentDayInfo.dateISO)]);
+      await Promise.all([
+        loadClients(),
+        loadLoans(),
+        loadCobros(currentDayInfo.dateISO)
+      ]);
       return { success: true };
     } catch (err) {
       console.error('[Diagnóstico técnico para desarrollador]: Error al enviar cliente a lista negra:', err.debugError || err);
@@ -818,11 +904,14 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="mobile-app-shell">
-      <main className="mobile-screen-frame">
+    <div className="mobile-app-shell" style={{ position: 'relative' }}>
+      <ClassicalArchitecturalBackdrop scene={activeModule} isDark={isDark} />
+      <FlutedPilasters isDark={isDark} />
+      <main className="mobile-screen-frame" style={{ position: 'relative', zIndex: 1 }}>
         {/* Top Bar Superior Claro Ejecutivo Aureus Manager */}
         <Header
           title={translateModule(activeModule)}
+          activeModuleKey={activeModule}
           hasNotifications={porRevisarCount > 0}
           notificationCount={porRevisarCount}
           onOpenNotifications={() => {
@@ -830,7 +919,12 @@ export function DashboardPage() {
             loadNotificaciones();
           }}
           onOpenSeneca={() => setIsSenecaOpen(true)}
-          onOpenProfile={() => setIsProfileModalOpen(true)}
+          onOpenProfile={(sec = 'perfil') =>
+            setProfileModalState({
+              isOpen: true,
+              section: typeof sec === 'string' ? sec : 'perfil'
+            })
+          }
         />
 
         {/* Contenido desplazable con espaciado dinámico para menú inferior o lateral */}
@@ -967,97 +1061,14 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Barra de alternancia de vista: Mis cobros vs Vista de persona receptora */}
-              {(compartidosActivosDia.length > 0 || esVistaDelegada) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    backgroundColor: 'var(--aureus-bg-surface)',
-                    border: '1px solid var(--aureus-border-gold)',
-                    boxShadow: 'var(--aureus-card-shadow)',
-                    color: 'var(--aureus-text-primary)',
-                    padding: '8px 14px',
-                    borderRadius: '16px',
-                    margin: '8px 0 4px 0',
-                    fontSize: '12px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflowX: 'auto' }}>
-                    <span style={{ color: 'var(--aureus-text-muted)', fontWeight: 700, flexShrink: 0 }}>Viendo como:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVistaUsuarioId(null);
-                        loadCobros(currentDayInfo.dateISO, null);
-                      }}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '10px',
-                        fontSize: '11.5px',
-                        fontWeight: 800,
-                        backgroundColor: vistaUsuarioId === null ? '#B69A55' : 'var(--aureus-bg-elevated)',
-                        color: vistaUsuarioId === null ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-                        border: vistaUsuarioId === null ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      Mis cobros
-                    </button>
-                    {compartidosActivosDia.map((c) => (
-                      <button
-                        key={c.usuario_id}
-                        type="button"
-                        onClick={() => {
-                          setVistaUsuarioId(c.usuario_id);
-                          loadCobros(currentDayInfo.dateISO, c.usuario_id);
-                        }}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '10px',
-                          fontSize: '11.5px',
-                          fontWeight: 800,
-                          backgroundColor: vistaUsuarioId === c.usuario_id ? '#B69A55' : 'var(--aureus-bg-elevated)',
-                          color: vistaUsuarioId === c.usuario_id ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-                          border: vistaUsuarioId === c.usuario_id ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        Vista de {c.nombre_completo.split(' ')[0]}
-                      </button>
-                    ))}
-                  </div>
-                  {esVistaDelegada && (
-                    <span
-                      style={{
-                        backgroundColor: 'var(--aureus-gold-light)',
-                        color: 'var(--aureus-gold-text)',
-                        border: '1px solid var(--aureus-border-gold)',
-                        padding: '2px 8px',
-                        borderRadius: '8px',
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        flexShrink: 0
-                      }}
-                    >
-                      Modo receptor
-                    </span>
-                  )}
-                </div>
-              )}
-
               {/* Las 3 Tarjetas Financieras Blancas con Icono */}
               <FinancialSummaryCards
                 totalPrestado={totalPrestado}
                 estaSemana={estaSemana}
                 porCobrarHoy={porCobrarHoy}
               />
+
+              <ClassicalLaurelDivider compact isDark={isDark} />
 
               {/* Barra de los 7 Días (LUN a DOM dinámicos) */}
               <WeekDaysSelector
@@ -1115,32 +1126,44 @@ export function DashboardPage() {
                         </div>
                       )}
 
-                      {filteredPendientes.map(client => (
+                      {groupedPendientes.map(group => (
                         <PendingClientCard
-                          key={client.id}
-                          client={client}
+                          key={group.clientKey}
+                          client={group.primaryCobro}
+                          clientCobros={group.cobros}
                           onPayClick={handleOpenPay}
                           onPassClick={handleOpenPass}
                           onNoPayClick={handleOpenNoPay}
+                          onRevertirCobroCompartido={handleRevertirCobroCompartido}
                         />
                       ))}
                     </>
                   ) : cobroSearchTerm.trim() ? (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle">
                         <Search size={28} strokeWidth={1.75} className="empty-icon text-slate-400" />
                       </div>
-                      <h4 className="empty-title">Sin resultados</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin resultados</h4>
                       <p className="empty-description">
                         No se encontraron cobros que coincidan con la búsqueda.
                       </p>
                     </div>
                   ) : (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle mint">
                         <CheckCircle2 size={32} strokeWidth={1.75} className="empty-icon mint" />
                       </div>
-                      <h4 className="empty-title">Sin cobros pendientes</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin cobros pendientes</h4>
                       <p className="empty-description">
                         No hay cobros pendientes programados para el {currentDayInfo.fullDate}.
                       </p>
@@ -1148,28 +1171,39 @@ export function DashboardPage() {
                   )
                 ) : activeTab === 'registrados' ? (
                   filteredRegistrados.length > 0 ? (
-                    filteredRegistrados.map(client => (
+                    groupedRegistrados.map(group => (
                       <CompletedClientCard
-                        key={client.id}
-                        client={client}
+                        key={group.clientKey}
+                        client={group.primaryCobro}
+                        clientCobros={group.cobros}
                       />
                     ))
                   ) : cobroSearchTerm.trim() ? (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle">
                         <Search size={28} strokeWidth={1.75} className="empty-icon text-slate-400" />
                       </div>
-                      <h4 className="empty-title">Sin resultados</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin resultados</h4>
                       <p className="empty-description">
                         No se encontraron cobros que coincidan con la búsqueda.
                       </p>
                     </div>
                   ) : (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle mint">
                         <CheckCircle2 size={32} strokeWidth={1.75} className="empty-icon mint" />
                       </div>
-                      <h4 className="empty-title">Sin cobros registrados</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin cobros registrados</h4>
                       <p className="empty-description">
                         No hay cobros registrados para el {currentDayInfo.fullDate}.
                       </p>
@@ -1177,29 +1211,40 @@ export function DashboardPage() {
                   )
                 ) : (
                   filteredAtrasados.length > 0 ? (
-                    filteredAtrasados.map(client => (
+                    groupedAtrasados.map(group => (
                       <OverdueClientCard
-                        key={client.id}
-                        client={client}
+                        key={group.clientKey}
+                        client={group.primaryCobro}
+                        clientCobros={group.cobros}
                         onPayClick={handleOpenPay}
                       />
                     ))
                   ) : cobroSearchTerm.trim() ? (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle">
                         <Search size={28} strokeWidth={1.75} className="empty-icon text-slate-400" />
                       </div>
-                      <h4 className="empty-title">Sin resultados</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin resultados</h4>
                       <p className="empty-description">
                         No se encontraron cobros que coincidan con la búsqueda.
                       </p>
                     </div>
                   ) : (
-                    <div className="state-empty-box">
+                    <div
+                      className="state-empty-box rb-spotlight-card"
+                      onMouseMove={handleSpotlightMouseMove}
+                      style={{ position: 'relative', overflow: 'hidden' }}
+                    >
+                      <ImperialCornerAccents isDark={isDark} />
                       <div className="empty-icon-circle mint">
                         <ShieldCheck size={32} strokeWidth={1.75} className="empty-icon mint" />
                       </div>
-                      <h4 className="empty-title">Sin atrasos críticos</h4>
+                      <h4 className="empty-title aureus-imperial-title">Sin atrasos críticos</h4>
                       <p className="empty-description">
                         No hay clientes con atrasos críticos acumulados.
                       </p>
@@ -1279,11 +1324,15 @@ export function DashboardPage() {
           onClose={() => setIsSenecaOpen(false)}
         />
 
-        {/* Perfil de Usuario Ejecutivo y Accesibilidad */}
+        {/* Ventanas Independientes de Cuenta: Mi Perfil, Accesibilidad y Configuración */}
         <UserProfileModal
-          isOpen={isProfileModalOpen}
-          onClose={() => setIsProfileModalOpen(false)}
+          isOpen={profileModalState.isOpen}
+          section={profileModalState.section}
+          onClose={() => setProfileModalState((prev) => ({ ...prev, isOpen: false }))}
         />
+
+        {/* Modal Ineludible de Consentimiento Informado (Ley 8968 CR) */}
+        <MandatoryConsentModal />
 
         {/* Barra de Navegación Minimizable y Arrastrable (Abajo, Izquierda, Derecha) */}
         <BottomNav
