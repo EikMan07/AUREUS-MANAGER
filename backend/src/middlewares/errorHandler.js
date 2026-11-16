@@ -1,3 +1,5 @@
+import { redactarPII } from '../utils/piiRedactor.js';
+
 const HTTP_ERROR_LABELS = {
   400: {
     error: 'Solicitud incorrecta',
@@ -50,7 +52,9 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   const errorLabel = mapped ? mapped.error : userMessage;
-  console.error(`[Error ${statusCode}] ${req.method} ${req.originalUrl}:`, err);
+  console.error(
+    redactarPII(`[Error ${statusCode}] ${req.method} ${req.originalUrl}: ${err?.message || err}`)
+  );
 
   res.status(statusCode).json({
     ok: false,

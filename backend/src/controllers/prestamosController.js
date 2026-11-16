@@ -241,10 +241,9 @@ export async function getPrestamos(req, res) {
           ), '[]'::json
         ) AS cuotas
       FROM prestamos p
-      JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.cobrador_id = $1
-        AND c.estado = 'ACTIVO'
-        AND p.estado IN ('ACTIVO', 'ATRASADO', 'ARREGLO_PAGO', 'RENOVADO', 'CANCELADO', 'LIQUIDADO')
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE p.cobrador_id = $1::uuid
+        AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo, 'CANCELADO'::public.estado_prestamo, 'LIQUIDADO'::public.estado_prestamo)
       ORDER BY p.creado_en DESC;
     `;
 
@@ -254,6 +253,7 @@ export async function getPrestamos(req, res) {
       const saldoPorPagar = Number(p.saldo_por_pagar ?? 0);
       const totalPeriodos = Number(p.total_periodos ?? 0);
       const periodosPagados = Number(p.periodos_pagados ?? 0);
+      const periodosPendientes = Number(p.periodos_pendientes ?? 0);
       const cuotas = Array.isArray(p.cuotas) ? p.cuotas : [];
       const todasCuotasRegistradas = cuotas.length > 0 && cuotas.every(c => c.estado === 'REGISTRADO');
 
@@ -262,6 +262,7 @@ export async function getPrestamos(req, res) {
         p.estado === 'CANCELADO' ||
         p.estado === 'LIQUIDADO' ||
         saldoPorPagar <= 0 ||
+        periodosPendientes <= 0 ||
         (totalPeriodos > 0 && periodosPagados >= totalPeriodos) ||
         todasCuotasRegistradas
       ) {

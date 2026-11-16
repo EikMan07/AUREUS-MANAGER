@@ -5,6 +5,12 @@ import { ClientFormModal } from './ClientFormModal';
 import { ClientOptionsModal } from './ClientOptionsModal';
 import { ConfirmModal } from './ConfirmModal';
 import { matchesClientSearch, formatFullName } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  ClassicalLaurelDivider,
+  ImperialCornerAccents,
+  handleSpotlightMouseMove
+} from '../Common/ClassicalAppArchitecture';
 
 export function ClientsDirectory({
   clients = [],
@@ -14,6 +20,7 @@ export function ClientsDirectory({
   onDeleteClient,
   onShowAlert
 }) {
+  const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modales
@@ -107,7 +114,7 @@ export function ClientsDirectory({
       {/* 2.2. Encabezado de Sección y Botón "Nuevo" */}
       <section className="directory-header-row" aria-label="Cabecera del directorio">
         <div className="directory-header-info">
-          <h2 className="directory-main-heading">Clientes registrados</h2>
+          <h2 className="directory-main-heading aureus-imperial-title">Clientes registrados</h2>
           <p className="directory-count-subtitle">{countSubtitle}</p>
         </div>
 
@@ -121,6 +128,8 @@ export function ClientsDirectory({
           <span>Nuevo</span>
         </button>
       </section>
+
+      <ClassicalLaurelDivider compact isDark={isDark} />
 
       {/* 2.3. Buscador Instantáneo Multi-Criterio */}
       <section className="directory-search-wrapper" aria-label="Búsqueda de clientes">
@@ -159,11 +168,16 @@ export function ClientsDirectory({
             />
           ))
         ) : (
-          <div className="directory-empty-state">
+          <div
+            className="directory-empty-state rb-spotlight-card"
+            onMouseMove={handleSpotlightMouseMove}
+            style={{ position: 'relative', overflow: 'hidden' }}
+          >
+            <ImperialCornerAccents isDark={isDark} />
             <div className="empty-state-icon-box">
               <Users size={32} strokeWidth={1.5} />
             </div>
-            <h3 className="empty-state-title">
+            <h3 className="empty-state-title aureus-imperial-title">
               {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
             </h3>
             <p className="empty-state-desc">

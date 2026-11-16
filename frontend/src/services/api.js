@@ -15,11 +15,25 @@ import {
   getResumenDiaCompartir as apiGetResumenDiaCompartir,
   compartirCobrosDia as apiCompartirCobrosDia,
   dejarDeCompartirDia as apiDejarDeCompartirDia,
+  revertirCobroCompartido as apiRevertirCobroCompartido,
   eliminarPrestamo as apiEliminarPrestamo,
   eliminarPrestamosLote as apiEliminarPrestamosLote,
   obtenerResumenSeneca as apiObtenerResumenSeneca,
   consultarSeneca as apiConsultarSeneca,
-  consultarHistorialArchivoCliente as apiConsultarHistorialArchivoCliente
+  consultarHistorialArchivoCliente as apiConsultarHistorialArchivoCliente,
+  obtenerAntecedentesArchivados as apiObtenerAntecedentesArchivados,
+  eliminarAntecedenteCliente as apiEliminarAntecedenteCliente,
+  eliminarPrestamoDeAntecedente as apiEliminarPrestamoDeAntecedente,
+  obtenerResumenAdmin as apiObtenerResumenAdmin,
+  obtenerPrestamistasAdmin as apiObtenerPrestamistasAdmin,
+  crearPrestamistaAdmin as apiCrearPrestamistaAdmin,
+  editarPrestamistaAdmin as apiEditarPrestamistaAdmin,
+  cambiarEstadoPrestamistaAdmin as apiCambiarEstadoPrestamistaAdmin,
+  restablecerPasswordPrestamistaAdmin as apiRestablecerPasswordPrestamistaAdmin,
+  eliminarPrestamistaAdmin as apiEliminarPrestamistaAdmin,
+  obtenerResumenDepuracionAdmin as apiObtenerResumenDepuracionAdmin,
+  depurarRegistrosPrestamistaAdmin as apiDepurarRegistrosPrestamistaAdmin,
+  obtenerAuditoriaAdmin as apiObtenerAuditoriaAdmin
 } from './apiClient.js';
 
 // API Service for Aureus Manager connected to Node/Express + PostgreSQL backend
@@ -176,11 +190,8 @@ export const api = {
   },
 
   // Cobros
-  async getCobros(fechaStr, vistaUsuarioId = null) {
-    let url = fechaStr ? `${API_BASE}/cobros?fecha=${fechaStr}` : `${API_BASE}/cobros`;
-    if (vistaUsuarioId) {
-      url += `${url.includes('?') ? '&' : '?'}vista_usuario_id=${encodeURIComponent(vistaUsuarioId)}`;
-    }
+  async getCobros(fechaStr) {
+    const url = fechaStr ? `${API_BASE}/cobros?fecha=${fechaStr}` : `${API_BASE}/cobros`;
     const res = await safeFetch(url);
     if (!res.ok) {
       throw await parseErrorResponse(res, 'No se pudo consultar la agenda de cobros.');
@@ -471,9 +482,66 @@ export const api = {
     return await apiDejarDeCompartirDia(data);
   },
 
+  async revertirCobroCompartido(agendaId) {
+    return await apiRevertirCobroCompartido(agendaId);
+  },
+
   // Séneca y consultas informativas
   async consultarHistorialArchivoCliente(params = {}) {
     return await apiConsultarHistorialArchivoCliente(params);
+  },
+
+  async obtenerAntecedentesArchivados() {
+    return await apiObtenerAntecedentesArchivados();
+  },
+
+  async eliminarAntecedenteCliente(archivoIdOrCedula) {
+    return await apiEliminarAntecedenteCliente(archivoIdOrCedula);
+  },
+
+  async eliminarPrestamoDeAntecedente(prestamoArchivoId) {
+    return await apiEliminarPrestamoDeAntecedente(prestamoArchivoId);
+  },
+
+  // Administración única de plataforma
+  async obtenerResumenAdmin() {
+    return await apiObtenerResumenAdmin();
+  },
+
+  async obtenerPrestamistasAdmin() {
+    return await apiObtenerPrestamistasAdmin();
+  },
+
+  async crearPrestamistaAdmin(data) {
+    return await apiCrearPrestamistaAdmin(data);
+  },
+
+  async editarPrestamistaAdmin(id, data) {
+    return await apiEditarPrestamistaAdmin(id, data);
+  },
+
+  async cambiarEstadoPrestamistaAdmin(id, estado_cuenta) {
+    return await apiCambiarEstadoPrestamistaAdmin(id, estado_cuenta);
+  },
+
+  async restablecerPasswordPrestamistaAdmin(id, nuevaPassword = '') {
+    return await apiRestablecerPasswordPrestamistaAdmin(id, nuevaPassword);
+  },
+
+  async eliminarPrestamistaAdmin(id) {
+    return await apiEliminarPrestamistaAdmin(id);
+  },
+
+  async obtenerResumenDepuracionAdmin() {
+    return await apiObtenerResumenDepuracionAdmin();
+  },
+
+  async depurarRegistrosPrestamistaAdmin(targetId, tipo = 'antecedentes') {
+    return await apiDepurarRegistrosPrestamistaAdmin(targetId, tipo);
+  },
+
+  async obtenerAuditoriaAdmin(limit = 80) {
+    return await apiObtenerAuditoriaAdmin(limit);
   },
 
   async obtenerResumenSeneca() {
@@ -498,6 +566,7 @@ export {
   apiGetResumenDiaCompartir as getResumenDiaCompartir,
   apiCompartirCobrosDia as compartirCobrosDia,
   apiDejarDeCompartirDia as dejarDeCompartirDia,
+  apiRevertirCobroCompartido as revertirCobroCompartido,
   apiObtenerResumenSeneca as obtenerResumenSeneca,
   apiConsultarSeneca as consultarSeneca,
   apiConsultarHistorialArchivoCliente as consultarHistorialArchivoCliente

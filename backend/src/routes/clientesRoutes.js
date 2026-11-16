@@ -2,6 +2,9 @@ import { Router } from 'express';
 import {
   getClientes,
   consultarHistorialArchivo,
+  listarAntecedentesArchivados,
+  eliminarAntecedenteCliente,
+  eliminarPrestamoAntecedenteIndividual,
   createCliente,
   updateCliente,
   enviarPapelera,
@@ -14,6 +17,9 @@ router.use(authMiddleware);
 
 router.get('/', getClientes);
 router.get('/historial-archivo/consultar', consultarHistorialArchivo);
+router.get('/historial-archivo/lista', listarAntecedentesArchivados);
+router.delete('/historial-archivo/prestamo/:prestamoArchivoId', eliminarPrestamoAntecedenteIndividual);
+router.delete('/historial-archivo/:archivoId', eliminarAntecedenteCliente);
 router.post('/', createCliente);
 router.put('/:id', updateCliente);
 router.post('/:id/papelera', enviarPapelera);

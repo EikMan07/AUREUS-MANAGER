@@ -1,6 +1,27 @@
-import bcrypt from 'bcryptjs';
 import { pool, query, debugPayload } from '../config/db.js';
 import { getDefaultCobradorId } from '../services/seedService.js';
+
+const SQL_CODIGO_EXPR = "COALESCE(NULLIF(BTRIM(u.codigo_vinculacion), ''), ('CF-' || UPPER(SUBSTRING(u.id::text FROM 1 FOR 8))))";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function formatPersonaRow(row, contactoId = null) {
+  const codigo = String(row.codigo_vinculacion || row.codigo_id || '').trim()
+    || `CF-${String(row.usuario_id || row.id || '').substring(0, 8).toUpperCase()}`;
+  return {
+    contacto_id: contactoId || row.contacto_id || null,
+    usuario_id: row.usuario_id || row.id,
+    codigo_id: codigo,
+    codigo_vinculacion: codigo,
+    usuario: row.usuario,
+    username: row.usuario,
+    nombre_completo: row.nombre_completo,
+    correo: row.correo,
+    rol: row.rol,
+    foto_url: row.foto_url || null,
+    creado_en: row.creado_en || undefined,
+    ya_vinculado: typeof row.ya_vinculado === 'boolean' ? row.ya_vinculado : undefined
+  };
+}
 
 function getTodayCostaRicaISO() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -13,43 +34,83 @@ function getTodayCostaRicaISO() {
 
 /**
  * GET /api/compartir/personas?q=...
- * Obtiene la lista de contactos vinculados del prestamista y realiza búsqueda en usuarios.
+ * Obtiene contactos vinculados filtrando únicamente por usuario o código de vinculación.
  */
 export async function getPersonas(req, res) {
   try {
     const propietarioId = req.user?.id || req.query.cobrador_id || (await getDefaultCobradorId());
     const searchTerm = String(req.query.q || '').trim();
+    const cleanUserTerm = searchTerm.replace(/^@+/, '').toLowerCase();
+    const upperTerm = searchTerm.toUpperCase();
+    const cleanHexTerm = upperTerm.replace(/^CF-/i, '');
 
     // 1. Personas ya vinculadas en contactos_cobradores
-    const sqlMisPersonas = `
-      SELECT 
-        c.id AS contacto_id,
-        u.id AS usuario_id,
-        ('CF-' || UPPER(SUBSTRING(u.id::text, 1, 8))) AS codigo_id,
-        u.usuario,
-        u.nombre_completo,
-        u.correo,
-        u.rol,
-        c.creado_en
-      FROM contactos_cobradores c
-      JOIN usuarios u ON c.contacto_usuario_id = u.id
-      WHERE c.propietario_id = $1::uuid
-      ORDER BY u.nombre_completo ASC;
-    `;
-    const { rows: misPersonas } = await query(sqlMisPersonas, [propietarioId]);
-
-    // 2. Resultados de búsqueda en usuarios (si se envía término q)
-    let resultadosBusqueda = [];
+    let misPersonas = [];
     if (searchTerm.length > 0) {
-      const cleanTerm = searchTerm.replace(/^CF-/i, '');
-      const sqlBusqueda = `
-        SELECT 
+      const sqlMisPersonasFiltradas = `
+        SELECT
+          c.id AS contacto_id,
           u.id AS usuario_id,
-          ('CF-' || UPPER(SUBSTRING(u.id::text, 1, 8))) AS codigo_id,
+          ${SQL_CODIGO_EXPR} AS codigo_vinculacion,
+          ${SQL_CODIGO_EXPR} AS codigo_id,
           u.usuario,
           u.nombre_completo,
           u.correo,
           u.rol,
+          u.foto_url,
+          c.creado_en
+        FROM contactos_cobradores c
+        JOIN usuarios u ON c.contacto_usuario_id = u.id
+        WHERE c.propietario_id = $1::uuid
+          AND (
+            LOWER(u.usuario) LIKE $2
+            OR UPPER(${SQL_CODIGO_EXPR}) LIKE $3
+            OR UPPER(SUBSTRING(u.id::text FROM 1 FOR 8)) LIKE $4
+          )
+        ORDER BY u.nombre_completo ASC;
+      `;
+      const { rows } = await query(sqlMisPersonasFiltradas, [
+        propietarioId,
+        `%${cleanUserTerm}%`,
+        `%${upperTerm}%`,
+        `%${cleanHexTerm}%`
+      ]);
+      misPersonas = rows.map((r) => formatPersonaRow(r));
+    } else {
+      const sqlMisPersonas = `
+        SELECT
+          c.id AS contacto_id,
+          u.id AS usuario_id,
+          ${SQL_CODIGO_EXPR} AS codigo_vinculacion,
+          ${SQL_CODIGO_EXPR} AS codigo_id,
+          u.usuario,
+          u.nombre_completo,
+          u.correo,
+          u.rol,
+          u.foto_url,
+          c.creado_en
+        FROM contactos_cobradores c
+        JOIN usuarios u ON c.contacto_usuario_id = u.id
+        WHERE c.propietario_id = $1::uuid
+        ORDER BY u.nombre_completo ASC;
+      `;
+      const { rows } = await query(sqlMisPersonas, [propietarioId]);
+      misPersonas = rows.map((r) => formatPersonaRow(r));
+    }
+
+    // 2. Resultados globales por nombre de usuario o código de vinculación (sin nombre_completo)
+    let resultadosBusqueda = [];
+    if (searchTerm.length > 0) {
+      const sqlBusqueda = `
+        SELECT
+          u.id AS usuario_id,
+          ${SQL_CODIGO_EXPR} AS codigo_vinculacion,
+          ${SQL_CODIGO_EXPR} AS codigo_id,
+          u.usuario,
+          u.nombre_completo,
+          u.correo,
+          u.rol,
+          u.foto_url,
           EXISTS (
             SELECT 1 FROM contactos_cobradores cc
             WHERE cc.propietario_id = $1::uuid AND cc.contacto_usuario_id = u.id
@@ -57,19 +118,24 @@ export async function getPersonas(req, res) {
         FROM usuarios u
         WHERE u.id <> $1::uuid
           AND (
-            u.usuario ILIKE '%' || $2 || '%'
-            OR u.nombre_completo ILIKE '%' || $2 || '%'
-            OR u.id::text ILIKE '%' || $2 || '%'
-            OR UPPER(SUBSTRING(u.id::text, 1, 8)) = UPPER($3)
+            LOWER(u.usuario) LIKE $2
+            OR UPPER(${SQL_CODIGO_EXPR}) LIKE $3
+            OR UPPER(SUBSTRING(u.id::text FROM 1 FOR 8)) LIKE $4
           )
-        ORDER BY u.nombre_completo ASC
+        ORDER BY u.usuario ASC
         LIMIT 20;
       `;
-      const { rows } = await query(sqlBusqueda, [propietarioId, searchTerm, cleanTerm]);
-      resultadosBusqueda = rows;
+      const { rows } = await query(sqlBusqueda, [
+        propietarioId,
+        `%${cleanUserTerm}%`,
+        `%${upperTerm}%`,
+        `%${cleanHexTerm}%`
+      ]);
+      resultadosBusqueda = rows.map((r) => formatPersonaRow(r));
     }
 
     return res.json({
+      ok: true,
       success: true,
       misPersonas,
       resultadosBusqueda
@@ -77,6 +143,7 @@ export async function getPersonas(req, res) {
   } catch (err) {
     console.error('[Compartir Cobros] Error al obtener personas:', err);
     return res.status(500).json({
+      ok: false,
       success: false,
       error: 'Error al consultar contactos de cobro.',
       userMessage: 'No se pudieron consultar los contactos en este momento.',
@@ -85,157 +152,201 @@ export async function getPersonas(req, res) {
   }
 }
 
+async function buscarUsuarioPorCodigo(rawCodigo) {
+  const cleanCodeHex = rawCodigo.replace(/^CF-/i, '');
+  const canonicalCodigo = cleanCodeHex ? `CF-${cleanCodeHex}` : rawCodigo;
+  const sql = `
+    SELECT
+      u.id,
+      u.usuario,
+      u.nombre_completo,
+      u.correo,
+      u.rol,
+      u.foto_url,
+      ${SQL_CODIGO_EXPR} AS codigo_vinculacion
+    FROM usuarios u
+    WHERE UPPER(${SQL_CODIGO_EXPR}) = $1
+       OR UPPER(REPLACE(${SQL_CODIGO_EXPR}, 'CF-', '')) = $2
+       OR UPPER(SUBSTRING(u.id::text FROM 1 FOR 8)) = $2
+    LIMIT 1;
+  `;
+  const { rows } = await query(sql, [canonicalCodigo, cleanCodeHex]);
+  return rows[0] || null;
+}
+
+async function buscarUsuarioPorNombreUsuario(cleanUsername) {
+  const sql = `
+    SELECT
+      u.id,
+      u.usuario,
+      u.nombre_completo,
+      u.correo,
+      u.rol,
+      u.foto_url,
+      ${SQL_CODIGO_EXPR} AS codigo_vinculacion
+    FROM usuarios u
+    WHERE LOWER(u.usuario) = LOWER($1)
+    LIMIT 1;
+  `;
+  const { rows } = await query(sql, [cleanUsername]);
+  return rows[0] || null;
+}
+
 /**
  * POST /api/compartir/personas
- * Vincula una persona existente por contacto_usuario_id o registra una nueva persona en usuarios y la vincula.
+ * Vincula una cuenta existente exclusivamente por contacto_usuario_id, nombre de usuario o código de vinculación.
  */
 export async function agregarPersona(req, res) {
   try {
-    const propietarioId = req.user?.id || req.body.cobrador_id || (await getDefaultCobradorId());
-    const { contacto_usuario_id, nombre_completo, usuario } = req.body || {};
+    const propietarioId = req.user?.id || req.body?.cobrador_id || (await getDefaultCobradorId());
+    const {
+      contacto_usuario_id,
+      username,
+      usuario,
+      codigo,
+      codigo_vinculacion
+    } = req.body || {};
 
-    // CASO A: Vincular persona existente por UUID
+    let usuarioEncontrado = null;
+
+    // Opción directa desde resultados de búsqueda en vivo
     if (contacto_usuario_id) {
-      if (contacto_usuario_id === propietarioId) {
+      if (!UUID_REGEX.test(String(contacto_usuario_id))) {
         return res.status(400).json({
+          ok: false,
           success: false,
-          userMessage: 'No puedes agregarte a ti mismo como contacto vinculado.'
+          userMessage: 'Identificador de usuario inválido.'
         });
       }
-
-      const { rows: userRows } = await query(
-        `SELECT id, usuario, nombre_completo, correo, rol FROM usuarios WHERE id = $1::uuid;`,
+      const { rows } = await query(
+        `SELECT
+          u.id,
+          u.usuario,
+          u.nombre_completo,
+          u.correo,
+          u.rol,
+          u.foto_url,
+          ${SQL_CODIGO_EXPR} AS codigo_vinculacion
+         FROM usuarios u
+         WHERE u.id = $1::uuid
+         LIMIT 1;`,
         [contacto_usuario_id]
       );
-      if (userRows.length === 0) {
+      usuarioEncontrado = rows[0] || null;
+      if (!usuarioEncontrado) {
         return res.status(404).json({
+          ok: false,
           success: false,
-          userMessage: 'La persona seleccionada no existe.'
+          userMessage: 'La cuenta seleccionada ya no se encuentra registrada.'
+        });
+      }
+    } else {
+      // Validación estricta por las 2 opciones: Nombre de usuario o Código de vinculación
+      const cleanUsername = String(username ?? usuario ?? '').trim().replace(/^@+/, '');
+      const cleanCodigo = String(codigo ?? codigo_vinculacion ?? '').trim().toUpperCase();
+
+      if (!cleanUsername && !cleanCodigo) {
+        return res.status(400).json({
+          ok: false,
+          success: false,
+          userMessage: 'Ingresa el nombre de usuario o el código de la persona para vincularla.'
         });
       }
 
-      await query(
-        `INSERT INTO contactos_cobradores (propietario_id, contacto_usuario_id)
-         VALUES ($1::uuid, $2::uuid)
-         ON CONFLICT (propietario_id, contacto_usuario_id) DO NOTHING;`,
-        [propietarioId, contacto_usuario_id]
-      );
+      if (cleanUsername && cleanCodigo) {
+        const matchUser = await buscarUsuarioPorNombreUsuario(cleanUsername);
+        const codeHex = cleanCodigo.replace(/^CF-/i, '');
+        const canonicalCode = codeHex ? `CF-${codeHex}` : cleanCodigo;
 
-      const target = userRows[0];
-      return res.json({
-        success: true,
-        mensaje: 'Persona vinculada con éxito.',
-        persona: {
-          usuario_id: target.id,
-          codigo_id: 'CF-' + target.id.substring(0, 8).toUpperCase(),
-          usuario: target.usuario,
-          nombre_completo: target.nombre_completo,
-          correo: target.correo,
-          rol: target.rol
+        if (!matchUser) {
+          const matchCode = await buscarUsuarioPorCodigo(cleanCodigo);
+          if (matchCode) {
+            return res.status(400).json({
+              ok: false,
+              success: false,
+              userMessage: 'El nombre de usuario y el código ingresados no corresponden a la misma cuenta.'
+            });
+          }
+          return res.status(404).json({
+            ok: false,
+            success: false,
+            userMessage: 'No se encontró ninguna cuenta registrada con ese nombre de usuario o código.'
+          });
         }
-      });
+
+        const resolvedCode = String(matchUser.codigo_vinculacion || '').toUpperCase();
+        const resolvedHex = resolvedCode.replace(/^CF-/i, '');
+        if (resolvedCode !== canonicalCode && resolvedHex !== codeHex) {
+          return res.status(400).json({
+            ok: false,
+            success: false,
+            userMessage: 'El nombre de usuario y el código ingresados no corresponden a la misma cuenta.'
+          });
+        }
+        usuarioEncontrado = matchUser;
+      } else if (cleanUsername) {
+        usuarioEncontrado = await buscarUsuarioPorNombreUsuario(cleanUsername);
+      } else {
+        usuarioEncontrado = await buscarUsuarioPorCodigo(cleanCodigo);
+      }
+
+      if (!usuarioEncontrado) {
+        return res.status(404).json({
+          ok: false,
+          success: false,
+          userMessage: 'No se encontró ninguna cuenta registrada con ese nombre de usuario o código.'
+        });
+      }
     }
 
-    // CASO B: Registro y alta rápida de un nuevo cobrador / compañero
-    const cleanNombre = String(nombre_completo || '').trim();
-    const cleanUsuario = String(usuario || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_.-]/g, '');
-
-    if (!cleanNombre || cleanNombre.length < 2) {
+    if (usuarioEncontrado.id === propietarioId) {
       return res.status(400).json({
+        ok: false,
         success: false,
-        userMessage: 'Debes indicar el nombre completo de la persona.'
-      });
-    }
-    if (!cleanUsuario || cleanUsuario.length < 3) {
-      return res.status(400).json({
-        success: false,
-        userMessage: 'El nombre de usuario debe tener al menos 3 caracteres alfanuméricos.'
+        userMessage: 'No puedes vincularte a tu propia cuenta.'
       });
     }
 
-    // Comprobar si el username ya existe
-    const { rows: existingUser } = await query(
-      `SELECT id, usuario, nombre_completo, rol FROM usuarios WHERE usuario = $1;`,
-      [cleanUsuario]
+    const { rows: existingContact } = await query(
+      `SELECT id FROM contactos_cobradores
+        WHERE propietario_id = $1::uuid AND contacto_usuario_id = $2::uuid
+        LIMIT 1;`,
+      [propietarioId, usuarioEncontrado.id]
     );
 
-    let targetUserId = null;
-    let targetUserData = null;
-
-    if (existingUser.length > 0) {
-      targetUserId = existingUser[0].id;
-      targetUserData = existingUser[0];
-    } else {
-      // Crear nuevo usuario con rol COBRADOR y contraseña por defecto
-      const salt = bcrypt.genSaltSync(10);
-      const defaultHash = bcrypt.hashSync('CobroFirme2026!', salt);
-      const email = `${cleanUsuario}@cobrofirme.cr`;
-
-      const insertSql = `
-        INSERT INTO usuarios (
-          usuario,
-          nombre_completo,
-          correo,
-          correo_verificado,
-          password_hash,
-          rol,
-          estado_cuenta
-        ) VALUES (
-          $1,
-          $2,
-          $3,
-          true,
-          $4,
-          'COBRADOR'::public.rol_usuario,
-          'ACTIVA'::public.estado_cuenta
-        )
-        RETURNING id, usuario, nombre_completo, correo, rol;
-      `;
-      const { rows: createdRows } = await query(insertSql, [
-        cleanUsuario,
-        cleanNombre,
-        email,
-        defaultHash
-      ]);
-      targetUserId = createdRows[0].id;
-      targetUserData = createdRows[0];
-    }
-
-    if (targetUserId === propietarioId) {
-      return res.status(400).json({
-        success: false,
-        userMessage: 'No puedes agregarte a ti mismo como contacto vinculado.'
+    if (existingContact.length > 0) {
+      return res.status(200).json({
+        ok: true,
+        success: true,
+        yaVinculada: true,
+        persona: formatPersonaRow(usuarioEncontrado, existingContact[0].id),
+        userMessage: 'Esta persona ya se encuentra en tu lista.',
+        mensaje: 'Esta persona ya se encuentra en tu lista.'
       });
     }
 
-    // Vincular automáticamente a contactos_cobradores
-    await query(
+    const { rows: insertedRows } = await query(
       `INSERT INTO contactos_cobradores (propietario_id, contacto_usuario_id)
        VALUES ($1::uuid, $2::uuid)
-       ON CONFLICT (propietario_id, contacto_usuario_id) DO NOTHING;`,
-      [propietarioId, targetUserId]
+       RETURNING id;`,
+      [propietarioId, usuarioEncontrado.id]
     );
 
-    return res.json({
+    return res.status(201).json({
+      ok: true,
       success: true,
-      mensaje: 'Persona vinculada con éxito.',
-      persona: {
-        usuario_id: targetUserId,
-        codigo_id: 'CF-' + targetUserId.substring(0, 8).toUpperCase(),
-        usuario: targetUserData.usuario,
-        nombre_completo: targetUserData.nombre_completo,
-        rol: targetUserData.rol
-      }
+      yaVinculada: false,
+      persona: formatPersonaRow(usuarioEncontrado, insertedRows[0]?.id || null),
+      userMessage: 'Persona vinculada correctamente.',
+      mensaje: 'Persona vinculada correctamente.'
     });
   } catch (err) {
     console.error('[Compartir Cobros] Error al agregar persona:', err);
     return res.status(500).json({
+      ok: false,
       success: false,
       error: 'Error interno al vincular persona.',
-      userMessage: 'No se pudo agregar o vincular a la persona.',
+      userMessage: 'No se pudo vincular a la persona en este momento.',
       ...debugPayload(err)
     });
   }
@@ -250,27 +361,31 @@ export async function eliminarPersona(req, res) {
     const propietarioId = req.user?.id || req.query.cobrador_id || (await getDefaultCobradorId());
     const { contactoId } = req.params;
 
-    if (!contactoId) {
+    if (!contactoId || !UUID_REGEX.test(String(contactoId))) {
       return res.status(400).json({
+        ok: false,
         success: false,
-        userMessage: 'Identificador de contacto no especificado.'
+        userMessage: 'Identificador de contacto no especificado o inválido.'
       });
     }
 
     await query(
-      `DELETE FROM contactos_cobradores 
+      `DELETE FROM contactos_cobradores
        WHERE (id = $1::uuid OR contacto_usuario_id = $1::uuid)
          AND propietario_id = $2::uuid;`,
       [contactoId, propietarioId]
     );
 
     return res.json({
+      ok: true,
       success: true,
+      userMessage: 'Contacto retirado de la lista con éxito.',
       mensaje: 'Contacto retirado de la lista con éxito.'
     });
   } catch (err) {
     console.error('[Compartir Cobros] Error al eliminar persona:', err);
     return res.status(500).json({
+      ok: false,
       success: false,
       error: 'Error al retirar contacto.',
       userMessage: 'No se pudo retirar el contacto en este momento.',
@@ -373,7 +488,7 @@ export async function compartirCobrosDia(req, res) {
 
     await client.query('BEGIN');
 
-    // 1. Verificar existencia del destinatario
+    // 1. Verificar existencia del destinatario y obtener nombre del propietario
     const destRes = await client.query(
       `SELECT id, nombre_completo, usuario FROM usuarios WHERE id = $1::uuid;`,
       [destinatario_id]
@@ -387,7 +502,13 @@ export async function compartirCobrosDia(req, res) {
     }
     const destinatario = destRes.rows[0];
 
-    // 2. Actualizar agenda_cobros
+    const propRes = await client.query(
+      `SELECT id, nombre_completo, usuario FROM usuarios WHERE id = $1::uuid;`,
+      [propietarioId]
+    );
+    const propietarioNombre = propRes.rows[0]?.nombre_completo || propRes.rows[0]?.usuario || 'Otro prestamista';
+
+    // 2. Actualizar agenda_cobros con trazabilidad completa de delegación
     let updateSql = '';
     let params = [];
 
@@ -395,7 +516,11 @@ export async function compartirCobrosDia(req, res) {
       updateSql = `
         UPDATE agenda_cobros
         SET compartido_con_usuario_id = $1::uuid,
-            compartido_en = now()
+            compartido_por_usuario_id = $2::uuid,
+            compartido_en = now(),
+            gestionado_por_usuario_id = NULL,
+            gestionado_accion = NULL,
+            gestionado_en = NULL
         WHERE cobrador_id = $2::uuid
           AND fecha_cobro_actual = $3::date
           AND id = ANY($4::uuid[])
@@ -407,7 +532,11 @@ export async function compartirCobrosDia(req, res) {
       updateSql = `
         UPDATE agenda_cobros
         SET compartido_con_usuario_id = $1::uuid,
-            compartido_en = now()
+            compartido_por_usuario_id = $2::uuid,
+            compartido_en = now(),
+            gestionado_por_usuario_id = NULL,
+            gestionado_accion = NULL,
+            gestionado_en = NULL
         WHERE cobrador_id = $2::uuid
           AND fecha_cobro_actual = $3::date
           AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
@@ -437,10 +566,11 @@ export async function compartirCobrosDia(req, res) {
       [propietarioId, destinatario_id, fecha_cobro, cantidadCobros, montoTotal]
     );
 
-    // 4. Crear notificación interna para el destinatario
+    // 4. Crear notificación interna para el destinatario con fecha explícita, propietario, conteo y monto
+    const montoLegible = `₡${Math.round(montoTotal).toLocaleString('en-US')}`;
     const notifMsg = cantidadCobros === 1
-      ? `Tienes 1 cobro asignado para gestionar en la fecha ${fecha_cobro}.`
-      : `Tienes ${cantidadCobros} cobros asignados para gestionar en la fecha ${fecha_cobro}.`;
+      ? `${propietarioNombre} compartió 1 cobro contigo para la fecha ${fecha_cobro} por ${montoLegible}.`
+      : `${propietarioNombre} compartió ${cantidadCobros} cobros contigo para la fecha ${fecha_cobro} por ${montoLegible}.`;
 
     await client.query(
       `INSERT INTO notificaciones (
@@ -497,9 +627,11 @@ export async function dejarDeCompartirDia(req, res) {
     let updateSql = `
       UPDATE agenda_cobros
       SET compartido_con_usuario_id = NULL,
+          compartido_por_usuario_id = NULL,
           compartido_en = NULL
       WHERE cobrador_id = $1::uuid
         AND fecha_cobro_actual = $2::date
+        AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
     `;
     const params = [propietarioId, fecha];
 
@@ -540,12 +672,87 @@ export async function dejarDeCompartirDia(req, res) {
   }
 }
 
+/**
+ * POST /api/compartir/revertir-cobro/:agendaId
+ * Permite al propietario retirar el envío individual de un cobro pendiente antes de que el receptor lo gestione.
+ */
+export async function revertirCobroCompartido(req, res) {
+  try {
+    const propietarioId = req.user?.id || req.body?.cobrador_id || (await getDefaultCobradorId());
+    const { agendaId } = req.params;
+
+    if (!agendaId || !UUID_REGEX.test(agendaId)) {
+      return res.status(400).json({
+        success: false,
+        userMessage: 'El identificador del cobro indicado no es válido.'
+      });
+    }
+
+    const checkRes = await query(
+      `SELECT a.id, p.cobrador_id, a.estado
+       FROM agenda_cobros a
+       JOIN prestamos p ON a.prestamo_id = p.id
+       WHERE a.id = $1::uuid;`,
+      [agendaId]
+    );
+
+    if (checkRes.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        userMessage: 'No se encontró el cobro solicitado.'
+      });
+    }
+
+    const row = checkRes.rows[0];
+    if (String(row.cobrador_id) !== String(propietarioId)) {
+      return res.status(403).json({
+        success: false,
+        userMessage: 'Solo el prestamista propietario puede retirar este envío.'
+      });
+    }
+
+    if (row.estado !== 'PENDIENTE' && row.estado !== 'PASADO_DE_DIA') {
+      return res.status(409).json({
+        success: false,
+        userMessage: 'Este cobro ya fue gestionado y no se puede retirar.'
+      });
+    }
+
+    const { rows: updated } = await query(
+      `UPDATE agenda_cobros
+       SET compartido_con_usuario_id = NULL,
+           compartido_por_usuario_id = NULL,
+           compartido_en = NULL
+       WHERE id = $1::uuid
+         AND estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
+       RETURNING id;`,
+      [agendaId]
+    );
+
+    return res.json({
+      success: true,
+      mensaje: 'Envío retirado con éxito.',
+      revertido: updated.length > 0,
+      id: agendaId
+    });
+  } catch (err) {
+    console.error('[Compartir Cobros] Error al revertir cobro individual:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Error al retirar envío de cobro.',
+      userMessage: 'No se pudo retirar el envío en este momento.',
+      ...debugPayload(err)
+    });
+  }
+}
+
 export default {
   getPersonas,
   agregarPersona,
   eliminarPersona,
   getResumenDiaParaCompartir,
   compartirCobrosDia,
-  dejarDeCompartirDia
+  dejarDeCompartirDia,
+  revertirCobroCompartido
 };
 

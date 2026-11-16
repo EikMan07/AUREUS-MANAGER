@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatColones } from '../../utils/formatters';
 import { useTheme } from '../../context/ThemeContext';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture';
 
 const TABS = [
   { id: 'DIA', label: 'Día' },
@@ -241,7 +242,11 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
   return (
     <div
       ref={containerRef}
+      className="rb-spotlight-card"
+      onMouseMove={handleSpotlightMouseMove}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         backgroundColor: 'var(--aureus-bg-surface)',
         border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
@@ -254,6 +259,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
         width: '100%',
       }}
     >
+      <ImperialCornerAccents isDark={isDark} />
       {/* 1. Cabecera del Gráfico */}
       <div
         style={{
@@ -264,6 +270,7 @@ export function TendenciaCobrosChart({ data, tipo, cantidad, onChangeFilter, isL
       >
         <div>
           <h3
+            className="aureus-imperial-title"
             style={{
               fontSize: '16px',
               fontWeight: 800,

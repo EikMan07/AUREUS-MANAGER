@@ -112,11 +112,35 @@ function calculateNextChargeDate(currentDateStr, modalidad, diaMes1, diaMes2, di
   }
 }
 
+async function getDelegadoNombre(client, usuarioId) {
+  const { rows } = await client.query(
+    `SELECT COALESCE(NULLIF(BTRIM(nombre_completo), ''), NULLIF(BTRIM(usuario), ''), 'Otro cobrador') AS nombre
+       FROM usuarios
+      WHERE id = $1::uuid
+      LIMIT 1;`,
+    [usuarioId]
+  );
+  return rows[0]?.nombre || 'Otro cobrador';
+}
+
+async function notifyOwnerWithSavepoint(client, { savepointName = 'sp_notif_delegado', ownerId, titulo, mensaje, montoResaltado = 0 }) {
+  try {
+    await client.query('SAVEPOINT sp_notif_delegado');
+    await client.query(
+      `INSERT INTO notificaciones (usuario_id, titulo, mensaje, monto_resaltado, leida)
+       VALUES ($1::uuid, $2, $3, $4, false);`,
+      [ownerId, titulo, mensaje, Number(montoResaltado || 0)]
+    );
+    await client.query('RELEASE SAVEPOINT sp_notif_delegado');
+  } catch (notifErr) {
+    await client.query('ROLLBACK TO SAVEPOINT sp_notif_delegado').catch(() => {});
+    console.warn(`[Notificaciones Delegación] Aviso no bloqueante (${savepointName}):`, notifErr.message);
+  }
+}
+
 export async function getCobros(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
-    const vistaUsuarioId = req.query.vista_usuario_id || null;
-    const esVistaDelegada = Boolean(vistaUsuarioId && String(vistaUsuarioId) !== String(cobradorId));
+    const usuarioActualId = req.user?.id || req.query.cobrador_id || await getDefaultCobradorId();
 
     // Fecha consultada (YYYY-MM-DD), por defecto hoy en Costa Rica
     const nowCR = new Intl.DateTimeFormat('en-CA', {
@@ -128,174 +152,58 @@ export async function getCobros(req, res) {
 
     const fecha = req.query.fecha || nowCR;
 
-    // =========================================================================
-    // CASO A: VISTA DELEGADA (COBROS COMPARTIDOS CON OTRA PERSONA)
-    // =========================================================================
-    if (esVistaDelegada) {
-      const { rows: destRows } = await query(
-        `SELECT id, usuario, nombre_completo, ('CF-' || UPPER(SUBSTRING(id::text, 1, 8))) AS codigo_id FROM usuarios WHERE id = $1::uuid;`,
-        [vistaUsuarioId]
-      );
-      const destinatarioInfo = destRows[0] || { id: vistaUsuarioId, nombre_completo: 'Persona vinculada' };
-
-      const sqlPendientesDelegados = `
-        SELECT 
-          a.id,
-          a.prestamo_id,
-          a.cliente_id,
-          a.numero_cobro,
-          to_char(a.fecha_programada_original, 'YYYY-MM-DD') AS fecha_programada_original,
-          to_char(a.fecha_cobro_actual, 'YYYY-MM-DD') AS fecha_cobro_actual,
-          false AS es_rezagado,
-          a.dia_semana_actual,
-          a.veces_pasado,
-          a.monto_cuota,
-          a.monto_moratoria,
-          a.estado AS estado_cuota,
-          c.cedula,
-          c.nombre,
-          c.apellidos,
-          c.telefono,
-          c.telefono_secundario,
-          c.telefono_secundario AS cliente_telefono_secundario,
-          c.ubicacion,
-          c.detalles,
-          p.monto_prestado,
-          p.saldo_por_pagar,
-          p.modalidad,
-          p.dia_fijo_original,
-          p.periodos_atrasados_acumulados,
-          p.periodos_pagados,
-          p.total_periodos,
-          p.estado AS estado_prestamo,
-          true AS es_compartido,
-          u_prop.nombre_completo AS compartido_por_nombre,
-          u_prop.usuario AS compartido_por_usuario,
-          a.compartido_con_usuario_id,
-          to_char(a.compartido_en, 'YYYY-MM-DD HH24:MI') AS compartido_en
-        FROM agenda_cobros a
-        JOIN prestamos p ON a.prestamo_id = p.id
-        JOIN clientes c ON a.cliente_id = c.id
-        JOIN usuarios u_prop ON a.cobrador_id = u_prop.id
-        WHERE a.compartido_con_usuario_id = $1::uuid
-          AND a.fecha_cobro_actual = $2::date
-          AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
-        ORDER BY a.numero_cobro ASC, c.nombre ASC;
-      `;
-      const { rows: pendientesDelegados } = await query(sqlPendientesDelegados, [vistaUsuarioId, fecha]);
-
-      const sqlRegistradosDelegados = `
-        SELECT 
-          a.id,
-          a.prestamo_id,
-          a.cliente_id,
-          a.numero_cobro,
-          to_char(a.fecha_programada_original, 'YYYY-MM-DD') AS fecha_programada_original,
-          to_char(a.fecha_cobro_actual, 'YYYY-MM-DD') AS fecha_cobro_actual,
-          a.dia_semana_actual,
-          a.veces_pasado,
-          a.monto_cuota,
-          a.monto_moratoria,
-          a.monto_total_cobrado,
-          a.estado AS estado_cuota,
-          a.fecha_hora_registro_pago,
-          to_char(a.fecha_proximo_cobro, 'YYYY-MM-DD') AS fecha_proximo_cobro,
-          c.cedula,
-          c.nombre,
-          c.apellidos,
-          c.telefono,
-          c.telefono_secundario,
-          c.telefono_secundario AS cliente_telefono_secundario,
-          c.ubicacion,
-          c.detalles,
-          p.monto_prestado,
-          p.saldo_por_pagar,
-          p.modalidad,
-          p.dia_fijo_original,
-          p.periodos_pagados,
-          p.total_periodos,
-          true AS es_compartido,
-          u_prop.nombre_completo AS compartido_por_nombre
-        FROM agenda_cobros a
-        JOIN prestamos p ON a.prestamo_id = p.id
-        JOIN clientes c ON a.cliente_id = c.id
-        JOIN usuarios u_prop ON a.cobrador_id = u_prop.id
-        WHERE a.compartido_con_usuario_id = $1::uuid
-          AND (
-            a.fecha_cobro_actual = $2::date 
-            OR (a.fecha_hora_registro_pago AT TIME ZONE 'America/Costa_Rica')::date = $2::date
-          )
-          AND a.estado = 'REGISTRADO'
-        ORDER BY a.fecha_hora_registro_pago DESC;
-      `;
-      const { rows: registradosDelegados } = await query(sqlRegistradosDelegados, [vistaUsuarioId, fecha]);
-
-      const montoHoyDelegado = pendientesDelegados.reduce((acc, r) => acc + Number(r.monto_cuota || 0), 0);
-      const montoTotalPrestadoDelegado = pendientesDelegados.reduce((acc, r) => acc + Number(r.monto_prestado || 0), 0);
-
-      return res.json({
-        fecha,
-        es_vista_delegada: true,
-        destinatario: destinatarioInfo,
-        metricas: {
-          totalPrestado: montoTotalPrestadoDelegado,
-          estaSemana: montoHoyDelegado,
-          hoy: montoHoyDelegado
-        },
-        pendientes: pendientesDelegados,
-        registrados: registradosDelegados,
-        atrasados: [],
-        diasConPendientesSinCerrar: [],
-        compartidos_activos_dia: []
-      });
-    }
-
-    // =========================================================================
-    // CASO B: VISTA NORMAL COMO PROPIETARIO
-    // =========================================================================
-
-    // 1. Total Prestado (Monto acumulado prestado en cartera activa / no liquidada ni suspendida)
+    // 1. Total Prestado: suma exclusivamente el capital de los préstamos propios vigentes activos
     const sqlTotalPrestado = `
-      SELECT COALESCE(SUM(monto_prestado), 0)::numeric AS total
-      FROM prestamos
-      WHERE cobrador_id = $1 AND estado NOT IN ('SUSPENDIDO', 'LIQUIDADO');
+      SELECT
+        COALESCE(SUM(p.monto_prestado), 0)::numeric AS total,
+        COUNT(p.id)::int AS activos_count
+      FROM prestamos p
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE p.cobrador_id = $1::uuid
+        AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0;
     `;
-    const { rows: resTotalPrestado } = await query(sqlTotalPrestado, [cobradorId]);
+    const { rows: resTotalPrestado } = await query(sqlTotalPrestado, [usuarioActualId]);
     const totalPrestado = Number(resTotalPrestado[0]?.total || 0);
+    const prestamosActivosCount = Number(resTotalPrestado[0]?.activos_count || 0);
 
-    // 2. Esta Semana (Cuotas programadas en la semana de lunes a domingo de la fecha consultada)
+    // 2. Esta Semana: incluye cuotas propias y cuotas compartidas recibidas para la semana consultada
     const sqlEstaSemana = `
       SELECT COALESCE(SUM(a.monto_cuota), 0)::numeric AS total
       FROM agenda_cobros a
-      JOIN prestamos p ON a.prestamo_id = p.id
-      WHERE a.cobrador_id = $1
-        AND p.estado NOT IN ('SUSPENDIDO', 'LIQUIDADO')
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
+        AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
         AND a.fecha_cobro_actual >= date_trunc('week', $2::date)::date
         AND a.fecha_cobro_actual <= (date_trunc('week', $2::date)::date + interval '6 days');
     `;
-    const { rows: resEstaSemana } = await query(sqlEstaSemana, [cobradorId, fecha]);
+    const { rows: resEstaSemana } = await query(sqlEstaSemana, [usuarioActualId, fecha]);
     const estaSemana = Number(resEstaSemana[0]?.total || 0);
 
-    // 3. Hoy (Monto programado pendiente para la fecha consultada + rezagados si es hoy)
+    // 3. Hoy: cuotas propias y compartidas pendientes para la fecha consultada (y rezagados propios si es hoy)
     const sqlHoy = `
       SELECT COALESCE(SUM(a.monto_cuota), 0)::numeric AS total
       FROM agenda_cobros a
-      JOIN prestamos p ON a.prestamo_id = p.id
-      JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.cobrador_id = $1
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
-        AND c.estado = 'ACTIVO'::public.estado_cliente
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
         AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
         AND (
           a.fecha_cobro_actual = $2::date
           OR ($2::date = $3::date AND a.fecha_cobro_actual < $3::date)
         );
     `;
-    const { rows: resHoy } = await query(sqlHoy, [cobradorId, fecha, nowCR]);
+    const { rows: resHoy } = await query(sqlHoy, [usuarioActualId, fecha, nowCR]);
     const hoy = Number(resHoy[0]?.total || 0);
 
-    // 4. Lista de Pendientes (Para la fecha consultada + arrastre de días anteriores sin cerrar cuando fecha == hoy)
-    // Permite que préstamos en estado ATRASADO sigan apareciendo en sus cuotas futuras programadas
+    // 4. Lista de Pendientes (propios + recibidos por delegación compartida en esta fecha)
     const sqlPendientes = `
       SELECT 
         a.id,
@@ -310,18 +218,34 @@ export async function getCobros(req, res) {
         a.monto_cuota,
         a.monto_moratoria,
         a.estado AS estado_cuota,
+        (p.cobrador_id <> $1::uuid AND a.compartido_con_usuario_id = $1::uuid) AS es_cobro_recibido,
+        (p.cobrador_id <> $1::uuid AND a.compartido_con_usuario_id = $1::uuid) AS es_compartido,
+        (p.cobrador_id = $1::uuid AND a.compartido_con_usuario_id IS NOT NULL) AS es_cobro_enviado,
+        u_prop.nombre_completo AS compartido_por_nombre,
+        u_prop.usuario AS compartido_por_username,
         a.compartido_con_usuario_id,
+        u_del.nombre_completo AS compartido_con_nombre,
+        u_del.usuario AS compartido_con_username,
         to_char(a.compartido_en, 'YYYY-MM-DD HH24:MI') AS compartido_en,
-        u_comp.nombre_completo AS compartido_con_nombre,
-        u_comp.usuario AS compartido_con_usuario,
+        a.gestionado_por_usuario_id,
+        u_gest.nombre_completo AS gestionado_por_nombre,
+        a.gestionado_accion,
+        to_char(a.gestionado_en, 'YYYY-MM-DD HH24:MI') AS gestionado_en,
         c.cedula,
+        c.cedula AS cliente_cedula,
         c.nombre,
+        c.nombre AS cliente_nombre,
         c.apellidos,
+        c.apellidos AS cliente_apellidos,
         c.telefono,
+        c.telefono AS cliente_telefono,
         c.telefono_secundario,
         c.telefono_secundario AS cliente_telefono_secundario,
         c.ubicacion,
+        c.ubicacion AS cliente_ubicacion,
         c.detalles,
+        c.detalles AS cliente_detalles,
+        p.cuota,
         p.monto_prestado,
         p.saldo_por_pagar,
         p.modalidad,
@@ -331,66 +255,89 @@ export async function getCobros(req, res) {
         p.total_periodos,
         p.estado AS estado_prestamo
       FROM agenda_cobros a
-      JOIN prestamos p ON a.prestamo_id = p.id
-      JOIN clientes c ON a.cliente_id = c.id
-      LEFT JOIN usuarios u_comp ON a.compartido_con_usuario_id = u_comp.id
-      WHERE a.cobrador_id = $1
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      LEFT JOIN usuarios u_prop ON u_prop.id = p.cobrador_id
+      LEFT JOIN usuarios u_del ON u_del.id = a.compartido_con_usuario_id
+      LEFT JOIN usuarios u_gest ON u_gest.id = a.gestionado_por_usuario_id
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
-        AND c.estado = 'ACTIVO'::public.estado_cliente
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
         AND (
           a.fecha_cobro_actual = $2::date
           OR ($2::date = $3::date AND a.fecha_cobro_actual < $3::date)
         )
       ORDER BY es_rezagado DESC, a.fecha_cobro_actual ASC, a.numero_cobro ASC, c.nombre ASC;
     `;
-    const { rows: rowsPendientes } = await query(sqlPendientes, [cobradorId, fecha, nowCR]);
+    const { rows: rowsPendientes } = await query(sqlPendientes, [usuarioActualId, fecha, nowCR]);
 
-    // 4.1 Días anteriores que aún tienen cobros pendientes sin cerrar (para indicador en barra de 7 días y notificaciones)
+    // 4.1 Días anteriores con pendientes sin cerrar e indicadores semanales (incluye propios y compartidos recibidos)
     const sqlDiasSinCerrar = `
       SELECT 
         to_char(a.fecha_cobro_actual, 'YYYY-MM-DD') AS fecha_pendiente,
         COUNT(*)::int AS total_pendientes,
         COALESCE(SUM(a.monto_cuota), 0)::numeric AS monto_total
       FROM agenda_cobros a
-      JOIN prestamos p ON a.prestamo_id = p.id
-      JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.cobrador_id = $1
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
-        AND c.estado = 'ACTIVO'::public.estado_cliente
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
         AND a.fecha_cobro_actual < $2::date
       GROUP BY a.fecha_cobro_actual
       ORDER BY fecha_pendiente ASC;
     `;
-    const { rows: rowsDiasSinCerrar } = await query(sqlDiasSinCerrar, [cobradorId, nowCR]);
+    const { rows: rowsDiasSinCerrar } = await query(sqlDiasSinCerrar, [usuarioActualId, nowCR]);
     const diasConPendientesSinCerrar = rowsDiasSinCerrar.map(r => r.fecha_pendiente);
+
+    const sqlDiasConCobrosSemana = `
+      SELECT 
+        to_char(a.fecha_cobro_actual, 'YYYY-MM-DD') AS fecha,
+        COUNT(*)::int AS total_cobros
+      FROM agenda_cobros a
+      INNER JOIN prestamos p ON a.prestamo_id = p.id
+      INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
+        AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
+        AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
+        AND a.fecha_cobro_actual >= date_trunc('week', $2::date)::date
+        AND a.fecha_cobro_actual <= (date_trunc('week', $2::date)::date + interval '6 days')
+      GROUP BY a.fecha_cobro_actual
+      ORDER BY fecha ASC;
+    `;
+    const { rows: rowsDiasSemana } = await query(sqlDiasConCobrosSemana, [usuarioActualId, fecha]);
 
     if (rowsDiasSinCerrar.length > 0) {
       const totalRezagados = rowsDiasSinCerrar.reduce((acc, r) => acc + Number(r.total_pendientes || 0), 0);
       const montoRezagado = rowsDiasSinCerrar.reduce((acc, r) => acc + Number(r.monto_total || 0), 0);
       const checkNotifSql = `
         SELECT id FROM notificaciones
-        WHERE usuario_id = $1
+        WHERE usuario_id = $1::uuid
           AND titulo = 'Cobros pendientes sin cerrar'
           AND leida = false
           AND (fecha_creacion AT TIME ZONE 'America/Costa_Rica')::date = $2::date
         LIMIT 1;
       `;
-      const { rows: existingNotif } = await query(checkNotifSql, [cobradorId, nowCR]);
+      const { rows: existingNotif } = await query(checkNotifSql, [usuarioActualId, nowCR]);
       if (existingNotif.length === 0) {
         const msgNotif = totalRezagados === 1
           ? 'Tienes 1 cobro de días anteriores sin registrar. Indica si el cliente pagó, pasó de día o no pagó.'
           : `Tienes ${totalRezagados} cobros de días anteriores sin registrar. Indica si el cliente pagó, pasó de día o no pagó.`;
         await query(
           `INSERT INTO notificaciones (usuario_id, titulo, mensaje, monto_resaltado, leida)
-           VALUES ($1, 'Cobros pendientes sin cerrar', $2, $3, false)`,
-          [cobradorId, msgNotif, montoRezagado]
+           VALUES ($1::uuid, 'Cobros pendientes sin cerrar', $2, $3, false)`,
+          [usuarioActualId, msgNotif, montoRezagado]
         );
       }
     }
 
-    // 5. Lista de Registrados (Filtrados estrictamente por la fecha consultada)
+    // 5. Lista de Registrados (propios + compartidos recibidos o delegados ya gestionados en la fecha)
     const sqlRegistrados = `
       SELECT 
         a.id,
@@ -407,29 +354,49 @@ export async function getCobros(req, res) {
         a.estado AS estado_cuota,
         a.fecha_hora_registro_pago,
         to_char(a.fecha_proximo_cobro, 'YYYY-MM-DD') AS fecha_proximo_cobro,
+        (p.cobrador_id <> $1::uuid AND a.compartido_con_usuario_id = $1::uuid) AS es_cobro_recibido,
+        (p.cobrador_id <> $1::uuid AND a.compartido_con_usuario_id = $1::uuid) AS es_compartido,
+        (p.cobrador_id = $1::uuid AND a.compartido_con_usuario_id IS NOT NULL) AS es_cobro_enviado,
+        (a.gestionado_por_usuario_id IS NOT NULL AND a.gestionado_por_usuario_id <> p.cobrador_id) AS es_gestionado_por_otro,
+        u_prop.nombre_completo AS compartido_por_nombre,
+        u_prop.usuario AS compartido_por_username,
+        a.compartido_con_usuario_id,
+        to_char(a.compartido_en, 'YYYY-MM-DD HH24:MI') AS compartido_en,
+        u_del.nombre_completo AS compartido_con_nombre,
+        u_del.usuario AS compartido_con_username,
+        a.gestionado_por_usuario_id,
+        u_gest.nombre_completo AS gestionado_por_nombre,
+        a.gestionado_accion,
+        to_char(a.gestionado_en, 'YYYY-MM-DD HH24:MI') AS gestionado_en,
         c.cedula,
+        c.cedula AS cliente_cedula,
         c.nombre,
+        c.nombre AS cliente_nombre,
         c.apellidos,
+        c.apellidos AS cliente_apellidos,
         c.telefono,
+        c.telefono AS cliente_telefono,
         c.telefono_secundario,
         c.telefono_secundario AS cliente_telefono_secundario,
         c.ubicacion,
+        c.ubicacion AS cliente_ubicacion,
         c.detalles,
+        c.detalles AS cliente_detalles,
+        p.cuota,
         p.monto_prestado,
         p.saldo_por_pagar,
         p.modalidad,
         p.dia_fijo_original,
+        p.periodos_atrasados_acumulados,
         p.periodos_pagados,
-        p.total_periodos,
-        a.compartido_con_usuario_id,
-        to_char(a.compartido_en, 'YYYY-MM-DD HH24:MI') AS compartido_en,
-        u_comp.nombre_completo AS compartido_con_nombre,
-        u_comp.usuario AS compartido_con_usuario
+        p.total_periodos
       FROM agenda_cobros a
       JOIN prestamos p ON a.prestamo_id = p.id
       JOIN clientes c ON a.cliente_id = c.id
-      LEFT JOIN usuarios u_comp ON a.compartido_con_usuario_id = u_comp.id
-      WHERE a.cobrador_id = $1
+      LEFT JOIN usuarios u_prop ON u_prop.id = p.cobrador_id
+      LEFT JOIN usuarios u_del ON u_del.id = a.compartido_con_usuario_id
+      LEFT JOIN usuarios u_gest ON u_gest.id = a.gestionado_por_usuario_id
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND (
           a.fecha_cobro_actual = $2::date 
           OR (a.fecha_hora_registro_pago AT TIME ZONE 'America/Costa_Rica')::date = $2::date
@@ -439,9 +406,9 @@ export async function getCobros(req, res) {
         AND c.estado = 'ACTIVO'
       ORDER BY a.fecha_hora_registro_pago DESC;
     `;
-    const { rows: rowsRegistrados } = await query(sqlRegistrados, [cobradorId, fecha]);
+    const { rows: rowsRegistrados } = await query(sqlRegistrados, [usuarioActualId, fecha]);
 
-    // 6. Lista de Atrasados (Préstamos en estado ATRASADO)
+    // 6. Lista de Atrasados (Préstamos propios en estado ATRASADO)
     const sqlAtrasados = `
       SELECT 
         p.id AS prestamo_id,
@@ -470,37 +437,21 @@ export async function getCobros(req, res) {
         c.ubicacion,
         c.detalles
       FROM prestamos p
-      JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.cobrador_id = $1
+      INNER JOIN clientes c ON p.cliente_id = c.id AND c.estado = 'ACTIVO'::public.estado_cliente
+      WHERE p.cobrador_id = $1::uuid
         AND p.estado = 'ATRASADO'::public.estado_prestamo
-        AND c.estado = 'ACTIVO'::public.estado_cliente
+        AND COALESCE(p.saldo_por_pagar, 0) > 0
+        AND COALESCE(p.periodos_pendientes, 0) > 0
       ORDER BY p.periodos_atrasados_acumulados DESC, c.nombre ASC;
     `;
-    const { rows: rowsAtrasados } = await query(sqlAtrasados, [cobradorId]);
-
-    // 7. Personas con cobros compartidos activos en esta fecha
-    const sqlCompartidosActivos = `
-      SELECT 
-        u.id AS usuario_id,
-        ('CF-' || UPPER(SUBSTRING(u.id::text, 1, 8))) AS codigo_id,
-        u.usuario,
-        u.nombre_completo,
-        COUNT(a.id)::int AS cantidad_cobros,
-        COALESCE(SUM(a.monto_cuota), 0)::numeric AS monto_total
-      FROM agenda_cobros a
-      JOIN usuarios u ON a.compartido_con_usuario_id = u.id
-      WHERE a.cobrador_id = $1::uuid
-        AND a.fecha_cobro_actual = $2::date
-      GROUP BY u.id, u.usuario, u.nombre_completo
-      ORDER BY u.nombre_completo ASC;
-    `;
-    const { rows: compartidosActivosDia } = await query(sqlCompartidosActivos, [cobradorId, fecha]);
+    const { rows: rowsAtrasados } = await query(sqlAtrasados, [usuarioActualId]);
 
     return res.json({
       fecha,
       es_vista_delegada: false,
       metricas: {
         totalPrestado,
+        prestamosActivosCount,
         estaSemana,
         hoy
       },
@@ -508,7 +459,8 @@ export async function getCobros(req, res) {
       registrados: rowsRegistrados,
       atrasados: rowsAtrasados,
       diasConPendientesSinCerrar,
-      compartidos_activos_dia: compartidosActivosDia
+      diasConCobros: rowsDiasSemana,
+      compartidos_activos_dia: []
     });
   } catch (err) {
     console.error('[Error SQL detallado]: Error al consultar cobros:', err);
@@ -524,7 +476,8 @@ export async function registrarPago(req, res) {
   const client = await pool.connect();
   try {
     const { id } = req.params; // ID de agenda_cobros (o prestamo_id)
-    const cobradorId = req.body.cobrador_id || await getDefaultCobradorId();
+    const defaultCobrador = await getDefaultCobradorId();
+    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
     const rawMonto = req.body.monto_pagado ?? req.body.monto;
     const montoRecibido = rawMonto !== undefined && rawMonto !== null && Number(rawMonto) > 0
       ? Number(rawMonto)
@@ -537,9 +490,10 @@ export async function registrarPago(req, res) {
 
     await client.query('BEGIN');
 
-    // Buscar la cuota de cobro (incluyendo periodos_atrasados_acumulados del préstamo)
+    // Buscar la cuota de cobro (incluyendo cobrador real del préstamo y periodos_atrasados_acumulados)
     let cuotaRes = await client.query(
       `SELECT a.*,
+              p.cobrador_id AS prestamo_cobrador_id,
               p.saldo_por_pagar,
               p.monto_pagado_acumulado,
               p.modalidad,
@@ -567,6 +521,7 @@ export async function registrarPago(req, res) {
     if (!cuota) {
       cuotaRes = await client.query(
         `SELECT a.*,
+                p.cobrador_id AS prestamo_cobrador_id,
                 p.saldo_por_pagar,
                 p.monto_pagado_acumulado,
                 p.modalidad,
@@ -596,6 +551,7 @@ export async function registrarPago(req, res) {
     if (!cuota) {
       cuotaRes = await client.query(
         `SELECT a.*,
+                p.cobrador_id AS prestamo_cobrador_id,
                 p.saldo_por_pagar,
                 p.monto_pagado_acumulado,
                 p.modalidad,
@@ -626,6 +582,17 @@ export async function registrarPago(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado o ya procesado.' });
     }
 
+    const ownerId = String(cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador);
+    const delegatedId = cuota.compartido_con_usuario_id ? String(cuota.compartido_con_usuario_id) : '';
+    const isDelegado = ownerId !== String(usuarioActualId);
+    if (isDelegado && delegatedId !== String(usuarioActualId)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        success: false,
+        userMessage: 'No tienes permiso para gestionar este cobro.'
+      });
+    }
+
     const cuotaBase = Math.max(1, Number(cuota.monto_cuota || 1));
     const atrasosActuales = Math.max(0, Number(cuota.periodos_atrasados_acumulados || 0));
     const totalPeriodosDebidos = atrasosActuales + 1;
@@ -646,7 +613,7 @@ export async function registrarPago(req, res) {
     );
     const nuevosAtrasosRestantes = Math.max(0, totalPeriodosDebidos - cuotasCubiertasHoy);
 
-    // 1. Insertar en pagos_prestamo
+    // 1. Insertar en pagos_prestamo acreditado al propietario del préstamo y auditando registrado_por
     const tipoPago = (cuota.estado_prestamo === 'ATRASADO' || atrasosActuales > 0 || cuotasCubiertasHoy > 1)
       ? 'PAGO_ATRASADO'
       : 'COBRO_NORMAL';
@@ -662,13 +629,14 @@ export async function registrarPago(req, res) {
         monto_moratoria,
         periodos_cubiertos,
         fecha_hora_pago
-      ) VALUES ($1::uuid, $2::uuid, $3::uuid, $1::uuid, $4::public.tipo_pago, $5, $6, $7::int, now())
+      ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::public.tipo_pago, $6, $7, $8::int, now())
       RETURNING *;
     `;
     const { rows: pagoRows } = await client.query(insertPagoSql, [
-      cobradorId,
+      ownerId,
       cuota.prestamo_id,
       cuota.id,
+      usuarioActualId,
       tipoPago,
       montoPago,
       moratoria,
@@ -754,7 +722,7 @@ export async function registrarPago(req, res) {
           cuota.dia_fijo_original
         );
 
-    // 3. Actualizar la cuota actual en agenda_cobros a 'REGISTRADO'
+    // 3. Actualizar la cuota actual en agenda_cobros a 'REGISTRADO' conservando compartido_con_usuario_id intacto
     await client.query(
       `UPDATE agenda_cobros
        SET estado = 'REGISTRADO'::public.estado_cuota_cobro,
@@ -762,9 +730,12 @@ export async function registrarPago(req, res) {
            monto_moratoria = $1,
            monto_total_cobrado = $2,
            fecha_proximo_cobro = $3::date,
+           gestionado_por_usuario_id = $4::uuid,
+           gestionado_accion = 'PAGO',
+           gestionado_en = now(),
            version = COALESCE(version, 1) + 1
-       WHERE id = $4::uuid`,
-      [moratoria, montoTotalCobrado, proximaFechaCobro, cuota.id]
+       WHERE id = $5::uuid`,
+      [moratoria, montoTotalCobrado, proximaFechaCobro, usuarioActualId, cuota.id]
     );
 
     // 4. Actualizar saldo_por_pagar, periodos y conservar nuevosAtrasosRestantes en prestamos
@@ -812,8 +783,8 @@ export async function registrarPago(req, res) {
       ]
     );
 
-    // 5. Si aún queda saldo y ya no quedan cuotas PENDIENTE futuras en agenda_cobros, crear la siguiente en su día fijo
-    const finalUsuarioId = cobradorId || cuota.cobrador_id || (await getDefaultCobradorId());
+    // 5. Si aún queda saldo y ya no quedan cuotas PENDIENTE futuras en agenda_cobros, crear la siguiente para el propietario real
+    const finalUsuarioId = ownerId || (await getDefaultCobradorId());
 
     if (nuevoSaldo > 0 && nextPendingRes.rows.length === 0) {
       const maxNumRes = await client.query(
@@ -853,8 +824,9 @@ export async function registrarPago(req, res) {
       );
     }
 
-    // 6. Registrar en bitácora de actividad de forma segura
+    // 6. Registrar en bitácora de actividad y notificar al propietario si fue un cobrador delegado
     const finalCedula = cleanCedula9(cuota.cliente_cedula || cuota.cedula);
+    const nombreCliente = `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim() || 'Cliente';
 
     await client.query(
       `INSERT INTO bitacora_actividad (
@@ -867,22 +839,34 @@ export async function registrarPago(req, res) {
         detalle
       ) VALUES ($1::uuid, $2::uuid, 'PAGO_REGISTRADO'::public.accion_bitacora, 'pagos_prestamo', $3::uuid, $4, $5)`,
       [
-        finalUsuarioId,
+        usuarioActualId,
         finalUsuarioId,
         pago.id,
         finalCedula,
         JSON.stringify({
           prestamo_id: cuota.prestamo_id,
-          cliente: `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim(),
+          cliente: nombreCliente,
           monto_cobrado: montoPago,
           monto_moratoria: moratoria,
           periodos_cubiertos: cuotasCubiertasHoy,
           periodos_atrasados_restantes: atrasosFinales,
           saldo_restante: nuevoSaldo,
-          proxima_fecha: proximaFechaCobro
+          proxima_fecha: proximaFechaCobro,
+          gestionado_por_delegado: isDelegado
         })
       ]
     );
+
+    if (isDelegado) {
+      const nombreDelegado = await getDelegadoNombre(client, usuarioActualId);
+      await notifyOwnerWithSavepoint(client, {
+        savepointName: 'sp_notif_pago',
+        ownerId,
+        titulo: `Cobro realizado por ${nombreDelegado}`,
+        mensaje: `${nombreDelegado} registró el pago de ${nombreCliente} por ₡${Number(montoTotalCobrado).toLocaleString('en-US')} en la fecha ${fechaActualStr}.`,
+        montoResaltado: montoTotalCobrado
+      });
+    }
 
     await client.query('COMMIT');
 
@@ -917,7 +901,7 @@ export async function pasarCobro(req, res) {
       req.body.modo_acumulacion || req.body.modoAcumulacion || 'ACUMULAR'
     ).toUpperCase();
     const defaultCobrador = await getDefaultCobradorId();
-    const cobradorId = req.body.cobrador_id || defaultCobrador;
+    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
 
     if (!nuevaFecha) {
       return res.status(400).json({ error: 'Se requiere la nueva fecha para reprogramar el cobro.' });
@@ -928,6 +912,7 @@ export async function pasarCobro(req, res) {
     // Buscar cuota actual y datos del préstamo (con bloqueo FOR UPDATE y fallback a prestamo_id)
     let cuotaRes = await client.query(
       `SELECT a.*,
+              p.cobrador_id AS prestamo_cobrador_id,
               p.modalidad,
               p.dia_fijo_original,
               p.dia_mes_1,
@@ -953,6 +938,7 @@ export async function pasarCobro(req, res) {
     if (!cuota) {
       cuotaRes = await client.query(
         `SELECT a.*,
+                p.cobrador_id AS prestamo_cobrador_id,
                 p.modalidad,
                 p.dia_fijo_original,
                 p.dia_mes_1,
@@ -981,9 +967,28 @@ export async function pasarCobro(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado.' });
     }
 
+    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador;
+    const delegatedId = cuota.compartido_con_usuario_id || null;
+    if (
+      ownerId &&
+      String(usuarioActualId) !== String(ownerId) &&
+      String(usuarioActualId) !== String(delegatedId)
+    ) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: 'No tienes autorizacion para reprogramar este cobro compartido.'
+      });
+    }
+    const isDelegado = Boolean(
+      delegatedId &&
+        String(delegatedId) === String(usuarioActualId) &&
+        String(ownerId) !== String(usuarioActualId)
+    );
+
     const fechaAnteriorStr = cuota.fecha_cobro_actual instanceof Date 
       ? cuota.fecha_cobro_actual.toISOString().slice(0, 10) 
       : String(cuota.fecha_cobro_actual).slice(0, 10);
+    const fechaCambio = nuevaFecha !== fechaAnteriorStr;
 
     const nuevoDiaSemana = normalizeDiaSemana(getDiaSemanaEnum(nuevaFecha));
     let nuevasVecesPasado = Number(cuota.veces_pasado || 0) + 1;
@@ -1033,9 +1038,15 @@ export async function pasarCobro(req, res) {
              dia_semana_actual = $2::public.dia_semana,
              veces_pasado = $3::int,
              estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+             gestionado_por_usuario_id = $5::uuid,
+             gestionado_accion = 'PASAR',
+             gestionado_en = now(),
+             compartido_con_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_con_usuario_id END,
+             compartido_por_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_por_usuario_id END,
+             compartido_en = CASE WHEN $6::boolean THEN NULL ELSE compartido_en END,
              version = COALESCE(version, 1) + 1
          WHERE id = $4::uuid`,
-        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id]
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id, usuarioActualId, fechaCambio]
       );
     } else if (modoAcumulacion === 'CORRER') {
       // CASO 2B: No acumular · Correr 1 periodo hacia adelante todas las cuotas siguientes
@@ -1046,9 +1057,15 @@ export async function pasarCobro(req, res) {
              dia_semana_actual = $2::public.dia_semana,
              veces_pasado = $3::int,
              estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+             gestionado_por_usuario_id = $5::uuid,
+             gestionado_accion = 'PASAR',
+             gestionado_en = now(),
+             compartido_con_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_con_usuario_id END,
+             compartido_por_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_por_usuario_id END,
+             compartido_en = CASE WHEN $6::boolean THEN NULL ELSE compartido_en END,
              version = COALESCE(version, 1) + 1
          WHERE id = $4::uuid`,
-        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id]
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuota.id, usuarioActualId, fechaCambio]
       );
 
       const periodosACorrer = Math.max(1, cuotasEnRango.length);
@@ -1099,9 +1116,12 @@ export async function pasarCobro(req, res) {
         await client.query(
           `UPDATE agenda_cobros
               SET estado = 'NO_PAGO'::public.estado_cuota_cobro,
+                  gestionado_por_usuario_id = $2::uuid,
+                  gestionado_accion = 'PASAR',
+                  gestionado_en = now(),
                   version = COALESCE(version, 1) + 1
             WHERE id = $1::uuid`,
-          [cNoPago.id]
+          [cNoPago.id, usuarioActualId]
         );
       }
 
@@ -1117,9 +1137,15 @@ export async function pasarCobro(req, res) {
                 dia_semana_actual = $2::public.dia_semana,
                 veces_pasado = $3::int,
                 estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro,
+                gestionado_por_usuario_id = $5::uuid,
+                gestionado_accion = 'PASAR',
+                gestionado_en = now(),
+                compartido_con_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_con_usuario_id END,
+                compartido_por_usuario_id = CASE WHEN $6::boolean THEN NULL ELSE compartido_por_usuario_id END,
+                compartido_en = CASE WHEN $6::boolean THEN NULL ELSE compartido_en END,
                 version = COALESCE(version, 1) + 1
           WHERE id = $4::uuid`,
-        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuotaColision.id]
+        [nuevaFecha, nuevoDiaSemana, nuevasVecesPasado, cuotaColision.id, usuarioActualId, fechaCambio]
       );
 
       nuevosAtrasosAcumulados = Number(cuota.periodos_atrasados_acumulados || 0) + cuotasParaNoPago.length;
@@ -1161,8 +1187,8 @@ export async function pasarCobro(req, res) {
     );
 
     // Registrar en bitácora de actividad de forma segura
-    const finalUsuarioId = cobradorId || cuota.cobrador_id || defaultCobrador;
     const finalCedula = cleanCedula9(cuota.cliente_cedula || cuota.cedula);
+    const clienteNombre = `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim();
 
     await client.query(
       `INSERT INTO bitacora_actividad (
@@ -1175,21 +1201,34 @@ export async function pasarCobro(req, res) {
         detalle
       ) VALUES ($1::uuid, $2::uuid, 'COBRO_PASADO'::public.accion_bitacora, 'agenda_cobros', $3::uuid, $4, $5)`,
       [
-        finalUsuarioId,
-        finalUsuarioId,
+        usuarioActualId,
+        ownerId,
         agendaTargetId,
         finalCedula,
         JSON.stringify({
           prestamo_id: cuota.prestamo_id,
-          cliente: `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim(),
+          cliente: clienteNombre,
           fecha_anterior: fechaAnteriorStr,
           fecha_nueva: nuevaFecha,
           modo_acumulacion: modoAplicado,
           periodos_atrasados_acumulados: nuevosAtrasosAcumulados,
-          veces_pasado: nuevasVecesPasado
+          veces_pasado: nuevasVecesPasado,
+          gestionado_por_usuario_id: usuarioActualId,
+          es_delegado: isDelegado
         })
       ]
     );
+
+    if (isDelegado) {
+      const delegadoNombre = await getDelegadoNombre(client, usuarioActualId);
+      await notifyOwnerWithSavepoint(client, {
+        savepointName: 'sp_notif_pasar',
+        ownerId,
+        titulo: `Cobro reprogramado por ${delegadoNombre}`,
+        mensaje: `${delegadoNombre} reprogramo el cobro de ${clienteNombre} de ${fechaAnteriorStr} para el ${nuevaFecha}.`,
+        montoResaltado: cuota.monto_cuota
+      });
+    }
 
     await client.query('COMMIT');
 
@@ -1219,13 +1258,13 @@ export async function registrarNoPago(req, res) {
   try {
     const { id } = req.params;
     const defaultCobrador = await getDefaultCobradorId();
-    const cobradorId = req.body.cobrador_id || defaultCobrador;
+    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
 
     await client.query('BEGIN');
 
     // 1. Obtener el cobro actual y su préstamo (con bloqueo FOR UPDATE y fallback a prestamo_id)
     let cuotaRes = await client.query(
-      `SELECT a.*, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2,
+      `SELECT a.*, p.cobrador_id AS prestamo_cobrador_id, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2,
               p.periodos_atrasados_acumulados, p.total_periodos, p.periodos_pendientes,
               p.saldo_por_pagar, p.cuota AS prestamo_cuota, p.estado AS prestamo_estado,
               c.cedula AS cliente_cedula, c.nombre, c.apellidos
@@ -1242,7 +1281,7 @@ export async function registrarNoPago(req, res) {
     // Fallback: si el frontend envió prestamo_id en lugar de agenda_cobros.id
     if (!cuota) {
       cuotaRes = await client.query(
-        `SELECT a.*, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2,
+        `SELECT a.*, p.cobrador_id AS prestamo_cobrador_id, p.modalidad, p.dia_fijo_original, p.dia_mes_1, p.dia_mes_2,
                 p.periodos_atrasados_acumulados, p.total_periodos, p.periodos_pendientes,
                 p.saldo_por_pagar, p.cuota AS prestamo_cuota, p.estado AS prestamo_estado,
                 c.cedula AS cliente_cedula, c.nombre, c.apellidos
@@ -1263,13 +1302,34 @@ export async function registrarNoPago(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado.' });
     }
 
-    // 2. Marcar 'NO_PAGO' en agenda_cobros con casteo explícito de enum
+    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador;
+    const delegatedId = cuota.compartido_con_usuario_id || null;
+    if (
+      ownerId &&
+      String(usuarioActualId) !== String(ownerId) &&
+      String(usuarioActualId) !== String(delegatedId)
+    ) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: 'No tienes autorizacion para reportar este cobro compartido.'
+      });
+    }
+    const isDelegado = Boolean(
+      delegatedId &&
+        String(delegatedId) === String(usuarioActualId) &&
+        String(ownerId) !== String(usuarioActualId)
+    );
+
+    // 2. Marcar 'NO_PAGO' en agenda_cobros preservando compartido_con_usuario_id y registrando quien gestiono
     await client.query(
       `UPDATE agenda_cobros
           SET estado = 'NO_PAGO'::public.estado_cuota_cobro,
+              gestionado_por_usuario_id = $2::uuid,
+              gestionado_accion = 'NO_PAGO',
+              gestionado_en = now(),
               version = COALESCE(version, 1) + 1
         WHERE id = $1::uuid`,
-      [cuota.id]
+      [cuota.id, usuarioActualId]
     );
 
     // 3. Incrementar periodos_atrasados_acumulados en prestamos con casteo explícito de enum
@@ -1330,7 +1390,6 @@ export async function registrarNoPago(req, res) {
       );
 
       const diaSemanaProximo = normalizeDiaSemana(getDiaSemanaEnum(proximaFecha));
-      const finalCobradorId = cobradorId || cuota.cobrador_id || defaultCobrador;
 
       await client.query(
         `INSERT INTO agenda_cobros (
@@ -1351,7 +1410,7 @@ export async function registrarNoPago(req, res) {
         )
         ON CONFLICT (prestamo_id, numero_cobro) DO NOTHING;`,
         [
-          finalCobradorId,
+          ownerId,
           cuota.prestamo_id,
           cuota.cliente_id,
           siguienteNumero,
@@ -1374,8 +1433,11 @@ export async function registrarNoPago(req, res) {
     }
 
     // 5. Registrar en bitácora de actividad con tipos estrictos (usuario_id NOT NULL y cedula 9 dígitos o NULL)
-    const finalUsuarioId = cobradorId || cuota.cobrador_id || defaultCobrador;
     const finalCedula = cleanCedula9(cuota.cliente_cedula || cuota.cedula);
+    const clienteNombre = `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim();
+    const fechaCobroStr = cuota.fecha_cobro_actual instanceof Date
+      ? cuota.fecha_cobro_actual.toISOString().slice(0, 10)
+      : String(cuota.fecha_cobro_actual).slice(0, 10);
 
     await client.query(
       `INSERT INTO bitacora_actividad (
@@ -1388,19 +1450,32 @@ export async function registrarNoPago(req, res) {
         detalle
       ) VALUES ($1::uuid, $2::uuid, 'NO_PAGO_REGISTRADO'::public.accion_bitacora, 'agenda_cobros', $3::uuid, $4, $5)`,
       [
-        finalUsuarioId,
-        finalUsuarioId,
+        usuarioActualId,
+        ownerId,
         cuota.id,
         finalCedula,
         JSON.stringify({
           prestamo_id: cuota.prestamo_id,
-          cliente: `${cuota.nombre || ''} ${cuota.apellidos || ''}`.trim(),
+          cliente: clienteNombre,
           periodos_atrasados: nuevosAtrasos,
           estado_prestamo: nuevoEstadoPrestamo,
-          proxima_fecha: proximaFecha
+          proxima_fecha: proximaFecha,
+          gestionado_por_usuario_id: usuarioActualId,
+          es_delegado: isDelegado
         })
       ]
     );
+
+    if (isDelegado) {
+      const delegadoNombre = await getDelegadoNombre(client, usuarioActualId);
+      await notifyOwnerWithSavepoint(client, {
+        savepointName: 'sp_notif_nopago',
+        ownerId,
+        titulo: `No pago reportado por ${delegadoNombre}`,
+        mensaje: `${delegadoNombre} reporto ausencia de pago de ${clienteNombre} el ${fechaCobroStr}.`,
+        montoResaltado: cuota.monto_cuota
+      });
+    }
 
     await client.query('COMMIT');
 

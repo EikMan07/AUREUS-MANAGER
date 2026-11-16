@@ -289,6 +289,7 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
     const isActive = activeModule === m.id;
     const isEnabled = m.enabled;
     const motionStyle = getModuleItemTransitionStyle(globalIndex, isVertical);
+    const romanLabel = ['I', 'II', 'III', 'IV', 'V', 'VI'][globalIndex] || '';
 
     if (isVertical) {
       return (
@@ -305,21 +306,20 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
           }}
           className={`cf-side-tab-btn ${isActive ? 'active' : ''}`}
           aria-current={isActive ? 'page' : undefined}
-          title={m.label}
+          title={`${romanLabel} · ${m.label}`}
           style={{
             position: 'relative',
             width: '100%',
             minWidth: 0,
             border: isActive
               ? isDark
-                ? '1px solid #B69A55'
-                : '1px solid #D5C295'
+                ? '1px solid #F5E1A4'
+                : '1px solid #9E8342'
               : '1px solid transparent',
-            backgroundColor: isActive
-              ? isDark
-                ? 'rgba(182, 154, 85, 0.18)'
-                : '#F7F2E4'
+            background: isActive
+              ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
               : 'transparent',
+            boxShadow: isActive ? '0 4px 16px rgba(182, 154, 85, 0.35)' : 'none',
             borderRadius: '14px',
             padding: '8px 4px',
             display: 'flex',
@@ -328,33 +328,49 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
             justifyContent: 'center',
             gap: '4px',
             cursor: isMinimized ? 'default' : isEnabled ? 'pointer' : 'not-allowed',
-            color: isActive ? (isDark ? '#FFFFFF' : '#252A31') : (isDark ? '#94A3B8' : '#6E757F'),
+            color: isActive ? '#101C2C' : (isDark ? '#94A3B8' : '#6E757F'),
             boxSizing: 'border-box',
             fontFamily: 'inherit',
             willChange: 'transform, opacity',
             ...motionStyle,
           }}
         >
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: '3px',
+              right: '6px',
+              fontFamily: "'Cinzel', Georgia, serif",
+              fontSize: '8.5px',
+              fontWeight: 800,
+              color: isActive ? '#101C2C' : (isDark ? 'rgba(212, 180, 106, 0.65)' : '#9A7B38'),
+              lineHeight: 1,
+              pointerEvents: 'none',
+            }}
+          >
+            {romanLabel}
+          </span>
           <div
             style={{
               width: '36px',
               height: '28px',
               borderRadius: '10px',
-              backgroundColor: isActive ? (isDark ? 'rgba(182, 154, 85, 0.22)' : '#F7F2E4') : 'transparent',
-              color: isActive ? (isDark ? '#E5C97B' : '#B69A55') : (isDark ? '#94A3B8' : '#6E757F'),
+              backgroundColor: isActive ? 'rgba(16, 28, 44, 0.10)' : 'transparent',
+              color: isActive ? '#101C2C' : (isDark ? '#94A3B8' : '#6E757F'),
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'background-color 0.16s ease, color 0.16s ease',
             }}
           >
-            <Icon size={19} strokeWidth={isActive ? 2.1 : 1.75} />
+            <Icon size={19} strokeWidth={isActive ? 2.3 : 1.75} />
           </div>
           <span
             style={{
               fontSize: '10.5px',
-              fontWeight: isActive ? 800 : 600,
-              color: isActive ? (isDark ? '#FFFFFF' : '#252A31') : (isDark ? '#94A3B8' : '#6E757F'),
+              fontWeight: isActive ? 900 : 600,
+              color: isActive ? '#101C2C' : (isDark ? '#94A3B8' : '#6E757F'),
               lineHeight: 1.15,
               textAlign: 'center',
               whiteSpace: 'nowrap',
@@ -383,37 +399,62 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
         }}
         className={`nav-tab-btn ${isActive ? 'active' : ''}`}
         aria-current={isActive ? 'page' : undefined}
-        title={m.label}
+        title={`${romanLabel} · ${m.label}`}
         style={{
           position: 'relative',
           width: '100%',
           minWidth: 0,
-          padding: '4px 2px',
-          color: isActive ? (isDark ? '#FFFFFF' : '#252A31') : (isDark ? '#94A3B8' : '#6E757F'),
+          padding: '5px 3px',
+          borderRadius: '14px',
+          background: isActive
+            ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+            : 'transparent',
+          border: isActive
+            ? (isDark ? '1px solid #F5E1A4' : '1px solid #9E8342')
+            : '1px solid transparent',
+          boxShadow: isActive ? '0 4px 16px rgba(182, 154, 85, 0.35)' : 'none',
+          color: isActive ? '#101C2C' : (isDark ? '#94A3B8' : '#6E757F'),
           willChange: 'transform, opacity',
           ...motionStyle,
         }}
       >
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '3px',
+            right: '6px',
+            fontFamily: "'Cinzel', Georgia, serif",
+            fontSize: '8.5px',
+            fontWeight: 800,
+            color: isActive ? '#101C2C' : (isDark ? 'rgba(212, 180, 106, 0.65)' : '#9A7B38'),
+            lineHeight: 1,
+            pointerEvents: 'none',
+          }}
+        >
+          {romanLabel}
+        </span>
         <div
           className="nav-icon-container"
           style={
             isActive
               ? {
-                  backgroundColor: isDark ? 'rgba(182, 154, 85, 0.18)' : '#F7F2E4',
-                  border: isDark ? '1px solid #B69A55' : 'none',
-                  color: isDark ? '#E5C97B' : '#B69A55',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#101C2C',
                 }
               : {
                   color: isDark ? '#94A3B8' : '#6E757F',
                 }
           }
         >
-          <Icon size={20} strokeWidth={isActive ? 2.1 : 1.75} className="nav-icon" />
+          <Icon size={20} strokeWidth={isActive ? 2.3 : 1.75} className="nav-icon" />
         </div>
         <span
           className="nav-tab-label"
           style={{
-            color: isActive ? (isDark ? '#FFFFFF' : '#252A31') : (isDark ? '#94A3B8' : '#6E757F'),
+            color: isActive ? '#101C2C' : (isDark ? '#94A3B8' : '#6E757F'),
+            fontWeight: isActive ? 900 : 600,
             maxWidth: '100%',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -459,8 +500,8 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
               zIndex: 0,
               pointerEvents: 'none',
               backgroundColor: isDark ? '#162436' : '#FFFFFF',
-              borderTop: isDark ? '1px solid rgba(182, 154, 85, 0.28)' : '1px solid #E5E0D5',
-              boxShadow: isDark ? '0 -4px 24px rgba(0, 0, 0, 0.45)' : '0 4px 20px rgba(37, 42, 49, 0.07)',
+              borderTop: isDark ? '1px solid rgba(212, 180, 106, 0.28)' : '1px solid #D5C295',
+              boxShadow: isDark ? '0 -6px 28px rgba(0, 0, 0, 0.5)' : '0 -4px 22px rgba(37, 42, 49, 0.08)',
               clipPath: isMinimized
                 ? 'inset(12px calc(50% - 22px) 12px calc(50% - 22px) round 14px)'
                 : 'inset(0px 0px 0px 0px round 0px)',
@@ -573,12 +614,12 @@ export function BottomNav({ activeModule = 'cobros', onSelectModule, onLayoutCha
               backgroundColor: isDark ? '#162436' : '#FFFFFF',
               ...(dockPosition === 'left'
                 ? {
-                    borderRight: isDark ? '1px solid rgba(182, 154, 85, 0.28)' : '1px solid #E5E0D5',
-                    boxShadow: isDark ? '4px 0 24px rgba(0, 0, 0, 0.42)' : '0 4px 20px rgba(37, 42, 49, 0.07)',
+                    borderRight: isDark ? '1px solid rgba(212, 180, 106, 0.28)' : '1px solid #D5C295',
+                    boxShadow: isDark ? '6px 0 28px rgba(0, 0, 0, 0.48)' : '4px 0 22px rgba(37, 42, 49, 0.08)',
                   }
                 : {
-                    borderLeft: isDark ? '1px solid rgba(182, 154, 85, 0.28)' : '1px solid #E5E0D5',
-                    boxShadow: isDark ? '-4px 0 24px rgba(0, 0, 0, 0.42)' : '0 4px 20px rgba(37, 42, 49, 0.07)',
+                    borderLeft: isDark ? '1px solid rgba(212, 180, 106, 0.28)' : '1px solid #D5C295',
+                    boxShadow: isDark ? '-6px 0 28px rgba(0, 0, 0, 0.48)' : '-4px 0 22px rgba(37, 42, 49, 0.08)',
                   }),
               clipPath: isMinimized
                 ? 'inset(calc(50% - 22px) 24px calc(50% - 22px) 24px round 14px)'

@@ -22,7 +22,8 @@
 
 ### 2. Capa de Base de Datos y Persistencia (PostgreSQL + Sequelize)
 - **Consultas Parametrizadas y ORM**: Todas las operaciones en PostgreSQL a través de `Sequelize` y `pg` utilizan enlace de parámetros seguro para neutralizar cualquier vector de inyección SQL (SQLi).
-- **Aislamiento por Usuario Autenticado**: Cada consulta filtra estrictamente por el `cobrador_id` extraído de la sesión autenticada en el servidor, reforzado con políticas a nivel de fila (`Row Level Security`) en esquema.
+- **Aislamiento por Usuario Autenticado**: Cada consulta operativa filtra estrictamente por el `cobrador_id` extraído de la sesión autenticada en el servidor, reforzado con políticas a nivel de fila (`Row Level Security`) en esquema.
+- **Separación Estricta de Administrador Único (`adminMiddleware.js`)**: Existe una única cuenta con rol `ADMINISTRADOR` desvinculada de cualquier operación de cobros. Todos los endpoints `/api/admin/*` validan `rol === 'ADMINISTRADOR'` (`403 Forbidden` para `COBRADOR`), devuelven únicamente métricas agregadas y aplican redacción automática de PII (`redactarPII` / `piiRedactor.js`) conforme a la Ley N.° 8968.
 - **Bitácora Inmutable**: La tabla `bitacora_actividad` cuenta con triggers que impiden modificaciones (`UPDATE`) o eliminaciones (`DELETE`), garantizando una pista de auditoría inalterable.
 - **Validación de Integridad**: Restricciones de esquema para cédulas (`CHECK (cedula ~ '^[0-9]{9}$')`), códigos únicos de vinculación (`CF-XXXXXXXX`) y respaldo transaccional en Papelera por 30 días antes del archivo permanente.
 

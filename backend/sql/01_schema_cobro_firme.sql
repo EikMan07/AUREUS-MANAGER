@@ -551,6 +551,12 @@ CREATE TABLE public.agenda_cobros (
     estado public.estado_cuota_cobro DEFAULT 'PENDIENTE'::public.estado_cuota_cobro NOT NULL,
     fecha_hora_registro_pago timestamp with time zone,
     fecha_proximo_cobro date,
+    compartido_con_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    compartido_por_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    compartido_en timestamp with time zone,
+    gestionado_por_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+    gestionado_accion character varying(30),
+    gestionado_en timestamp with time zone,
     version integer DEFAULT 1 NOT NULL
 );
 
@@ -1189,6 +1195,8 @@ ALTER TABLE ONLY public.verificaciones_correo
 
 CREATE INDEX idx_agenda_barra_7_dias ON public.agenda_cobros USING btree (cobrador_id, fecha_cobro_actual, estado);
 
+CREATE INDEX IF NOT EXISTS idx_agenda_cobros_compartido_fecha ON public.agenda_cobros USING btree (compartido_con_usuario_id, fecha_cobro_actual);
+
 
 --
 -- Name: idx_bitacora_accion_fecha; Type: INDEX; Schema: public; Owner: -
@@ -1657,6 +1665,18 @@ ALTER TABLE public.historial_prestamos_archivo
   ADD COLUMN IF NOT EXISTS periodos_atrasados_acumulados integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS modalidad varchar(30),
   ADD COLUMN IF NOT EXISTS estado_al_eliminar varchar(30);
+
+-- Trazabilidad e inyeccion bidireccional de cobros compartidos en agenda_cobros
+ALTER TABLE public.agenda_cobros
+  ADD COLUMN IF NOT EXISTS compartido_con_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS compartido_por_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS compartido_en timestamptz,
+  ADD COLUMN IF NOT EXISTS gestionado_por_usuario_id uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS gestionado_accion varchar(30),
+  ADD COLUMN IF NOT EXISTS gestionado_en timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_agenda_cobros_compartido_fecha
+  ON public.agenda_cobros(compartido_con_usuario_id, fecha_cobro_actual);
 
 
 --

@@ -36,19 +36,25 @@ export function ConfirmActionStage({
   }, [phase]);
 
   const isExiting = phase === 'exiting';
+  const isAdminVariant = String(variant || '').startsWith('admin_');
 
-  const rawName = variant === 'pasar' ? (clientName || 'Cliente') : (clientName || subtitle || 'Cliente');
-  const cleanClient = String(rawName)
-    .replace(/\bnull\b/gi, '')
-    .replace(/\bundefined\b/gi, '')
-    .trim() || 'Cliente';
+  const rawName =
+    variant === 'pasar'
+      ? clientName || 'Cliente'
+      : clientName || subtitle || (isAdminVariant ? 'Prestamista' : 'Cliente');
+  const cleanClient =
+    String(rawName)
+      .replace(/\bnull\b/gi, '')
+      .replace(/\bundefined\b/gi, '')
+      .trim() || (isAdminVariant ? 'Prestamista' : 'Cliente');
 
   return (
     <div
       className={`confirm-action-stage-wrapper ${isExiting ? 'stage-exiting' : 'stage-entering'}`}
       style={{
-        width: '280px',
+        width: isAdminVariant ? '300px' : '280px',
         maxWidth: '92vw',
+        margin: '0 auto',
         padding: '28px 24px',
         borderRadius: '28px',
         backgroundColor: 'var(--aureus-bg-surface)',
@@ -116,6 +122,27 @@ export function ConfirmActionStage({
       )}
       {variant === 'arreglo_pago' && (
         <ArregloPagoStageContent clientName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_nuevo_prestamista' && (
+        <AdminNuevoPrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_editar_prestamista' && (
+        <AdminEditarPrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_suspender_prestamista' && (
+        <AdminSuspenderPrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_reactivar_prestamista' && (
+        <AdminReactivarPrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_clave_prestamista' && (
+        <AdminClavePrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_eliminar_prestamista' && (
+        <AdminEliminarPrestamistaStageContent prestamistaName={cleanClient} detailPill={detailPill} />
+      )}
+      {variant === 'admin_depurar_registros' && (
+        <AdminDepurarRegistrosStageContent prestamistaName={cleanClient} detailPill={detailPill} />
       )}
     </div>
   );
@@ -2980,6 +3007,550 @@ function RestaurarPrestamoStageContent({ clientName, detailPill, isPlural }) {
         {detailPill || 'Activo nuevamente en Préstamos'}
       </div>
     </>
+  );
+}
+
+function AdminStageShell({
+  ringBg,
+  ringBorder,
+  outerBorder,
+  coreGradient,
+  coreShadow,
+  titleColor,
+  pillBg,
+  pillBorder,
+  pillColor,
+  title,
+  prestamistaName,
+  pillText,
+  children
+}) {
+  return (
+    <>
+      <div
+        style={{
+          position: 'relative',
+          width: '88px',
+          height: '88px',
+          borderRadius: '50%',
+          backgroundColor: ringBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '18px'
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-6px',
+            borderRadius: '50%',
+            border: `2.5px solid ${ringBorder}`,
+            animation: 'cfPulseRing 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            inset: '-12px',
+            borderRadius: '50%',
+            border: `1.5px solid ${outerBorder}`,
+            animation: 'cfPulseRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards'
+          }}
+        />
+        <div
+          style={{
+            position: 'relative',
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: coreGradient,
+            boxShadow: coreShadow,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          {children}
+        </div>
+      </div>
+
+      <div
+        style={{
+          fontSize: '18px',
+          fontWeight: 900,
+          color: titleColor,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.25
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: 700,
+          color: 'var(--aureus-text-secondary)',
+          marginTop: '6px',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'break-word'
+        }}
+      >
+        {prestamistaName}
+      </div>
+
+      <div
+        style={{
+          marginTop: '14px',
+          backgroundColor: pillBg,
+          border: `1px solid ${pillBorder}`,
+          color: pillColor,
+          fontSize: '12.5px',
+          fontWeight: 800,
+          padding: '6px 14px',
+          borderRadius: '9999px',
+          lineHeight: 1.3,
+          animation: 'cfPillSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.22s backwards'
+        }}
+      >
+        {pillText}
+      </div>
+    </>
+  );
+}
+
+// 1. admin_nuevo_prestamista
+function AdminNuevoPrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#D6E7D6"
+      ringBorder="#8FB89A"
+      outerBorder="#D4B46A"
+      coreGradient="linear-gradient(135deg, #1B4D37 0%, #397D67 100%)"
+      coreShadow="0 8px 20px rgba(57, 125, 103, 0.32)"
+      titleColor="var(--aureus-green-text)"
+      pillBg="var(--aureus-green-light)"
+      pillBorder="var(--aureus-green-border)"
+      pillColor="var(--aureus-green-text)"
+      title="Prestamista registrado"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Cuenta habilitada en la plataforma'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#D4B46A"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <circle cx="31" cy="27" r="5.5" fill="none" stroke="#FFFFFF" strokeWidth="2.6" />
+        <path
+          d="M21 44 C21 38.5 25.5 35.5 31 35.5 C36.5 35.5 41 38.5 41 44"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M46 25 V35 M41 30 H51"
+          fill="none"
+          stroke="#FDE68A"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeDasharray="24"
+          strokeDashoffset="24"
+          style={{ animation: 'cfStrokeDraw 0.38s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards' }}
+        />
+        <path
+          d="M40 43 L44.2 47 L52 39"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="26"
+          strokeDashoffset="26"
+          style={{ animation: 'cfStrokeDraw 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.25s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 2. admin_editar_prestamista
+function AdminEditarPrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#CCFBF1"
+      ringBorder="#5EEAD4"
+      outerBorder="#D4B46A"
+      coreGradient="linear-gradient(135deg, #115E59 0%, #0D9488 100%)"
+      coreShadow="0 8px 20px rgba(13, 148, 136, 0.3)"
+      titleColor="#0F766E"
+      pillBg="rgba(13, 148, 136, 0.12)"
+      pillBorder="rgba(94, 234, 212, 0.55)"
+      pillColor="#0F766E"
+      title="Prestamista actualizado"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Datos de la cuenta guardados'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#5EEAD4"
+          strokeWidth="2.4"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <rect
+          x="21"
+          y="24"
+          width="24"
+          height="24"
+          rx="4"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+        />
+        <g style={{ animation: 'cfPencilGlide 0.65s ease-in-out forwards' }}>
+          <path
+            d="M42 26 L48 20 L52 24 L46 30 L40 32 Z"
+            fill="#FDE68A"
+            stroke="#FFFFFF"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </g>
+        <path
+          d="M26 37 L30.5 41.5 L39 32.5"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="28"
+          strokeDashoffset="28"
+          style={{ animation: 'cfStrokeDraw 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 3. admin_suspender_prestamista
+function AdminSuspenderPrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#FEF3C7"
+      ringBorder="#FCD34D"
+      outerBorder="#D97706"
+      coreGradient="linear-gradient(135deg, #92400E 0%, #D97706 100%)"
+      coreShadow="0 8px 20px rgba(217, 119, 6, 0.32)"
+      titleColor="#D97706"
+      pillBg="rgba(217, 119, 6, 0.14)"
+      pillBorder="rgba(252, 211, 77, 0.55)"
+      pillColor="#D97706"
+      title="Cuenta suspendida"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Acceso temporalmente deshabilitado'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#FCD34D"
+          strokeWidth="2.4"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <path
+          d="M28 33 V27.5 C28 23.2 31.6 20 36 20 C40.4 20 44 23.2 44 27.5 V33"
+          fill="none"
+          stroke="#FEF3C7"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeDasharray="40"
+          strokeDashoffset="40"
+          style={{ animation: 'cfStrokeDraw 0.44s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards' }}
+        />
+        <rect
+          x="24"
+          y="33"
+          width="24"
+          height="18"
+          rx="4.5"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.6"
+        />
+        <path
+          d="M33 39 V45 M39 39 V45"
+          stroke="#FFFFFF"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 4. admin_reactivar_prestamista
+function AdminReactivarPrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#D6E7D6"
+      ringBorder="#8FB89A"
+      outerBorder="#397D67"
+      coreGradient="linear-gradient(135deg, #0A3323 0%, #2E6B4F 100%)"
+      coreShadow="0 8px 20px rgba(46, 107, 79, 0.34)"
+      titleColor="var(--aureus-green-text)"
+      pillBg="var(--aureus-green-light)"
+      pillBorder="var(--aureus-green-border)"
+      pillColor="var(--aureus-green-text)"
+      title="Cuenta reactivada"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Acceso restablecido correctamente'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#8FB89A"
+          strokeWidth="2.5"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <path
+          d="M36 18 L49 23 V34 C49 42.5 43.2 49 36 52.5 C28.8 49 23 42.5 23 34 V23 Z"
+          fill="rgba(255,255,255,0.12)"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M29.5 35.5 L34 40 L43 30.5"
+          fill="none"
+          stroke="#D6E7D6"
+          strokeWidth="3.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="34"
+          strokeDashoffset="34"
+          style={{ animation: 'cfStrokeDraw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.18s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 5. admin_clave_prestamista
+function AdminClavePrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#FEF3C7"
+      ringBorder="#D4B46A"
+      outerBorder="#B69A55"
+      coreGradient="linear-gradient(135deg, #8C6D23 0%, #B69A55 55%, #D4B46A 100%)"
+      coreShadow="0 8px 20px rgba(182, 154, 85, 0.34)"
+      titleColor="#B69A55"
+      pillBg="var(--aureus-gold-light)"
+      pillBorder="var(--aureus-border-gold)"
+      pillColor="var(--aureus-gold-text)"
+      title="Contraseña actualizada"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Credencial de acceso renovada'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#FEF3C7"
+          strokeWidth="2.4"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <circle cx="28.5" cy="36" r="6.5" fill="none" stroke="#FFFFFF" strokeWidth="2.8" />
+        <path
+          d="M35 36 H51 M45 36 V42 M50 36 V41"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="36"
+          strokeDashoffset="36"
+          style={{ animation: 'cfStrokeDraw 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 6. admin_eliminar_prestamista
+function AdminEliminarPrestamistaStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#FEE2E2"
+      ringBorder="#FCA5A5"
+      outerBorder="#DC2626"
+      coreGradient="linear-gradient(135deg, #7F1D1D 0%, #DC2626 100%)"
+      coreShadow="0 8px 20px rgba(220, 38, 38, 0.34)"
+      titleColor="#EF4444"
+      pillBg="var(--aureus-red-light)"
+      pillBorder="var(--aureus-red-border)"
+      pillColor="var(--aureus-red-text)"
+      title="Prestamista eliminado"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Cuenta retirada permanentemente'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#FCA5A5"
+          strokeWidth="2.4"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <path
+          d="M24 27 H48 M31 27 V23.5 C31 22.5 31.8 22 32.8 22 H39.2 C40.2 22 41 22.5 41 23.5 V27"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M26.5 27 L28.5 47 C28.6 48.2 29.6 49 30.8 49 H41.2 C42.4 49 43.4 48.2 43.5 47 L45.5 27"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M32.5 33.5 L39.5 42.5 M39.5 33.5 L32.5 42.5"
+          stroke="#FEE2E2"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+          strokeDasharray="28"
+          strokeDashoffset="28"
+          style={{ animation: 'cfStrokeDraw 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.18s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
+  );
+}
+
+// 7. admin_depurar_registros
+function AdminDepurarRegistrosStageContent({ prestamistaName, detailPill }) {
+  return (
+    <AdminStageShell
+      ringBg="#FEE2E2"
+      ringBorder="#FDA4AF"
+      outerBorder="#E11D48"
+      coreGradient="linear-gradient(135deg, #991B1B 0%, #E11D48 100%)"
+      coreShadow="0 8px 20px rgba(225, 29, 72, 0.32)"
+      titleColor="#E11D48"
+      pillBg="var(--aureus-red-light)"
+      pillBorder="var(--aureus-red-border)"
+      pillColor="var(--aureus-red-text)"
+      title="Registros depurados"
+      prestamistaName={prestamistaName}
+      pillText={detailPill || 'Saneamiento completado'}
+    >
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ position: 'absolute', inset: 0 }}>
+        <circle
+          cx="36"
+          cy="36"
+          r="31"
+          fill="none"
+          stroke="#FDA4AF"
+          strokeWidth="2.4"
+          strokeDasharray="195"
+          strokeDashoffset="195"
+          style={{
+            transformOrigin: '36px 36px',
+            transform: 'rotate(-90deg)',
+            animation: 'cfStrokeDraw 0.52s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        />
+        <rect
+          x="24"
+          y="22"
+          width="24"
+          height="28"
+          rx="4"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="2.4"
+        />
+        <path
+          d="M29.5 31 H42.5 M29.5 36.5 H37"
+          stroke="#FEE2E2"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M31 43 L35 46.5 L43 38"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="30"
+          strokeDashoffset="30"
+          style={{ animation: 'cfStrokeDraw 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards' }}
+        />
+      </svg>
+    </AdminStageShell>
   );
 }
 

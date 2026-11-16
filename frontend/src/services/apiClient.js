@@ -211,6 +211,13 @@ export async function dejarDeCompartirDia(data) {
   });
 }
 
+export async function revertirCobroCompartido(agendaId) {
+  return await apiFetch(`/api/compartir/revertir-cobro/${agendaId}`, {
+    method: 'POST',
+    body: {}
+  });
+}
+
 // =========================================================================
 // MÓDULO 3: GESTIÓN Y ELIMINACIÓN DE PRÉSTAMOS
 // =========================================================================
@@ -243,25 +250,116 @@ export async function eliminarPrestamoDefinitivoPapelera(prestamoId) {
 }
 
 export async function consultarHistorialArchivoCliente(params = {}) {
-  const query = new URLSearchParams();
-  if (params.cedula) query.set('cedula', String(params.cedula).trim());
-  if (params.telefono) query.set('telefono', String(params.telefono).trim());
-  if (params.telefono_secundario) query.set('telefono_secundario', String(params.telefono_secundario).trim());
-  if (params.nombre) query.set('nombre', String(params.nombre).trim());
-  if (params.apellidos) query.set('apellidos', String(params.apellidos).trim());
-  if (params.tipo_cliente) query.set('tipo_cliente', String(params.tipo_cliente).trim());
-
-  const qs = query.toString();
-  if (!qs) {
-    return { ok: true, encontrado: false };
+  const rawCedula = typeof params === 'string' ? params : params?.cedula;
+  const cleanCedula = String(rawCedula || '').replace(/\D/g, '');
+  if (cleanCedula.length !== 9) {
+    return {
+      ok: true,
+      encontrado: false,
+      tieneAntecedentes: false,
+      antecedente: null,
+      registros: []
+    };
   }
 
   try {
-    return await apiFetch(`/api/clientes/historial-archivo/consultar?${qs}`);
+    return await apiFetch(
+      `/api/clientes/historial-archivo/consultar?cedula=${encodeURIComponent(cleanCedula)}`
+    );
   } catch (err) {
     console.warn('Error consultando historial anterior:', err?.message || err);
-    return { ok: false, encontrado: false };
+    return {
+      ok: false,
+      encontrado: false,
+      tieneAntecedentes: false,
+      antecedente: null,
+      registros: []
+    };
   }
+}
+
+export async function obtenerAntecedentesArchivados() {
+  return apiFetch('/api/clientes/historial-archivo/lista');
+}
+
+export async function eliminarAntecedenteCliente(archivoIdOrCedula) {
+  return apiFetch(
+    `/api/clientes/historial-archivo/${encodeURIComponent(String(archivoIdOrCedula || '').trim())}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+export async function eliminarPrestamoDeAntecedente(prestamoArchivoId) {
+  return apiFetch(
+    `/api/clientes/historial-archivo/prestamo/${encodeURIComponent(String(prestamoArchivoId || '').trim())}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+// ==========================================
+// PANEL EXCLUSIVO DEL ADMINISTRADOR ÚNICO (/api/admin)
+// ==========================================
+export async function obtenerResumenAdmin() {
+  return apiFetch('/api/admin/resumen');
+}
+
+export async function obtenerPrestamistasAdmin() {
+  return apiFetch('/api/admin/prestamistas');
+}
+
+export async function crearPrestamistaAdmin(data) {
+  return apiFetch('/api/admin/prestamistas', {
+    method: 'POST',
+    body: JSON.stringify(data || {})
+  });
+}
+
+export async function editarPrestamistaAdmin(id, data) {
+  return apiFetch(`/api/admin/prestamistas/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data || {})
+  });
+}
+
+export async function cambiarEstadoPrestamistaAdmin(id, estado_cuenta) {
+  return apiFetch(`/api/admin/prestamistas/${encodeURIComponent(id)}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ estado_cuenta })
+  });
+}
+
+export async function restablecerPasswordPrestamistaAdmin(id, nuevaPassword = '') {
+  return apiFetch(`/api/admin/prestamistas/${encodeURIComponent(id)}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ nuevaPassword })
+  });
+}
+
+export async function eliminarPrestamistaAdmin(id) {
+  return apiFetch(`/api/admin/prestamistas/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+}
+
+export async function obtenerResumenDepuracionAdmin() {
+  return apiFetch('/api/admin/depuracion/antecedentes');
+}
+
+export async function depurarRegistrosPrestamistaAdmin(targetId, tipo = 'antecedentes') {
+  return apiFetch(
+    `/api/admin/depuracion/antecedentes/${encodeURIComponent(targetId)}?tipo=${encodeURIComponent(tipo)}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+export async function obtenerAuditoriaAdmin(limit = 80) {
+  return apiFetch(`/api/admin/auditoria?limit=${encodeURIComponent(limit)}`);
 }
 
 // =========================================================================
@@ -293,6 +391,17 @@ export async function cambiarPasswordUsuario(payload) {
     method: 'PUT',
     body: payload
   });
+}
+
+export async function aceptarConsentimientoLegalUsuario(version = 'v1.0-2026') {
+  return await apiFetch('/api/auth/consentimiento', {
+    method: 'POST',
+    body: { version }
+  });
+}
+
+export async function exportarDatosPersonalesUsuario() {
+  return await apiFetch('/api/auth/exportar-datos');
 }
 
 export default apiFetch;

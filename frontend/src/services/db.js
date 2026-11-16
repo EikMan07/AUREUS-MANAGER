@@ -58,9 +58,9 @@ export const dbService = {
     return await api.sendClientToBlacklist(id, motivo);
   },
 
-  async getCobros(fechaStr, vistaUsuarioId = null) {
+  async getCobros(fechaStr) {
     try {
-      return await api.getCobros(fechaStr, vistaUsuarioId);
+      return await api.getCobros(fechaStr);
     } catch (err) {
       console.error('Error obteniendo cobros desde PostgreSQL:', err);
       return {
@@ -261,9 +261,66 @@ export const dbService = {
     return await api.dejarDeCompartirDia(data);
   },
 
+  async revertirCobroCompartido(agendaId) {
+    return await api.revertirCobroCompartido(agendaId);
+  },
+
   // Séneca y consultas informativas
   async consultarHistorialArchivoCliente(params = {}) {
     return await api.consultarHistorialArchivoCliente(params);
+  },
+
+  async obtenerAntecedentesArchivados() {
+    return await api.obtenerAntecedentesArchivados();
+  },
+
+  async eliminarAntecedenteCliente(archivoIdOrCedula) {
+    return await api.eliminarAntecedenteCliente(archivoIdOrCedula);
+  },
+
+  async eliminarPrestamoDeAntecedente(prestamoArchivoId) {
+    return await api.eliminarPrestamoDeAntecedente(prestamoArchivoId);
+  },
+
+  // Administración única de plataforma
+  async obtenerResumenAdmin() {
+    return await api.obtenerResumenAdmin();
+  },
+
+  async obtenerPrestamistasAdmin() {
+    return await api.obtenerPrestamistasAdmin();
+  },
+
+  async crearPrestamistaAdmin(data) {
+    return await api.crearPrestamistaAdmin(data);
+  },
+
+  async editarPrestamistaAdmin(id, data) {
+    return await api.editarPrestamistaAdmin(id, data);
+  },
+
+  async cambiarEstadoPrestamistaAdmin(id, estado_cuenta) {
+    return await api.cambiarEstadoPrestamistaAdmin(id, estado_cuenta);
+  },
+
+  async restablecerPasswordPrestamistaAdmin(id, nuevaPassword = '') {
+    return await api.restablecerPasswordPrestamistaAdmin(id, nuevaPassword);
+  },
+
+  async eliminarPrestamistaAdmin(id) {
+    return await api.eliminarPrestamistaAdmin(id);
+  },
+
+  async obtenerResumenDepuracionAdmin() {
+    return await api.obtenerResumenDepuracionAdmin();
+  },
+
+  async depurarRegistrosPrestamistaAdmin(targetId, tipo = 'antecedentes') {
+    return await api.depurarRegistrosPrestamistaAdmin(targetId, tipo);
+  },
+
+  async obtenerAuditoriaAdmin(limit = 80) {
+    return await api.obtenerAuditoriaAdmin(limit);
   },
 
   async obtenerResumenSeneca() {

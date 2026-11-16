@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture';
 
 export function EstadoClientesDonut({ distribucion }) {
   const { isDark } = useTheme();
@@ -25,7 +26,11 @@ export function EstadoClientesDonut({ distribucion }) {
 
   return (
     <div
+      className="rb-spotlight-card"
+      onMouseMove={handleSpotlightMouseMove}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         backgroundColor: 'var(--aureus-bg-surface)',
         border: '1px solid var(--aureus-border-subtle)',
         borderRadius: '16px',
@@ -36,9 +41,11 @@ export function EstadoClientesDonut({ distribucion }) {
         marginBottom: '16px',
       }}
     >
+      <ImperialCornerAccents isDark={isDark} />
       {/* 1. Cabecera */}
       <div>
         <h3
+          className="aureus-imperial-title"
           style={{
             fontSize: '16px',
             fontWeight: 800,

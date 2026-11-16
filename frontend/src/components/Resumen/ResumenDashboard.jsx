@@ -4,8 +4,11 @@ import { dbService } from '../../services/db.js';
 import { ResumenMetricsGrid } from './ResumenMetricsGrid.jsx';
 import { TendenciaCobrosChart } from './TendenciaCobrosChart.jsx';
 import { EstadoClientesDonut } from './EstadoClientesDonut.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
+import { ClassicalLaurelDivider } from '../Common/ClassicalAppArchitecture.jsx';
 
 export function ResumenDashboard({ onShowAlert }) {
+  const { isDark } = useTheme();
   const [metricas, setMetricas] = useState(null);
   const [tendenciaData, setTendenciaData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +110,7 @@ export function ResumenDashboard({ onShowAlert }) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 180px' }}>
           <h2
+            className="aureus-imperial-title"
             style={{
               fontSize: '20px',
               fontWeight: 800,
@@ -164,6 +168,8 @@ export function ResumenDashboard({ onShowAlert }) {
           />
         </button>
       </div>
+
+      <ClassicalLaurelDivider compact isDark={isDark} />
 
       {isLoading && !metricas ? (
         <div

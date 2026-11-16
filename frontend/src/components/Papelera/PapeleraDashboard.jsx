@@ -14,6 +14,12 @@ import {
 import { dbService } from '../../services/db';
 import { ConfirmModal } from '../Clients/ConfirmModal';
 import { formatColones, formatFullName, formatPhone } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  ClassicalLaurelDivider,
+  ImperialCornerAccents,
+  handleSpotlightMouseMove
+} from '../Common/ClassicalAppArchitecture';
 
 function getInitials(nombre, apellidos) {
   const n = (nombre || '').trim().charAt(0).toUpperCase();
@@ -60,6 +66,7 @@ function getDiasLabel(dias) {
 
 export function PapeleraDashboard({ onShowAlert, onSync }) {
   // Todos los Hooks al inicio del componente antes de cualquier retorno condicional
+  const { isDark } = useTheme();
   const [clientes, setClientes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -139,9 +146,92 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
     });
   }, [clientes, filterTab, searchTerm]);
 
+  const [antecedentes, setAntecedentes] = useState([]);
+  const [antecedenteParaEliminar, setAntecedenteParaEliminar] = useState(null);
+  const [prestamoAntecedenteParaEliminar, setPrestamoAntecedenteParaEliminar] = useState(null);
+
+  const loadAntecedentes = async () => {
+    try {
+      const res = await dbService.obtenerAntecedentesArchivados();
+      setAntecedentes(Array.isArray(res?.antecedentes) ? res.antecedentes : []);
+    } catch (err) {
+      console.warn('Error cargando antecedentes archivados:', err?.message || err);
+    }
+  };
+
+  useEffect(() => {
+    loadAntecedentes();
+  }, []);
+
+  const filteredAntecedentes = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return antecedentes;
+    return antecedentes.filter((ant) => {
+      const fullName = formatFullName(ant.nombre, ant.apellidos).toLowerCase();
+      const ced = String(ant.cedula || '').toLowerCase();
+      const tel = String(ant.telefono || '').toLowerCase();
+      const dir = String(ant.direccion_exacta || '').toLowerCase();
+      return (
+        fullName.includes(term) ||
+        ced.includes(term) ||
+        tel.includes(term) ||
+        dir.includes(term)
+      );
+    });
+  }, [antecedentes, searchTerm]);
+
   const syncAll = async () => {
-    await loadPapelera();
+    await Promise.all([loadPapelera(), loadAntecedentes()]);
     if (onSync) await onSync();
+  };
+
+  const handleConfirmEliminarAntecedente = async () => {
+    if (!antecedenteParaEliminar) return;
+    setIsProcessing(true);
+    try {
+      const targetKey = antecedenteParaEliminar.id || antecedenteParaEliminar.cedula;
+      await dbService.eliminarAntecedenteCliente(targetKey);
+      setAntecedenteParaEliminar(null);
+      await syncAll();
+    } catch (err) {
+      setAntecedenteParaEliminar(null);
+      if (onShowAlert) {
+        onShowAlert({
+          title: 'Error al eliminar antecedente',
+          message:
+            err?.userMessage || err?.message || 'No se pudo eliminar el antecedente permanentemente.',
+          buttonText: 'Entendido',
+          iconType: 'alert'
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleConfirmEliminarPrestamoAntecedente = async () => {
+    if (!prestamoAntecedenteParaEliminar?.loan?.id) return;
+    setIsProcessing(true);
+    try {
+      await dbService.eliminarPrestamoDeAntecedente(prestamoAntecedenteParaEliminar.loan.id);
+      setPrestamoAntecedenteParaEliminar(null);
+      await syncAll();
+    } catch (err) {
+      setPrestamoAntecedenteParaEliminar(null);
+      if (onShowAlert) {
+        onShowAlert({
+          title: 'Error al eliminar préstamo archivado',
+          message:
+            err?.userMessage ||
+            err?.message ||
+            'No se pudo eliminar el préstamo del antecedente.',
+          buttonText: 'Entendido',
+          iconType: 'alert'
+        });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleConfirmRestaurarCliente = async () => {
@@ -313,7 +403,11 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
     >
       {/* 1. BARRA SUPERIOR: RESUMEN Y BOTÓN VACIAR PAPELERA */}
       <div
+        className="rb-spotlight-card"
+        onMouseMove={handleSpotlightMouseMove}
         style={{
+          position: 'relative',
+          overflow: 'hidden',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
@@ -325,6 +419,7 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
           padding: '12px 14px'
         }}
       >
+        <ImperialCornerAccents isDark={isDark} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: '1 1 160px' }}>
           <div
             style={{
@@ -344,8 +439,8 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
           </div>
           <div style={{ minWidth: 0 }}>
             <span
+              className="aureus-imperial-title"
               style={{
-                fontFamily: 'inherit',
                 fontSize: '11px',
                 fontWeight: 800,
                 color: 'var(--aureus-text-muted)',
@@ -398,6 +493,8 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
         </button>
       </div>
 
+      <ClassicalLaurelDivider compact isDark={isDark} />
+
       {/* 2. BANNER INFORMATIVO: POLÍTICA DE 30 DÍAS */}
       <div
         style={{
@@ -421,7 +518,7 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
             lineHeight: 1.45
           }}
         >
-          Los clientes y préstamos enviados a la papelera se conservan por <strong>30 días</strong> antes de su archivo definitivo automático. Aquí puedes restaurarlos de forma individual o conjunta.
+          Los clientes y préstamos enviados a la papelera se conservan por 30 días antes de su archivo definitivo automático. Aquí puedes restaurarlos de forma individual o conjunta.
         </p>
       </div>
 
@@ -519,7 +616,8 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
         {[
           { key: 'todos', label: 'Todos', count: tabCounts.todos },
           { key: 'clientes', label: 'Clientes eliminados', count: tabCounts.clientes },
-          { key: 'prestamos', label: 'Préstamos eliminados', count: tabCounts.prestamos }
+          { key: 'prestamos', label: 'Préstamos eliminados', count: tabCounts.prestamos },
+          { key: 'antecedentes', label: 'Antecedentes', count: antecedentes.length }
         ].map((tab) => {
           const isActive = filterTab === tab.key;
           return (
@@ -528,6 +626,7 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
               type="button"
               role="tab"
               aria-selected={isActive}
+              className={`segmented-tab-btn ${isActive ? 'active' : ''}`}
               onClick={() => setFilterTab(tab.key)}
               style={{
                 flex: '1 1 110px',
@@ -536,11 +635,13 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                 padding: '6px 10px',
                 borderRadius: '10px',
                 border: isActive ? '1px solid #B69A55' : '1px solid transparent',
-                backgroundColor: isActive ? '#D4B46A' : 'transparent',
-                color: isActive ? '#101C2C' : 'var(--aureus-text-secondary)',
+                background: isActive
+                  ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                  : 'transparent',
+                color: isActive ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
                 fontFamily: 'inherit',
                 fontSize: '12px',
-                fontWeight: isActive ? 800 : 700,
+                fontWeight: isActive ? 900 : 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -557,10 +658,11 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                   height: '20px',
                   padding: '0 6px',
                   borderRadius: '9999px',
-                  backgroundColor: isActive ? '#101C2C' : 'var(--aureus-bg-elevated)',
-                  color: isActive ? '#D4B46A' : 'var(--aureus-text-primary)',
+                  backgroundColor: isActive ? 'rgba(16, 28, 44, 0.18)' : 'var(--aureus-bg-elevated)',
+                  border: isActive ? '1px solid rgba(16, 28, 44, 0.32)' : '1px solid transparent',
+                  color: isActive ? '#101C2C' : isDark ? '#FFFFFF' : 'var(--aureus-text-primary)',
                   fontSize: '11px',
-                  fontWeight: 800,
+                  fontWeight: 900,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -588,9 +690,379 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
           <RefreshCw size={18} className="animate-spin" />
           <span style={{ fontSize: '13px', fontWeight: 600 }}>Cargando papelera...</span>
         </div>
+      ) : filterTab === 'antecedentes' ? (
+        filteredAntecedentes.length === 0 ? (
+          <div
+            className="rb-spotlight-card"
+            onMouseMove={handleSpotlightMouseMove}
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              backgroundColor: 'var(--aureus-bg-surface)',
+              borderRadius: '18px',
+              border: '1px solid var(--aureus-border-subtle)',
+              padding: '48px 20px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px'
+            }}
+          >
+            <ImperialCornerAccents isDark={isDark} />
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--aureus-bg-elevated)',
+                color: 'var(--aureus-text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Trash2 size={26} strokeWidth={1.8} />
+            </div>
+            <div>
+              <h3
+                className="aureus-imperial-title"
+                style={{
+                  margin: '0 0 4px',
+                  fontSize: '16px',
+                  fontWeight: 800,
+                  color: 'var(--aureus-text-primary)'
+                }}
+              >
+                {searchTerm ? 'No se encontraron coincidencias' : 'Sin antecedentes archivados'}
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: 'inherit',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--aureus-text-muted)',
+                  maxWidth: '340px'
+                }}
+              >
+                No tienes antecedentes ni préstamos no finiquitados archivados en tu cartera.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'var(--modules-grid-cols, 1fr)',
+              gap: '12px'
+            }}
+          >
+            {filteredAntecedentes.map((ant) => {
+              const nombreCompleto = formatFullName(ant.nombre, ant.apellidos);
+              const initials = getInitials(ant.nombre, ant.apellidos);
+              const prestamosArch = Array.isArray(ant.prestamos) ? ant.prestamos : [];
+              const dejoSinPagar = Number(ant.saldo_pendiente_acumulado || 0);
+              const totalAbonado = Number(ant.total_pagado_acumulado || 0);
+              const cantPrestamos = Number(
+                ant.total_prestamos_historicos || prestamosArch.length || 0
+              );
+
+              return (
+                <div
+                  key={ant.id || ant.cedula}
+                  className="rb-spotlight-card"
+                  onMouseMove={handleSpotlightMouseMove}
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    backgroundColor: 'var(--aureus-bg-surface)',
+                    borderRadius: '16px',
+                    border:
+                      dejoSinPagar > 0
+                        ? '1px solid var(--aureus-red-border)'
+                        : '1px solid var(--aureus-border-subtle)',
+                    padding: '14px',
+                    boxShadow: 'var(--aureus-card-shadow)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    minWidth: 0
+                  }}
+                >
+                  <ImperialCornerAccents isDark={isDark} />
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      flexWrap: 'wrap'
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        minWidth: 0,
+                        flex: '1 1 180px'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '12px',
+                          backgroundColor: '#B69A55',
+                          color: '#FFFFFF',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}
+                      >
+                        {initials}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <h4
+                          className="aureus-imperial-title"
+                          style={{
+                            margin: 0,
+                            fontSize: '15px',
+                            fontWeight: 800,
+                            color: 'var(--aureus-text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {nombreCompleto}
+                        </h4>
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'var(--aureus-text-secondary)'
+                          }}
+                        >
+                          Cédula {formatCedulaCR(ant.cedula || '')}
+                          {ant.telefono ? ` · Tel ${ant.telefono}` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      data-testid={`btn-eliminar-antecedente-papelera-${ant.id}`}
+                      onClick={() => setAntecedenteParaEliminar(ant)}
+                      style={{
+                        padding: '7px 11px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--aureus-red-border)',
+                        backgroundColor: 'var(--aureus-red-light)',
+                        color: 'var(--aureus-red-text)',
+                        fontSize: '11.5px',
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={13} strokeWidth={2.2} />
+                      <span>Eliminar antecedente completo</span>
+                    </button>
+                  </div>
+
+                  {/* MÉTRICAS DEL ANTECEDENTE */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                      gap: '8px'
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '10px',
+                        backgroundColor: 'var(--aureus-bg-elevated)',
+                        border: '1px solid var(--aureus-border-subtle)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          color: 'var(--aureus-text-muted)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        PRÉSTAMOS
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '13.5px',
+                          fontWeight: 900,
+                          color: 'var(--aureus-text-primary)'
+                        }}
+                      >
+                        {cantPrestamos}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '10px',
+                        backgroundColor: 'var(--aureus-bg-elevated)',
+                        border: '1px solid var(--aureus-border-subtle)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          color: 'var(--aureus-text-muted)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        TOTAL ABONADO
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '13.5px',
+                          fontWeight: 900,
+                          color: isDark ? '#34D399' : '#397D67'
+                        }}
+                      >
+                        {formatColones(totalAbonado)}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '10px',
+                        backgroundColor: 'var(--aureus-bg-elevated)',
+                        border: '1px solid var(--aureus-border-subtle)'
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          color: 'var(--aureus-text-muted)',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        DEJÓ SIN PAGAR
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '13.5px',
+                          fontWeight: 900,
+                          color:
+                            dejoSinPagar > 0
+                              ? isDark
+                                ? '#F87171'
+                                : '#C65D58'
+                              : isDark
+                                ? '#34D399'
+                                : '#397D67'
+                        }}
+                      >
+                        {formatColones(dejoSinPagar)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LISTA DE PRÉSTAMOS ARCHIVADOS CON OPCIÓN DE BORRADO INDIVIDUAL */}
+                  {prestamosArch.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {prestamosArch.map((loan) => (
+                        <div
+                          key={loan.id}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            backgroundColor: 'var(--aureus-bg-elevated)',
+                            border: '1px solid var(--aureus-border-subtle)',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
+                            Monto {formatColones(loan.monto_prestado)} · Abonado{' '}
+                            {formatColones(loan.monto_pagado_acumulado)}
+                          </div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                fontWeight: 800,
+                                color:
+                                  Number(loan.saldo_por_pagar || 0) > 0
+                                    ? isDark
+                                      ? '#F87171'
+                                      : '#C65D58'
+                                    : isDark
+                                      ? '#34D399'
+                                      : '#397D67'
+                              }}
+                            >
+                              Saldo {formatColones(loan.saldo_por_pagar)}
+                            </span>
+                            <button
+                              type="button"
+                              data-testid={`btn-eliminar-prestamo-arch-${loan.id}`}
+                              onClick={() =>
+                                setPrestamoAntecedenteParaEliminar({
+                                  antecedente: ant,
+                                  loan
+                                })
+                              }
+                              title="Eliminar este préstamo archivado"
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--aureus-red-border)',
+                                backgroundColor: 'var(--aureus-red-light)',
+                                color: 'var(--aureus-red-text)',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={12} strokeWidth={2.2} />
+                              <span>Eliminar préstamo</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
       ) : filteredClientes.length === 0 ? (
         <div
+          className="rb-spotlight-card"
+          onMouseMove={handleSpotlightMouseMove}
           style={{
+            position: 'relative',
+            overflow: 'hidden',
             backgroundColor: 'var(--aureus-bg-surface)',
             borderRadius: '18px',
             border: '1px solid var(--aureus-border-subtle)',
@@ -602,6 +1074,7 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
             gap: '12px'
           }}
         >
+          <ImperialCornerAccents isDark={isDark} />
           <div
             style={{
               width: '56px',
@@ -618,9 +1091,9 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
           </div>
           <div>
             <h3
+              className="aureus-imperial-title"
               style={{
                 margin: '0 0 4px',
-                fontFamily: 'inherit',
                 fontSize: '16px',
                 fontWeight: 800,
                 color: 'var(--aureus-text-primary)'
@@ -668,7 +1141,11 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
             return (
               <div
                 key={c.id}
+                className="rb-spotlight-card"
+                onMouseMove={handleSpotlightMouseMove}
                 style={{
+                  position: 'relative',
+                  overflow: 'hidden',
                   backgroundColor: 'var(--aureus-bg-surface)',
                   borderRadius: '16px',
                   border: isCritical ? '1px solid var(--aureus-red-border)' : '1px solid var(--aureus-border-subtle)',
@@ -680,6 +1157,7 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                   minWidth: 0
                 }}
               >
+                <ImperialCornerAccents isDark={isDark} />
                 {/* CABECERA ÚNICA DEL CLIENTE */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 180px' }}>
@@ -1537,6 +2015,58 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
         subtitle={clientes.length === 1 ? '1 cliente en papelera' : `${clientes.length} clientes en papelera`}
         onCancel={() => setIsVaciarModalOpen(false)}
         onConfirm={handleConfirmVaciarPapelera}
+      />
+
+      {/* MODAL 7: ELIMINAR ANTECEDENTE COMPLETO */}
+      <ConfirmModal
+        isOpen={!!antecedenteParaEliminar}
+        title="Eliminar Antecedente"
+        question={
+          antecedenteParaEliminar
+            ? `¿Confirmas eliminar permanentemente el antecedente y todos los préstamos archivados de ${formatFullName(antecedenteParaEliminar.nombre, antecedenteParaEliminar.apellidos)}? Esta acción limpiará el registro de historial y no se puede deshacer.`
+            : ''
+        }
+        confirmText="Eliminar Antecedente"
+        cancelText="Cancelar"
+        confirmVariant="danger"
+        iconType="trash"
+        stageVariant="eliminar_definitivo"
+        clientName={formatFullName(
+          antecedenteParaEliminar?.nombre,
+          antecedenteParaEliminar?.apellidos
+        )}
+        subtitle={formatFullName(
+          antecedenteParaEliminar?.nombre,
+          antecedenteParaEliminar?.apellidos
+        )}
+        onCancel={() => setAntecedenteParaEliminar(null)}
+        onConfirm={handleConfirmEliminarAntecedente}
+      />
+
+      {/* MODAL 8: ELIMINAR PRÉSTAMO INDIVIDUAL DE ANTECEDENTE */}
+      <ConfirmModal
+        isOpen={!!prestamoAntecedenteParaEliminar}
+        title="Eliminar Préstamo Archivado"
+        question={
+          prestamoAntecedenteParaEliminar
+            ? `¿Deseas eliminar permanentemente este préstamo archivado de ${formatColones(prestamoAntecedenteParaEliminar.loan?.monto_prestado)} del antecedente de ${formatFullName(prestamoAntecedenteParaEliminar.antecedente?.nombre, prestamoAntecedenteParaEliminar.antecedente?.apellidos)}?`
+            : ''
+        }
+        confirmText="Eliminar Préstamo"
+        cancelText="Cancelar"
+        confirmVariant="danger"
+        iconType="trash"
+        stageVariant="eliminar_definitivo"
+        clientName={formatFullName(
+          prestamoAntecedenteParaEliminar?.antecedente?.nombre,
+          prestamoAntecedenteParaEliminar?.antecedente?.apellidos
+        )}
+        subtitle={formatFullName(
+          prestamoAntecedenteParaEliminar?.antecedente?.nombre,
+          prestamoAntecedenteParaEliminar?.antecedente?.apellidos
+        )}
+        onCancel={() => setPrestamoAntecedenteParaEliminar(null)}
+        onConfirm={handleConfirmEliminarPrestamoAntecedente}
       />
     </div>
   );

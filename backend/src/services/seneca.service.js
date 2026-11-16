@@ -134,7 +134,8 @@ export async function obtenerRadiografiaCompleta(cobradorId) {
         'ARREGLO_PAGO'::public.estado_prestamo,
         'RENOVADO'::public.estado_prestamo
       )
-      AND p.saldo_por_pagar > 0
+      AND COALESCE(p.saldo_por_pagar, 0) > 0
+      AND COALESCE(p.periodos_pendientes, 0) > 0
     LEFT JOIN LATERAL (
       SELECT
         COALESCE(SUM(a.veces_pasado), 0)::int AS veces_pasado_total,
@@ -171,16 +172,17 @@ export async function obtenerRadiografiaCompleta(cobradorId) {
       p.modalidad::text AS modalidad,
       p.saldo_por_pagar
     FROM agenda_cobros a
-    JOIN prestamos p ON a.prestamo_id = p.id
-    JOIN clientes c ON a.cliente_id = c.id
-    WHERE a.cobrador_id = $1
-      AND c.estado = 'ACTIVO'::public.estado_cliente
+    INNER JOIN prestamos p ON a.prestamo_id = p.id
+    INNER JOIN clientes c ON c.id = p.cliente_id AND c.estado = 'ACTIVO'::public.estado_cliente
+    WHERE a.cobrador_id = $1::uuid
       AND p.estado IN (
         'ACTIVO'::public.estado_prestamo,
         'ATRASADO'::public.estado_prestamo,
         'ARREGLO_PAGO'::public.estado_prestamo,
         'RENOVADO'::public.estado_prestamo
       )
+      AND COALESCE(p.saldo_por_pagar, 0) > 0
+      AND COALESCE(p.periodos_pendientes, 0) > 0
       AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
       AND a.fecha_cobro_actual <= GREATEST(
         (date_trunc('week', $2::date)::date + interval '6 days')::date,

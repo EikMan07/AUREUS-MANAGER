@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bell,
   X,
@@ -8,7 +9,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Check,
-  CheckCheck
+  CheckCheck,
+  Share2
 } from 'lucide-react';
 
 export function NotificacionesModal({
@@ -214,40 +216,42 @@ export function NotificacionesModal({
       )}
 
       {/* MODAL PRINCIPAL */}
-      {isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            backgroundColor: 'rgba(10, 15, 30, 0.72)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
-            padding: 'var(--modal-overlay-padding, 16px 12px)',
-            overflowY: 'auto',
-            fontFamily: 'inherit'
-          }}
-          onClick={onClose}
-        >
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
             style={{
-              width: '100%',
-              maxWidth: 'var(--modal-max-width, 480px)',
-              backgroundColor: 'var(--aureus-bg-surface)',
-              borderRadius: '20px',
-              boxShadow: 'var(--shadow-modal)',
-              border: '1px solid var(--aureus-border-subtle)',
-              overflow: 'hidden',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100020,
+              backgroundColor: 'rgba(10, 15, 30, 0.72)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
               display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '90vh',
-              marginTop: 'env(safe-area-inset-top, 10px)'
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px 12px 88px 12px',
+              boxSizing: 'border-box',
+              overflowY: 'auto',
+              fontFamily: 'inherit'
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={onClose}
           >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 'var(--modal-max-width, 480px)',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                borderRadius: '20px',
+                boxShadow: 'var(--shadow-modal)',
+                border: '1px solid var(--aureus-border-subtle)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: 'calc(100dvh - 108px)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* ENCABEZADO SUPERIOR CLARO AUREUS MANAGER */}
             <div
               style={{
@@ -522,6 +526,8 @@ export function NotificacionesModal({
                 </div>
               ) : (
                 displayedList.map((notif) => {
+                  const isCompartidos = notif.categoria === 'COBROS_COMPARTIDOS';
+                  const isCompartidoConfirmacion = isCompartidos && notif.tab === 'registrados';
                   const isAnterior =
                     notif.categoria === 'COBROS_PENDIENTES_ANTERIORES' ||
                     notif.categoria === 'COBROS_OLVIDADOS';
@@ -529,7 +535,9 @@ export function NotificacionesModal({
                   const isPasado = notif.categoria === 'PASADOS_PARA_HOY';
                   const isAtraso = notif.categoria === 'ATRASOS_ACUMULADOS';
 
-                  const iconComponent = isAtraso ? (
+                  const iconComponent = isCompartidos ? (
+                    <Share2 size={16} strokeWidth={2.2} />
+                  ) : isAtraso ? (
                     <AlertTriangle size={16} strokeWidth={2.2} />
                   ) : isHoy ? (
                     <Calendar size={16} strokeWidth={2.2} />
@@ -537,7 +545,11 @@ export function NotificacionesModal({
                     <Clock size={16} strokeWidth={2.2} />
                   );
 
-                  const badgeCategoryText = isAnterior
+                  const badgeCategoryText = isCompartidoConfirmacion
+                    ? 'Cobro gestionado'
+                    : isCompartidos
+                    ? 'Cobro compartido'
+                    : isAnterior
                     ? 'Cobro pendiente'
                     : isHoy
                     ? 'Ruta de hoy'
@@ -545,7 +557,11 @@ export function NotificacionesModal({
                     ? 'Reprogramado'
                     : 'Atraso activo';
 
-                  const badgeCategoryBg = isAnterior
+                  const badgeCategoryBg = isCompartidoConfirmacion
+                    ? 'var(--aureus-green-light)'
+                    : isCompartidos
+                    ? 'var(--aureus-gold-light)'
+                    : isAnterior
                     ? 'var(--aureus-gold-light)'
                     : isHoy
                     ? 'var(--aureus-green-light)'
@@ -553,7 +569,11 @@ export function NotificacionesModal({
                     ? 'var(--aureus-gold-light)'
                     : 'var(--aureus-red-light)';
 
-                  const badgeCategoryColor = isAnterior
+                  const badgeCategoryColor = isCompartidoConfirmacion
+                    ? 'var(--aureus-green-text)'
+                    : isCompartidos
+                    ? 'var(--aureus-gold-text)'
+                    : isAnterior
                     ? 'var(--aureus-gold-text)'
                     : isHoy
                     ? 'var(--aureus-green-text)'
@@ -567,7 +587,9 @@ export function NotificacionesModal({
                       onClick={() => handleCardClick(notif)}
                       style={{
                         backgroundColor: 'var(--aureus-bg-elevated)',
-                        border: isAnterior
+                        border: isCompartidoConfirmacion
+                          ? '1px solid var(--aureus-green-border)'
+                          : isCompartidos || isAnterior
                           ? '1px solid var(--aureus-border-gold)'
                           : isAtraso
                           ? '1px solid var(--aureus-red-border)'
@@ -747,7 +769,8 @@ export function NotificacionesModal({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

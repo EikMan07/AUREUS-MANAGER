@@ -874,6 +874,9 @@ export async function enviarPapelera(req, res) {
       await client.query('DELETE FROM agenda_cobros WHERE prestamo_id = ANY($1::uuid[]);', [activeLoanIds]);
       await client.query('DELETE FROM prestamos WHERE id = ANY($1::uuid[]);', [activeLoanIds]);
     }
+    // Blindaje adicional ante cualquier residuo ligado al cliente antes de borrar su fila
+    await client.query('DELETE FROM agenda_cobros WHERE cliente_id = $1::uuid;', [id]);
+    await client.query('DELETE FROM prestamos WHERE cliente_id = $1::uuid;', [id]);
 
     // 3. Mover al cliente a la tabla clientes_baneados (con 30 días de retención)
     const insertBaneadoSql = `
@@ -1086,131 +1089,65 @@ function safeNumericValue(val, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
-function extractPhoneTailDigits(raw) {
-  const digits = String(raw || '').replace(/\D/g, '');
-  if (digits.length < 8) return null;
-  return {
-    digits,
-    tail8: digits.slice(-8),
-    tail10: digits.length >= 10 ? digits.slice(-10) : digits,
-    normalizedKey: normalizePhoneKeyBackend(raw),
-  };
-}
-
-function phonesMatchForLookup(storedPhone, targets) {
-  const storedInfo = extractPhoneTailDigits(storedPhone);
-  if (!storedInfo) return false;
-  return targets.some((t) => {
-    if (storedInfo.normalizedKey && t.normalizedKey && storedInfo.normalizedKey === t.normalizedKey) {
-      return true;
-    }
-    if (t.digits.length >= 10 && storedInfo.digits.length >= 10) {
-      return storedInfo.tail10 === t.tail10;
-    }
-    return storedInfo.tail8 === t.tail8;
-  });
-}
-
 export async function consultarHistorialArchivo(req, res) {
   try {
-    await ensureHistorialArchivoSchema();
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cleanCedula = String(req.query.cedula || req.body?.cedula || '').replace(/\D/g, '');
 
-    const cedulaClean = cleanCedula9(req.query.cedula);
-    const phoneTargets = [req.query.telefono, req.query.telefono_secundario]
-      .map(extractPhoneTailDigits)
-      .filter(Boolean);
-    const tail8List = [...new Set(phoneTargets.map((t) => t.tail8))];
-
-    const normNom = normalizePersonName(req.query.nombre);
-    const normApe = normalizePersonName(req.query.apellidos);
-    const allowNameLookup = normNom.length >= 2 && (normApe.length >= 2 || (req.query.tipo_cliente === 'EXTRANJERO' && normNom.length >= 3));
-
-    if (!cedulaClean && tail8List.length === 0 && !allowNameLookup) {
-      return res.json({ ok: true, encontrado: false });
+    if (!cleanCedula || cleanCedula.length !== 9) {
+      return res.status(200).json({
+        ok: true,
+        encontrado: false,
+        tieneAntecedentes: false,
+        antecedente: null,
+        registros: [],
+      });
     }
 
-    // 1. Verificar si la persona ya existe activa en la tabla clientes del mismo cobrador
+    await ensureHistorialArchivoSchema();
+    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+
+    // 1. Verificar si la cédula ya existe activa en la tabla clientes del mismo cobrador
     const { rows: activeCandidates } = await query(
-      `SELECT id, cedula, nombre, apellidos, telefono, telefono_secundario
+      `SELECT id
        FROM clientes
        WHERE cobrador_id = $1::uuid
          AND estado = 'ACTIVO'::public.estado_cliente
-         AND (
-           ($2::text IS NOT NULL AND TRIM(COALESCE(cedula, '')) = $2::text)
-           OR (
-             CARDINALITY($3::text[]) > 0 AND (
-               RIGHT(regexp_replace(COALESCE(telefono, ''), '[^0-9]', '', 'g'), 8) = ANY($3::text[])
-               OR RIGHT(regexp_replace(COALESCE(telefono_secundario, ''), '[^0-9]', '', 'g'), 8) = ANY($3::text[])
-             )
-           )
-           OR ($4::boolean = true AND LOWER(TRIM(COALESCE(nombre, ''))) <> '')
-         );`,
-      [cobradorId, cedulaClean, tail8List, allowNameLookup]
+         AND regexp_replace(COALESCE(cedula, ''), '\\D', '', 'g') = $2::text
+       LIMIT 1;`,
+      [cobradorId, cleanCedula]
     );
 
-    const activeMatch = activeCandidates.find((c) => {
-      if (cedulaClean && String(c.cedula || '').trim() === cedulaClean) return true;
-      if (phoneTargets.length > 0 && (phonesMatchForLookup(c.telefono, phoneTargets) || phonesMatchForLookup(c.telefono_secundario, phoneTargets))) {
-        return true;
-      }
-      if (allowNameLookup) {
-        const cNom = normalizePersonName(c.nombre);
-        const cApe = normalizePersonName(c.apellidos);
-        if (normApe.length >= 2) {
-          return cNom === normNom && cApe === normApe;
-        }
-        return cNom === normNom && !cApe;
-      }
-      return false;
-    });
-
-    if (activeMatch) {
-      return res.json({ ok: true, encontrado: false });
+    if (activeCandidates.length > 0) {
+      return res.status(200).json({
+        ok: true,
+        encontrado: false,
+        tieneAntecedentes: false,
+        antecedente: null,
+        registros: [],
+      });
     }
 
-    // 2. Buscar coincidencia en historial_clientes_archivo para este cobrador
+    // 2. Buscar coincidencia exclusivamente por número de cédula exacto en historial_clientes_archivo
     const { rows: archiveCandidates } = await query(
       `SELECT id, cliente_id_actual, cedula, nombre, apellidos, telefono,
               telefono_secundario, ubicacion, detalles, fecha_eliminacion
        FROM historial_clientes_archivo
        WHERE cobrador_id = $1::uuid
-         AND (
-           ($2::text IS NOT NULL AND TRIM(COALESCE(cedula, '')) = $2::text)
-           OR (
-             CARDINALITY($3::text[]) > 0 AND (
-               RIGHT(regexp_replace(COALESCE(telefono, ''), '[^0-9]', '', 'g'), 8) = ANY($3::text[])
-               OR RIGHT(regexp_replace(COALESCE(telefono_secundario, ''), '[^0-9]', '', 'g'), 8) = ANY($3::text[])
-             )
-           )
-           OR ($4::boolean = true AND LOWER(TRIM(COALESCE(nombre, ''))) <> '')
-         )
-       ORDER BY fecha_eliminacion DESC;`,
-      [cobradorId, cedulaClean, tail8List, allowNameLookup]
+         AND regexp_replace(COALESCE(cedula, ''), '\\D', '', 'g') = $2::text
+       ORDER BY fecha_eliminacion DESC
+       LIMIT 1;`,
+      [cobradorId, cleanCedula]
     );
 
-    let archivoMatch = null;
-    if (cedulaClean) {
-      archivoMatch = archiveCandidates.find((r) => String(r.cedula || '').trim() === cedulaClean) || null;
-    }
-    if (!archivoMatch && phoneTargets.length > 0) {
-      archivoMatch = archiveCandidates.find(
-        (r) => phonesMatchForLookup(r.telefono, phoneTargets) || phonesMatchForLookup(r.telefono_secundario, phoneTargets)
-      ) || null;
-    }
-    if (!archivoMatch && allowNameLookup) {
-      archivoMatch = archiveCandidates.find((r) => {
-        const rNom = normalizePersonName(r.nombre);
-        const rApe = normalizePersonName(r.apellidos);
-        if (normApe.length >= 2) {
-          return rNom === normNom && rApe === normApe;
-        }
-        return rNom === normNom && !rApe;
-      }) || null;
-    }
-
+    const archivoMatch = archiveCandidates[0] || null;
     if (!archivoMatch) {
-      return res.json({ ok: true, encontrado: false });
+      return res.status(200).json({
+        ok: true,
+        encontrado: false,
+        tieneAntecedentes: false,
+        antecedente: null,
+        registros: [],
+      });
     }
 
     // 3. Consultar préstamos archivados asociados al registro
@@ -1254,6 +1191,7 @@ export async function consultarHistorialArchivo(req, res) {
 
       return {
         id: l.id,
+        archivo_id: archivoMatch.id,
         prestamo_original_id: l.prestamo_id_original,
         monto_prestado: montoPrestado,
         monto_total_financiar: montoTotalFinanciar,
@@ -1290,23 +1228,29 @@ export async function consultarHistorialArchivo(req, res) {
       .join(' ')
       .trim();
 
-    return res.json({
+    const clienteHistorico = {
+      id: archivoMatch.id,
+      archivoId: archivoMatch.id,
+      cliente_original_id: archivoMatch.cliente_id_actual || null,
+      tipo_cliente: 'COSTARRICENSE',
+      cedula: cleanCedula,
+      nombre: archivoMatch.nombre || '',
+      apellidos: archivoMatch.apellidos || '',
+      nombre_completo: nombreCompleto,
+      telefono: archivoMatch.telefono || '',
+      telefono_secundario: archivoMatch.telefono_secundario || '',
+      ubicacion: archivoMatch.ubicacion || '',
+      detalles: archivoMatch.detalles || '',
+      fecha_eliminacion: archivoMatch.fecha_eliminacion,
+    };
+
+    return res.status(200).json({
       ok: true,
       encontrado: true,
-      cliente_historico: {
-        id: archivoMatch.id,
-        cliente_original_id: archivoMatch.cliente_id_actual || null,
-        tipo_cliente: archivoMatch.cedula ? 'COSTARRICENSE' : 'EXTRANJERO',
-        cedula: archivoMatch.cedula ? String(archivoMatch.cedula).trim() : null,
-        nombre: archivoMatch.nombre || '',
-        apellidos: archivoMatch.apellidos || '',
-        nombre_completo: nombreCompleto,
-        telefono: archivoMatch.telefono || '',
-        telefono_secundario: archivoMatch.telefono_secundario || '',
-        ubicacion: archivoMatch.ubicacion || '',
-        detalles: archivoMatch.detalles || '',
-        fecha_eliminacion: archivoMatch.fecha_eliminacion,
-      },
+      tieneAntecedentes: true,
+      cedula: cleanCedula,
+      cliente_historico: clienteHistorico,
+      antecedente: clienteHistorico,
       resumen: {
         total_prestamos: totalPrestamos,
         prestamos_completados: prestamosCompletados,
@@ -1317,7 +1261,8 @@ export async function consultarHistorialArchivo(req, res) {
         atrasos_totales: atrasosTotales,
         clasificacion,
       },
-      prestamos: normalizedLoans.slice(0, 5),
+      prestamos: normalizedLoans,
+      registros: normalizedLoans,
     });
   } catch (err) {
     console.error('[Error SQL detallado]: Error en consultarHistorialArchivo:', err);
@@ -1326,5 +1271,391 @@ export async function consultarHistorialArchivo(req, res) {
       userMessage: 'No se pudo verificar el historial previo en este momento.',
       ...debugPayload(err),
     });
+  }
+}
+
+const UUID_CHECK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function listarAntecedentesArchivados(req, res) {
+  try {
+    await ensureHistorialArchivoSchema();
+    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+
+    const { rows: archivoRows } = await query(
+      `SELECT id, cliente_id_actual, cedula, nombre, apellidos, telefono,
+              telefono_secundario, ubicacion, detalles, fecha_eliminacion
+       FROM historial_clientes_archivo
+       WHERE cobrador_id = $1::uuid
+       ORDER BY fecha_eliminacion DESC;`,
+      [cobradorId]
+    );
+
+    if (archivoRows.length === 0) {
+      return res.status(200).json({ ok: true, antecedentes: [] });
+    }
+
+    const archivoIds = archivoRows.map((r) => r.id);
+    const { rows: loanRows } = await query(
+      `SELECT
+         id,
+         archivo_id,
+         prestamo_id_original,
+         monto_prestado,
+         monto_total_financiar,
+         cuota,
+         monto_pagado,
+         monto_pagado_acumulado,
+         saldo_pendiente,
+         saldo_por_pagar,
+         periodos_pagados,
+         total_periodos,
+         periodos_atrasados_acumulados,
+         modalidad::text AS modalidad,
+         estado_final::text AS estado_final,
+         estado_al_eliminar,
+         to_char(fecha_inicio, 'YYYY-MM-DD') AS fecha_inicio,
+         to_char(fecha_final, 'YYYY-MM-DD') AS fecha_final,
+         archivado_en
+       FROM historial_prestamos_archivo
+       WHERE archivo_id = ANY($1::uuid[])
+       ORDER BY archivado_en DESC, fecha_inicio DESC;`,
+      [archivoIds]
+    );
+
+    const loansByArchivo = new Map();
+    for (const l of loanRows) {
+      const useNewCols = l.estado_al_eliminar !== null && l.estado_al_eliminar !== undefined;
+      const montoPrestado = safeNumericValue(l.monto_prestado, 0);
+      const montoTotalFinanciar = safeNumericValue(l.monto_total_financiar, 0);
+      const montoPagado = useNewCols
+        ? safeNumericValue(l.monto_pagado_acumulado, 0)
+        : safeNumericValue(l.monto_pagado ?? l.monto_pagado_acumulado, 0);
+      const saldoPorPagar = useNewCols
+        ? safeNumericValue(l.saldo_por_pagar, 0)
+        : safeNumericValue(l.saldo_pendiente ?? l.saldo_por_pagar, 0);
+      const atrasosAcum = safeNumericValue(l.periodos_atrasados_acumulados, 0);
+
+      const norm = {
+        id: l.id,
+        archivo_id: l.archivo_id,
+        prestamo_original_id: l.prestamo_id_original,
+        monto_prestado: montoPrestado,
+        monto_total_financiar: montoTotalFinanciar,
+        cuota: safeNumericValue(l.cuota, 0),
+        monto_pagado_acumulado: montoPagado,
+        saldo_por_pagar: saldoPorPagar,
+        periodos_pagados: safeNumericValue(l.periodos_pagados, 0),
+        total_periodos: safeNumericValue(l.total_periodos, 0),
+        periodos_atrasados_acumulados: atrasosAcum,
+        modalidad: l.modalidad || 'SEMANAL',
+        estado_al_eliminar: l.estado_al_eliminar || l.estado_final || 'ACTIVO',
+        fecha_inicio: l.fecha_inicio || null,
+        fecha_final: l.fecha_final || null,
+      };
+      if (!loansByArchivo.has(l.archivo_id)) {
+        loansByArchivo.set(l.archivo_id, []);
+      }
+      loansByArchivo.get(l.archivo_id).push(norm);
+    }
+
+    const antecedentes = archivoRows.map((row) => {
+      const prestamos = loansByArchivo.get(row.id) || [];
+      const totalPrestamos = prestamos.length;
+      const totalPrestado = prestamos.reduce((s, p) => s + p.monto_prestado, 0);
+      const totalAbonado = prestamos.reduce((s, p) => s + p.monto_pagado_acumulado, 0);
+      const saldoImpagoTotal = prestamos.reduce((s, p) => s + p.saldo_por_pagar, 0);
+      const atrasosTotales = prestamos.reduce((s, p) => s + p.periodos_atrasados_acumulados, 0);
+
+      let clasificacion = 'SIN_PRESTAMOS';
+      if (saldoImpagoTotal > 0 || atrasosTotales > 0) {
+        clasificacion = 'DEUDA_PENDIENTE';
+      } else if (totalPrestamos > 0 && saldoImpagoTotal <= 0) {
+        clasificacion = 'BUEN_PAGADOR';
+      }
+
+      const nombreCompleto = [row.nombre, row.apellidos]
+        .filter((s) => typeof s === 'string' && s.trim())
+        .join(' ')
+        .trim();
+
+      return {
+        id: row.id,
+        archivo_id: row.id,
+        cedula: row.cedula ? String(row.cedula).trim() : null,
+        nombre: row.nombre || '',
+        apellidos: row.apellidos || '',
+        nombre_completo: nombreCompleto,
+        telefono: row.telefono || '',
+        telefono_secundario: row.telefono_secundario || '',
+        ubicacion: row.ubicacion || '',
+        detalles: row.detalles || '',
+        fecha_eliminacion: row.fecha_eliminacion,
+        resumen: {
+          total_prestamos: totalPrestamos,
+          total_prestado: totalPrestado,
+          total_abonado: totalAbonado,
+          saldo_impago_total: saldoImpagoTotal,
+          atrasos_totales: atrasosTotales,
+          clasificacion,
+        },
+        prestamos,
+      };
+    });
+
+    return res.status(200).json({ ok: true, antecedentes });
+  } catch (err) {
+    console.error('[Error SQL detallado]: Error en listarAntecedentesArchivados:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'No se pudo obtener la lista de antecedentes.',
+      userMessage: 'No se pudo cargar la lista de antecedentes en este momento.',
+    });
+  }
+}
+
+export async function eliminarAntecedenteCliente(req, res) {
+  const client = await pool.connect();
+  try {
+    await ensureHistorialArchivoSchema();
+    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+    const rawTarget = String(req.params.archivoId || req.query.cedula || '').trim();
+
+    if (!rawTarget) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Identificador requerido',
+        userMessage: 'Indica el antecedente o la cédula que deseas eliminar.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    let targetRows = [];
+    if (UUID_CHECK_RX.test(rawTarget)) {
+      const { rows } = await client.query(
+        `SELECT id, cedula FROM historial_clientes_archivo
+         WHERE cobrador_id = $1::uuid AND id = $2::uuid;`,
+        [cobradorId, rawTarget]
+      );
+      targetRows = rows;
+    } else {
+      const cleanCed = rawTarget.replace(/\D/g, '');
+      if (cleanCed.length === 9) {
+        const { rows } = await client.query(
+          `SELECT id, cedula FROM historial_clientes_archivo
+           WHERE cobrador_id = $1::uuid
+             AND regexp_replace(COALESCE(cedula, ''), '\\D', '', 'g') = $2::text;`,
+          [cobradorId, cleanCed]
+        );
+        targetRows = rows;
+      }
+    }
+
+    if (targetRows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        ok: false,
+        error: 'Antecedente no encontrado',
+        userMessage: 'No se encontró el antecedente solicitado.',
+      });
+    }
+
+    // Si el registro tenía cédula, eliminar también cualquier duplicado histórico con esa misma cédula del mismo cobrador
+    const cleanCedFound = String(targetRows[0]?.cedula || '').replace(/\D/g, '');
+    let idsToDelete = targetRows.map((r) => r.id);
+    if (cleanCedFound.length === 9) {
+      const { rows: allByCed } = await client.query(
+        `SELECT id FROM historial_clientes_archivo
+         WHERE cobrador_id = $1::uuid
+           AND regexp_replace(COALESCE(cedula, ''), '\\D', '', 'g') = $2::text;`,
+        [cobradorId, cleanCedFound]
+      );
+      idsToDelete = Array.from(new Set([...idsToDelete, ...allByCed.map((r) => r.id)]));
+    }
+
+    await client.query(
+      'DELETE FROM historial_prestamos_archivo WHERE archivo_id = ANY($1::uuid[]);',
+      [idsToDelete]
+    );
+    await client.query(
+      'DELETE FROM historial_clientes_archivo WHERE id = ANY($1::uuid[]);',
+      [idsToDelete]
+    );
+
+    await client.query('COMMIT');
+
+    return res.status(200).json({
+      ok: true,
+      eliminados: idsToDelete.length,
+      userMessage: 'Antecedente y préstamos pendientes eliminados correctamente.',
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[Error SQL detallado]: Error en eliminarAntecedenteCliente:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'No se pudo eliminar el antecedente.',
+      userMessage: 'No fue posible eliminar el antecedente en este momento.',
+    });
+  } finally {
+    client.release();
+  }
+}
+
+export async function eliminarPrestamoAntecedenteIndividual(req, res) {
+  const client = await pool.connect();
+  try {
+    await ensureHistorialArchivoSchema();
+    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+    const { prestamoArchivoId } = req.params;
+
+    if (!prestamoArchivoId || !UUID_CHECK_RX.test(prestamoArchivoId)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Identificador de préstamo inválido',
+        userMessage: 'Selecciona un préstamo archivado válido para eliminar.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const { rows: foundRows } = await client.query(
+      `SELECT hpa.id, hpa.archivo_id
+       FROM historial_prestamos_archivo hpa
+       JOIN historial_clientes_archivo hca ON hca.id = hpa.archivo_id
+       WHERE hpa.id = $1::uuid AND hca.cobrador_id = $2::uuid
+       FOR UPDATE;`,
+      [prestamoArchivoId, cobradorId]
+    );
+
+    if (foundRows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        ok: false,
+        error: 'Préstamo archivado no encontrado',
+        userMessage: 'No se encontró el préstamo archivado seleccionado.',
+      });
+    }
+
+    const archivoId = foundRows[0].archivo_id;
+    await client.query('DELETE FROM historial_prestamos_archivo WHERE id = $1::uuid;', [
+      prestamoArchivoId,
+    ]);
+
+    const { rows: remainingLoans } = await client.query(
+      `SELECT
+         id,
+         archivo_id,
+         prestamo_id_original,
+         monto_prestado,
+         monto_total_financiar,
+         cuota,
+         monto_pagado,
+         monto_pagado_acumulado,
+         saldo_pendiente,
+         saldo_por_pagar,
+         periodos_pagados,
+         total_periodos,
+         periodos_atrasados_acumulados,
+         modalidad::text AS modalidad,
+         estado_final::text AS estado_final,
+         estado_al_eliminar,
+         to_char(fecha_inicio, 'YYYY-MM-DD') AS fecha_inicio,
+         to_char(fecha_final, 'YYYY-MM-DD') AS fecha_final
+       FROM historial_prestamos_archivo
+       WHERE archivo_id = $1::uuid
+       ORDER BY archivado_en DESC, fecha_inicio DESC;`,
+      [archivoId]
+    );
+
+    if (remainingLoans.length === 0) {
+      await client.query('DELETE FROM historial_clientes_archivo WHERE id = $1::uuid;', [archivoId]);
+      await client.query('COMMIT');
+      return res.status(200).json({
+        ok: true,
+        antecedenteEliminadoPorCompleto: true,
+        resumenActualizado: null,
+        prestamosRestantes: [],
+        userMessage: 'Se eliminó el último préstamo y el antecedente quedó limpio.',
+      });
+    }
+
+    const normalizedRemaining = remainingLoans.map((l) => {
+      const useNewCols = l.estado_al_eliminar !== null && l.estado_al_eliminar !== undefined;
+      const montoPrestado = safeNumericValue(l.monto_prestado, 0);
+      const montoTotalFinanciar = safeNumericValue(l.monto_total_financiar, 0);
+      const montoPagado = useNewCols
+        ? safeNumericValue(l.monto_pagado_acumulado, 0)
+        : safeNumericValue(l.monto_pagado ?? l.monto_pagado_acumulado, 0);
+      const saldoPorPagar = useNewCols
+        ? safeNumericValue(l.saldo_por_pagar, 0)
+        : safeNumericValue(l.saldo_pendiente ?? l.saldo_por_pagar, 0);
+      const atrasosAcum = safeNumericValue(l.periodos_atrasados_acumulados, 0);
+
+      return {
+        id: l.id,
+        archivo_id: l.archivo_id,
+        prestamo_original_id: l.prestamo_id_original,
+        monto_prestado: montoPrestado,
+        monto_total_financiar: montoTotalFinanciar,
+        cuota: safeNumericValue(l.cuota, 0),
+        monto_pagado_acumulado: montoPagado,
+        saldo_por_pagar: saldoPorPagar,
+        periodos_pagados: safeNumericValue(l.periodos_pagados, 0),
+        total_periodos: safeNumericValue(l.total_periodos, 0),
+        periodos_atrasados_acumulados: atrasosAcum,
+        modalidad: l.modalidad || 'SEMANAL',
+        estado_al_eliminar: l.estado_al_eliminar || l.estado_final || 'ACTIVO',
+        fecha_inicio: l.fecha_inicio || null,
+        fecha_final: l.fecha_final || null,
+      };
+    });
+
+    const totalPrestamos = normalizedRemaining.length;
+    const prestamosCompletados = normalizedRemaining.filter((l) => l.saldo_por_pagar <= 0).length;
+    const prestamosInconclusos = normalizedRemaining.filter((l) => l.saldo_por_pagar > 0).length;
+    const totalPrestado = normalizedRemaining.reduce((sum, l) => sum + l.monto_prestado, 0);
+    const totalAbonado = normalizedRemaining.reduce((sum, l) => sum + l.monto_pagado_acumulado, 0);
+    const saldoImpagoTotal = normalizedRemaining.reduce((sum, l) => sum + l.saldo_por_pagar, 0);
+    const atrasosTotales = normalizedRemaining.reduce(
+      (sum, l) => sum + l.periodos_atrasados_acumulados,
+      0
+    );
+
+    let clasificacion = 'SIN_PRESTAMOS';
+    if (saldoImpagoTotal > 0 || atrasosTotales > 0) {
+      clasificacion = 'DEUDA_PENDIENTE';
+    } else if (totalPrestamos > 0 && saldoImpagoTotal <= 0) {
+      clasificacion = 'BUEN_PAGADOR';
+    }
+
+    await client.query('COMMIT');
+
+    return res.status(200).json({
+      ok: true,
+      antecedenteEliminadoPorCompleto: false,
+      resumenActualizado: {
+        total_prestamos: totalPrestamos,
+        prestamos_completados: prestamosCompletados,
+        prestamos_inconclusos: prestamosInconclusos,
+        total_prestado: totalPrestado,
+        total_abonado: totalAbonado,
+        saldo_impago_total: saldoImpagoTotal,
+        atrasos_totales: atrasosTotales,
+        clasificacion,
+      },
+      prestamosRestantes: normalizedRemaining,
+      userMessage: 'Préstamo eliminado del antecedente correctamente.',
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[Error SQL detallado]: Error en eliminarPrestamoAntecedenteIndividual:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'No se pudo eliminar el préstamo del antecedente.',
+      userMessage: 'No fue posible eliminar este préstamo del antecedente.',
+    });
+  } finally {
+    client.release();
   }
 }

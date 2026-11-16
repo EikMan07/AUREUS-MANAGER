@@ -12,6 +12,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **consent:** Implementación de banner de consentimiento de cookies esenciales de seguridad en primera visita (`CookieConsentBanner.jsx`) y bloqueo estricto de rutas privadas (`PrivateRoutes.jsx`) y endpoints operativos (`401`).
 
 ### Added
+- **admin:** agrega panel exclusivo y gobernanza
+  Implementa consola /admin con 9 endpoints RBAC, depuración de antecedentes archivados, cápsulas animadas y cumplimiento Ley N.° 8968
+
 - **profile & accessibility:** Nuevo Perfil Ejecutivo de tres pestañas (`UserProfileModal.jsx`), endpoints autenticados `PUT /api/auth/perfil` y `PUT /api/auth/password` (`authController.js`, `authRoutes.js`), fotografía cuadrada optimizada en cliente y contexto `AccessibilityContext.jsx` con motor real DOM en dos pasadas para `4` tamaños tipográficos (`pequeno`, `normal`, `grande`, `extra`), `4` idiomas y `7` filtros SVG para daltonismo seguros para `position: fixed`.
 - **landing:** Nuevo Portal Web Informativo Ejecutivo (`LandingPage.jsx`) accesible en `/`, `/bienvenida` y `/informacion` con vista previa de métricas, demostración de **Séneca** y modo dual Claro Marfil / Oscuro Azul Noche.
 - **seneca:** Integración del asistente consultivo financiero de solo lectura **Séneca** sobre PostgreSQL con Groq (`openai/gpt-oss-120b`), respaldo determinista local, recomendaciones no repetitivas e icono clásico de busto romano.

@@ -8,8 +8,11 @@ import {
   CalendarCheck
 } from 'lucide-react';
 import { formatColones } from '../../utils/formatters';
+import { useTheme } from '../../context/ThemeContext';
+import { ImperialCornerAccents, handleSpotlightMouseMove } from '../Common/ClassicalAppArchitecture';
 
 export function ResumenMetricsGrid({ metricas }) {
+  const { isDark } = useTheme();
   if (!metricas) return null;
 
   const {
@@ -26,6 +29,8 @@ export function ResumenMetricsGrid({ metricas }) {
   const esVariacionPositiva = variacionMes >= 0;
 
   const cardBaseStyle = {
+    position: 'relative',
+    overflow: 'hidden',
     backgroundColor: 'var(--aureus-bg-surface)',
     border: '1px solid var(--aureus-border-subtle)',
     borderRadius: '16px',
@@ -51,12 +56,15 @@ export function ResumenMetricsGrid({ metricas }) {
     >
       {/* 1. Tarjeta Principal Destacada: CON LOS QUE SE COBRARON HOY (Ancho completo) */}
       <div
+        className="rb-spotlight-card"
+        onMouseMove={handleSpotlightMouseMove}
         style={{
           ...cardBaseStyle,
           gridColumn: '1 / -1',
           padding: '16px',
         }}
       >
+        <ImperialCornerAccents isDark={isDark} />
         <div
           style={{
             display: 'flex',
@@ -169,7 +177,8 @@ export function ResumenMetricsGrid({ metricas }) {
       </div>
 
       {/* 2. Tarjeta 2: COBRADO ESTE MES */}
-      <div style={cardBaseStyle}>
+      <div className="rb-spotlight-card" onMouseMove={handleSpotlightMouseMove} style={cardBaseStyle}>
+        <ImperialCornerAccents isDark={isDark} />
         <div>
           <div
             style={{
@@ -250,7 +259,8 @@ export function ResumenMetricsGrid({ metricas }) {
       </div>
 
       {/* 3. Tarjeta 3: TOTAL PRESTADO */}
-      <div style={cardBaseStyle}>
+      <div className="rb-spotlight-card" onMouseMove={handleSpotlightMouseMove} style={cardBaseStyle}>
+        <ImperialCornerAccents isDark={isDark} />
         <div>
           <div
             style={{
@@ -316,7 +326,8 @@ export function ResumenMetricsGrid({ metricas }) {
       </div>
 
       {/* 4. Tarjeta 4: GANANCIA PROYECTADA */}
-      <div style={cardBaseStyle}>
+      <div className="rb-spotlight-card" onMouseMove={handleSpotlightMouseMove} style={cardBaseStyle}>
+        <ImperialCornerAccents isDark={isDark} />
         <div>
           <div
             style={{
@@ -383,7 +394,8 @@ export function ResumenMetricsGrid({ metricas }) {
       </div>
 
       {/* 5. Tarjeta 5: TOTAL EN MORATORIAS */}
-      <div style={cardBaseStyle}>
+      <div className="rb-spotlight-card" onMouseMove={handleSpotlightMouseMove} style={cardBaseStyle}>
+        <ImperialCornerAccents isDark={isDark} />
         <div>
           <div
             style={{
@@ -449,7 +461,8 @@ export function ResumenMetricsGrid({ metricas }) {
       </div>
 
       {/* 6. Tarjeta 6: CAPITAL EN ARREGLOS */}
-      <div style={cardBaseStyle}>
+      <div className="rb-spotlight-card" onMouseMove={handleSpotlightMouseMove} style={cardBaseStyle}>
+        <ImperialCornerAccents isDark={isDark} />
         <div>
           <div
             style={{
@@ -516,12 +529,15 @@ export function ResumenMetricsGrid({ metricas }) {
 
       {/* 7. Tarjeta 7: EFECTIVIDAD DE COBRO SEMANAL Y QUINCENAL (Ancho completo) */}
       <div
+        className="rb-spotlight-card"
+        onMouseMove={handleSpotlightMouseMove}
         style={{
           ...cardBaseStyle,
           gridColumn: '1 / -1',
           padding: '16px',
         }}
       >
+        <ImperialCornerAccents isDark={isDark} />
         <div style={{ marginBottom: '14px' }}>
           <span
             style={{

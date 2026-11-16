@@ -72,7 +72,7 @@ export async function getNotificaciones(req, res) {
       FROM agenda_cobros a
       JOIN prestamos p ON a.prestamo_id = p.id
       JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.cobrador_id = $1
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND a.fecha_cobro_actual = $2::date
         AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
@@ -119,7 +119,7 @@ export async function getNotificaciones(req, res) {
       FROM agenda_cobros a
       JOIN prestamos p ON a.prestamo_id = p.id
       JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.cobrador_id = $1
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND a.fecha_cobro_actual = $2::date
         AND a.estado = 'PASADO_DE_DIA'::public.estado_cuota_cobro
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
@@ -162,7 +162,7 @@ export async function getNotificaciones(req, res) {
       FROM agenda_cobros a
       JOIN prestamos p ON a.prestamo_id = p.id
       JOIN clientes c ON a.cliente_id = c.id
-      WHERE a.cobrador_id = $1
+      WHERE (p.cobrador_id = $1::uuid OR a.compartido_con_usuario_id = $1::uuid)
         AND a.fecha_cobro_actual < $2::date
         AND a.estado IN ('PENDIENTE'::public.estado_cuota_cobro, 'PASADO_DE_DIA'::public.estado_cuota_cobro)
         AND p.estado IN ('ACTIVO'::public.estado_prestamo, 'ATRASADO'::public.estado_prestamo, 'ARREGLO_PAGO'::public.estado_prestamo, 'RENOVADO'::public.estado_prestamo)
@@ -252,15 +252,19 @@ export async function getNotificaciones(req, res) {
     const { rows: rowsDirectas } = await query(sqlDirectas, [cobradorId]);
     const notificacionesDirectas = rowsDirectas.map((row) => {
       const notifId = `dbnotif-${row.id}`;
+      const dateMatch = `${row.titulo || ''} ${row.mensaje || ''}`.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      const fechaNotif = dateMatch ? dateMatch[1] : todayISO;
+      const esConfirmacionPago = /cobro realizado|pago de/i.test(row.titulo || '');
+
       return {
         id: notifId,
         categoria: 'COBROS_COMPARTIDOS',
         titulo: row.titulo,
         mensaje: row.mensaje,
         monto: Number(row.monto_resaltado || 0),
-        fecha: todayISO,
-        fecha_texto: 'Aviso directo',
-        tab: 'pendientes',
+        fecha: fechaNotif,
+        fecha_texto: dateMatch ? formatReadableDate(fechaNotif) : 'Aviso directo',
+        tab: esConfirmacionPago ? 'registrados' : 'pendientes',
         icono: 'Share2',
         prioridad: 1,
         accion: 'Ver cobros',
@@ -292,6 +296,7 @@ export async function getNotificaciones(req, res) {
       total_nuevas: nuevasList.length,
       total_vistas: vistasList.length,
       categorias: {
+        COBROS_COMPARTIDOS: notificacionesDirectas,
         COBROS_HOY: notificacionesHoy,
         PASADOS_PARA_HOY: notificacionesPasados,
         COBROS_PENDIENTES_ANTERIORES: notificacionesAnteriores,
@@ -338,6 +343,8 @@ export async function marcarNotificacionVista(req, res) {
       });
     }
 
+    const actorId = req.user?.id || req.body?.cobrador_id || await getDefaultCobradorId();
+
     for (const nId of toMark) {
       seenNotificationIds.add(nId);
       await query(
@@ -346,6 +353,19 @@ export async function marcarNotificacionVista(req, res) {
          ON CONFLICT (notificacion_id) DO NOTHING;`,
         [nId]
       );
+
+      if (nId.startsWith('dbnotif-')) {
+        const rawDbId = nId.slice(8);
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDbId)) {
+          await query(
+            `UPDATE notificaciones
+                SET leida = true
+              WHERE id = $1::uuid
+                AND ($2::uuid IS NULL OR usuario_id = $2::uuid);`,
+            [rawDbId, actorId]
+          );
+        }
+      }
     }
 
     return res.json({

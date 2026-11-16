@@ -9,8 +9,11 @@ import { ConsultaCedulaCard } from './ConsultaCedulaCard.jsx';
 import { ListaNegraCards } from './ListaNegraCards.jsx';
 import { NuevoRegistroModal } from './NuevoRegistroModal.jsx';
 import { ConfirmSacarModal } from './ConfirmSacarModal.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
+import { ClassicalLaurelDivider } from '../Common/ClassicalAppArchitecture.jsx';
 
 export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
+  const { isDark } = useTheme();
   const [personas, setPersonas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSacando, setIsSacando] = useState(false);
@@ -134,6 +137,7 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 180px' }}>
           <h2
+            className="aureus-imperial-title"
             style={{
               fontSize: '20px',
               fontWeight: 800,
@@ -224,6 +228,8 @@ export function ListaNegraDashboard({ onShowAlert, onClientRestored }) {
           </button>
         </div>
       </div>
+
+      <ClassicalLaurelDivider compact isDark={isDark} />
 
       {/* 2 y 3. Tarjeta de Consulta y Directorio (Responsivo: 1 col en móvil, 2 cols en tablet/escritorio) */}
       <div

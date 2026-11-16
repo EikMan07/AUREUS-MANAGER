@@ -17,6 +17,7 @@ import papeleraRoutes from './routes/papeleraRoutes.js';
 import notificacionesRoutes from './routes/notificacionesRoutes.js';
 import compartirCobrosRoutes from './routes/compartirCobrosRoutes.js';
 import senecaRoutes from './routes/senecaRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 // Middlewares
 import { errorHandler } from './middlewares/errorHandler.js';
@@ -56,6 +57,7 @@ app.use('/api/papelera', papeleraRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/compartir', compartirCobrosRoutes);
 app.use('/api/seneca', senecaRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
