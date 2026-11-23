@@ -1,0 +1,12 @@
+PROTOCOLO DE DELEGACION DE COBRADORES Y SEGURIDAD DE DATOS — AUREUS MANAGER
+
+1. Delegacion en Campo
+- El titular puede delegar los cobros de un dia especifico a un cobrador vinculado mediante su nombre de usuario o su codigo unico CF-XXXXXXXX, o bien exportar la hoja de ruta oficial en formato PDF.
+- Todo cobrador delegado debe liquidar los cobros recaudados antes de las 7:00 PM hora de Costa Rica.
+
+2. Retencion en Papelera y Archivo Historico
+- Los clientes y prestamos eliminados se conservan durante 30 dias naturales en la Papelera antes de su depuracion definitiva hacia el Archivo Historico Permanente.
+
+3. Proteccion de Datos y Seguridad de Sesion
+- El tratamiento de datos personales cumple con la Ley N. 8968 de Costa Rica.
+- Las sesiones autenticadas cuentan con cierre automatico de seguridad tras 25 minutos de inactividad maxima.

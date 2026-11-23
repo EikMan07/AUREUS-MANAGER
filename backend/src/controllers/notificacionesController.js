@@ -1,21 +1,22 @@
 import { query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 
 // Almacén en memoria sincronizado con PostgreSQL (tabla notificaciones_revisadas)
 const seenNotificationIds = new Set();
 let isTableInitialized = false;
 
-async function ensureTableAndLoadSeen() {
+async function ensureTableExists() {
+  if (isTableInitialized) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS notificaciones_revisadas (
+      notificacion_id text PRIMARY KEY,
+      revisada_en timestamptz DEFAULT now()
+    );
+  `);
+  isTableInitialized = true;
+}
+
+async function loadSeenNotifications() {
   try {
-    if (!isTableInitialized) {
-      await query(`
-        CREATE TABLE IF NOT EXISTS notificaciones_revisadas (
-          notificacion_id text PRIMARY KEY,
-          revisada_en timestamptz DEFAULT now()
-        );
-      `);
-      isTableInitialized = true;
-    }
     const { rows } = await query('SELECT notificacion_id FROM notificaciones_revisadas;');
     rows.forEach((r) => {
       if (r.notificacion_id) {
@@ -23,12 +24,9 @@ async function ensureTableAndLoadSeen() {
       }
     });
   } catch (err) {
-    console.warn('[Notificaciones] Advertencia al sincronizar notificaciones_revisadas con PostgreSQL:', err.message);
+    console.warn('[Notificaciones] Advertencia al consultar notificaciones_revisadas:', err.message);
   }
 }
-
-// Carga inicial no bloqueante
-ensureTableAndLoadSeen().catch(() => {});
 
 const SPANISH_WEEKDAYS = [
   'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'
@@ -60,8 +58,14 @@ function formatReadableDate(dateStr) {
 
 export async function getNotificaciones(req, res) {
   try {
-    await ensureTableAndLoadSeen();
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
+    await loadSeenNotifications();
     const todayISO = req.query.fecha || getTodayCostaRicaISO();
 
     // 1. Resumen de Cobros de Hoy (COBROS_HOY)
@@ -320,7 +324,8 @@ export async function getNotificaciones(req, res) {
 
 export async function marcarNotificacionVista(req, res) {
   try {
-    await ensureTableAndLoadSeen();
+    await ensureTableExists();
+    await loadSeenNotifications();
     const { id, ids } = req.body || {};
     const toMark = [];
 
@@ -343,7 +348,14 @@ export async function marcarNotificacionVista(req, res) {
       });
     }
 
-    const actorId = req.user?.id || req.body?.cobrador_id || await getDefaultCobradorId();
+    const actorId = req.user?.id;
+    if (!actorId) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     for (const nId of toMark) {
       seenNotificationIds.add(nId);
@@ -361,7 +373,7 @@ export async function marcarNotificacionVista(req, res) {
             `UPDATE notificaciones
                 SET leida = true
               WHERE id = $1::uuid
-                AND ($2::uuid IS NULL OR usuario_id = $2::uuid);`,
+                AND usuario_id = $2::uuid;`,
             [rawDbId, actorId]
           );
         }

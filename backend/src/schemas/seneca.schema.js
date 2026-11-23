@@ -43,6 +43,114 @@ function isNearDuplicateQuestion(candidateKey, excludedSet) {
   return false;
 }
 
+const CAMELCASE_PROTECTED_TERMS = [
+  'PostgreSQL',
+  'JavaScript',
+  'TypeScript',
+  'HttpOnly',
+  'SameSite',
+  'WebAuthn',
+  'OneDrive',
+  'MySQL',
+  'GraphQL',
+  'OAuth',
+  'GitHub',
+  'WhatsApp',
+  'YouTube',
+  'LinkedIn',
+  'NodeJS',
+  'Node.js',
+  'Express.js',
+  'React.js',
+  'Vite.js'
+];
+
+/**
+ * Normaliza espaciado y puntuacion de una respuesta completa sin borrar saltos de linea,
+ * separando colisiones accidentales y sustituyendo separadores de tabla por espaciado natural.
+ */
+export function normalizarEspaciadoRespuesta(input) {
+  if (input === null || input === undefined) return '';
+  let text = String(input)
+    .replace(/[\u00A0\u202F]/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/【/g, '[')
+    .replace(/】/g, ']')
+    .replace(/\bPostgre\s+SQL\b/g, 'PostgreSQL')
+    .replace(/\bJava\s+Script\b/g, 'JavaScript')
+    .replace(/\bType\s+Script\b/g, 'TypeScript')
+    .replace(/\bHttp\s+Only\b/g, 'HttpOnly')
+    .replace(/\bSame\s+Site\b/g, 'SameSite')
+    .replace(/\bGit\s+Hub\b/g, 'GitHub')
+    .replace(/\bWhats\s+App\b/g, 'WhatsApp');
+
+  // Proteger terminos tecnicos/marcas en CamelCase y extensiones de archivo
+  const placeholders = [];
+  const protect = (pattern) => {
+    text = text.replace(pattern, (match) => {
+      const idx = placeholders.length;
+      placeholders.push(match);
+      return `@@PROT${idx}@@`;
+    });
+  };
+
+  for (const term of CAMELCASE_PROTECTED_TERMS) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    protect(new RegExp(`\\b${escaped}\\b`, 'g'));
+  }
+  protect(/\b[\w-]+\.(?:pdf|docx|csv|json|md|txt|jsx?|mjs|sql)\b/gi);
+  protect(/\b(?:REG|CF)-[A-Z0-9-]+\b/g);
+
+  // Eliminar lineas divisorias de tablas Markdown (ej. |---|---|)
+  text = text.replace(/^\s*\|?(?:\s*:?-{2,}:?\s*\|)+\s*:?-{2,}:?\s*\|?\s*$/gm, '');
+
+  // Reemplazar marcas de negrita/cursiva preservando espacios entre palabras adyacentes
+  text = text
+    .replace(/([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])\*\*([^*\n]+)\*\*/g, '$1 $2')
+    .replace(/\*\*([^*\n]+)\*\*([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])/g, '$1 $2')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])__([^_\n]+)__/g, '$1 $2')
+    .replace(/__([^_\n]+)__([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])/g, '$1 $2')
+    .replace(/__([^_\n]+)__/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '');
+
+  // Convertir separadores de tabla | a guion largo con espacios limpios
+  text = text
+    .replace(/^\s*\|\s*/gm, '')
+    .replace(/\s*\|\s*$/gm, '')
+    .replace(/\s*\|\s*/g, ' — ');
+
+  // Separar colisiones accidentales de minuscula/digito pegado a mayuscula
+  text = text
+    .replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2')
+    .replace(/([0-9])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+
+  // Asegurar espacio tras dos puntos y puntuacion cuando siga una palabra
+  text = text
+    .replace(/([A-Za-zÁÉÍÓÚÑáéíóúñ]):([A-Za-zÁÉÍÓÚÑáéíóúñ¿¡0-9])/g, '$1: $2')
+    .replace(/([,;?!])([A-Za-zÁÉÍÓÚÑáéíóúñ¿¡])/g, '$1 $2')
+    .replace(/([a-záéíóúñ0-9])\.([A-ZÁÉÍÓÚÑ¿¡])/g, '$1. $2');
+
+  // Restaurar placeholders manteniendo separacion limpia si estaban pegados a palabras
+  text = text.replace(/([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])@@PROT(\d+)@@/g, '$1 @@PROT$2@@');
+  text = text.replace(/@@PROT(\d+)@@([A-Za-zÁÉÍÓÚÑáéíóúñ0-9])/g, '@@PROT$1@@ $2');
+  text = text.replace(/@@PROT(\d+)@@/g, (_, idx) => placeholders[Number(idx)] ?? '');
+
+  // Separar citas [1][2] y dejar espacio antes de la primera cita
+  text = text
+    .replace(/([^\s\[])(\[\d+\])/g, '$1 $2')
+    .replace(/\](\[\d+\])/g, '] $1');
+
+  // Colapsar unicamente espacios horizontales repetidos preservando saltos de linea
+  return text
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * Limpia texto visible para el usuario eliminando barras diagonales, paréntesis
  * y vocabulario técnico prohibido sin alterar montos ni nombres reales.
@@ -63,11 +171,12 @@ export function sanitizarTextoVisible(input) {
     .replace(/\bsistemas?\b/gi, 'control de cobros')
     .replace(/\bcarteras?\b/gi, 'registros activos');
 
-  // Reemplazar paréntesis de forma natural sin cortar el sentido
+  // Reemplazar paréntesis de forma natural sin fusionar palabras adyacentes
   text = text
-    .replace(/\s*\(([^()]*)\)/g, (_, inner) => {
+    .replace(/\s*\(([^()]*)\)(\s*)/g, (_, inner, trailing) => {
       const cleaned = inner.trim();
-      return cleaned ? `, ${cleaned}` : '';
+      if (!cleaned) return trailing ? ' ' : ' ';
+      return `, ${cleaned}${trailing || ' '}`;
     })
     .replace(/[()]/g, ' ');
 
@@ -77,11 +186,10 @@ export function sanitizarTextoVisible(input) {
     .replace(/(\d+)\s*\/\s*(\d+)/g, '$1 de $2')
     .replace(/\s*\/\s*/g, ' y ');
 
-  return text
-    .replace(/[ \t]{2,}/g, ' ')
+  return normalizarEspaciadoRespuesta(text)
     .replace(/\s+,/g, ',')
     .replace(/,\s*,+/g, ',')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
 

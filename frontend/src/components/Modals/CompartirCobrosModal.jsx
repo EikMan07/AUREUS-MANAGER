@@ -850,11 +850,25 @@ export function CompartirCobrosModal({
                   padding: '7px 14px',
                   borderRadius: '10px',
                   fontSize: '12px',
-                  fontWeight: fechaSeleccionada === todayISO ? 800 : 600,
-                  backgroundColor: fechaSeleccionada === todayISO ? '#B69A55' : 'var(--aureus-bg-elevated)',
-                  color: fechaSeleccionada === todayISO ? '#FFFFFF' : 'var(--aureus-text-primary)',
-                  border: fechaSeleccionada === todayISO ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
-                  boxShadow: fechaSeleccionada === todayISO ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+                  fontWeight: fechaSeleccionada === todayISO ? 900 : 700,
+                  background:
+                    fechaSeleccionada === todayISO
+                      ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                      : 'var(--aureus-bg-elevated)',
+                  color:
+                    fechaSeleccionada === todayISO
+                      ? '#101C2C'
+                      : isDark
+                        ? '#FFFFFF'
+                        : '#252A31',
+                  border:
+                    fechaSeleccionada === todayISO
+                      ? '1px solid #B69A55'
+                      : '1px solid var(--aureus-border-subtle)',
+                  boxShadow:
+                    fechaSeleccionada === todayISO
+                      ? '0 2px 6px rgba(182, 154, 85, 0.25)'
+                      : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
@@ -870,11 +884,25 @@ export function CompartirCobrosModal({
                   padding: '7px 14px',
                   borderRadius: '10px',
                   fontSize: '12px',
-                  fontWeight: fechaSeleccionada === tomorrowISO ? 800 : 600,
-                  backgroundColor: fechaSeleccionada === tomorrowISO ? '#B69A55' : 'var(--aureus-bg-elevated)',
-                  color: fechaSeleccionada === tomorrowISO ? '#FFFFFF' : 'var(--aureus-text-primary)',
-                  border: fechaSeleccionada === tomorrowISO ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
-                  boxShadow: fechaSeleccionada === tomorrowISO ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+                  fontWeight: fechaSeleccionada === tomorrowISO ? 900 : 700,
+                  background:
+                    fechaSeleccionada === tomorrowISO
+                      ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                      : 'var(--aureus-bg-elevated)',
+                  color:
+                    fechaSeleccionada === tomorrowISO
+                      ? '#101C2C'
+                      : isDark
+                        ? '#FFFFFF'
+                        : '#252A31',
+                  border:
+                    fechaSeleccionada === tomorrowISO
+                      ? '1px solid #B69A55'
+                      : '1px solid var(--aureus-border-subtle)',
+                  boxShadow:
+                    fechaSeleccionada === tomorrowISO
+                      ? '0 2px 6px rgba(182, 154, 85, 0.25)'
+                      : 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
@@ -1289,11 +1317,25 @@ export function CompartirCobrosModal({
                 padding: '9px 12px',
                 borderRadius: '10px',
                 fontSize: '12.5px',
-                fontWeight: tabAccion === 'ENVIAR_PERSONA' ? 800 : 600,
-                backgroundColor: tabAccion === 'ENVIAR_PERSONA' ? '#B69A55' : 'var(--aureus-bg-surface)',
-                color: tabAccion === 'ENVIAR_PERSONA' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-                border: tabAccion === 'ENVIAR_PERSONA' ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
-                boxShadow: tabAccion === 'ENVIAR_PERSONA' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+                fontWeight: tabAccion === 'ENVIAR_PERSONA' ? 900 : 700,
+                background:
+                  tabAccion === 'ENVIAR_PERSONA'
+                    ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                    : 'var(--aureus-bg-surface)',
+                color:
+                  tabAccion === 'ENVIAR_PERSONA'
+                    ? '#101C2C'
+                    : isDark
+                      ? '#FFFFFF'
+                      : '#252A31',
+                border:
+                  tabAccion === 'ENVIAR_PERSONA'
+                    ? '1px solid #B69A55'
+                    : '1px solid var(--aureus-border-subtle)',
+                boxShadow:
+                  tabAccion === 'ENVIAR_PERSONA'
+                    ? '0 2px 6px rgba(182, 154, 85, 0.25)'
+                    : 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1302,7 +1344,16 @@ export function CompartirCobrosModal({
                 transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
-              <Users size={15} />
+              <Users
+                size={15}
+                color={
+                  tabAccion === 'ENVIAR_PERSONA'
+                    ? '#101C2C'
+                    : isDark
+                      ? '#FFFFFF'
+                      : '#252A31'
+                }
+              />
               <span>Enviar a persona</span>
             </button>
 
@@ -1314,11 +1365,25 @@ export function CompartirCobrosModal({
                 padding: '9px 12px',
                 borderRadius: '10px',
                 fontSize: '12.5px',
-                fontWeight: tabAccion === 'DESCARGAR_PDF' ? 800 : 600,
-                backgroundColor: tabAccion === 'DESCARGAR_PDF' ? '#B69A55' : 'var(--aureus-bg-surface)',
-                color: tabAccion === 'DESCARGAR_PDF' ? '#FFFFFF' : 'var(--aureus-text-secondary)',
-                border: tabAccion === 'DESCARGAR_PDF' ? '1px solid #B69A55' : '1px solid var(--aureus-border-subtle)',
-                boxShadow: tabAccion === 'DESCARGAR_PDF' ? '0 2px 6px rgba(182, 154, 85, 0.25)' : 'none',
+                fontWeight: tabAccion === 'DESCARGAR_PDF' ? 900 : 700,
+                background:
+                  tabAccion === 'DESCARGAR_PDF'
+                    ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                    : 'var(--aureus-bg-surface)',
+                color:
+                  tabAccion === 'DESCARGAR_PDF'
+                    ? '#101C2C'
+                    : isDark
+                      ? '#FFFFFF'
+                      : '#252A31',
+                border:
+                  tabAccion === 'DESCARGAR_PDF'
+                    ? '1px solid #B69A55'
+                    : '1px solid var(--aureus-border-subtle)',
+                boxShadow:
+                  tabAccion === 'DESCARGAR_PDF'
+                    ? '0 2px 6px rgba(182, 154, 85, 0.25)'
+                    : 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1327,7 +1392,16 @@ export function CompartirCobrosModal({
                 transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
-              <FileDown size={15} />
+              <FileDown
+                size={15}
+                color={
+                  tabAccion === 'DESCARGAR_PDF'
+                    ? '#101C2C'
+                    : isDark
+                      ? '#FFFFFF'
+                      : '#252A31'
+                }
+              />
               <span>Descargar PDF</span>
             </button>
           </div>
@@ -1383,17 +1457,34 @@ export function CompartirCobrosModal({
                     gap: '5px',
                     padding: '8px 12px',
                     borderRadius: '10px',
-                    backgroundColor: isAddingNewPerson ? 'var(--aureus-bg-elevated)' : '#B69A55',
-                    color: isAddingNewPerson ? 'var(--aureus-text-primary)' : '#FFFFFF',
+                    background: isAddingNewPerson
+                      ? 'var(--aureus-bg-elevated)'
+                      : 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)',
+                    color: isAddingNewPerson
+                      ? isDark
+                        ? '#FFFFFF'
+                        : '#252A31'
+                      : '#101C2C',
                     fontSize: '12px',
-                    fontWeight: 800,
-                    border: isAddingNewPerson ? '1px solid var(--aureus-border-subtle)' : '1px solid #B69A55',
+                    fontWeight: isAddingNewPerson ? 700 : 900,
+                    border: isAddingNewPerson
+                      ? '1px solid var(--aureus-border-subtle)'
+                      : '1px solid #B69A55',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                   }}
                 >
-                  <UserPlus size={15} />
+                  <UserPlus
+                    size={15}
+                    color={
+                      isAddingNewPerson
+                        ? isDark
+                          ? '#FFFFFF'
+                          : '#252A31'
+                        : '#101C2C'
+                    }
+                  />
                   <span>{isAddingNewPerson ? 'Cancelar' : 'Agregar persona'}</span>
                 </button>
               </div>
@@ -1561,12 +1652,20 @@ export function CompartirCobrosModal({
                       tabIndex={isAddingNewPerson ? 0 : -1}
                       style={{
                         padding: '8px 16px',
-                        backgroundColor: canSubmitLink ? '#B69A55' : 'var(--aureus-bg-elevated)',
-                        color: canSubmitLink ? '#101C2C' : 'var(--aureus-text-muted)',
+                        background: canSubmitLink
+                          ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                          : 'var(--aureus-bg-elevated)',
+                        color: canSubmitLink
+                          ? '#101C2C'
+                          : isDark
+                            ? '#CBD5E1'
+                            : '#64748B',
                         borderRadius: '10px',
                         fontSize: '12px',
                         fontWeight: 900,
-                        border: canSubmitLink ? '1px solid #9E8342' : '1px solid var(--aureus-border-subtle)',
+                        border: canSubmitLink
+                          ? '1px solid #9E8342'
+                          : '1px solid var(--aureus-border-subtle)',
                         cursor: isSavingPerson || !canSubmitLink ? 'not-allowed' : 'pointer',
                         opacity: isSavingPerson ? 0.75 : 1,
                         display: 'inline-flex',
@@ -1575,7 +1674,17 @@ export function CompartirCobrosModal({
                         transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                       }}
                     >
-                      <UserPlus size={14} strokeWidth={2.5} />
+                      <UserPlus
+                        size={14}
+                        strokeWidth={2.5}
+                        color={
+                          canSubmitLink
+                            ? '#101C2C'
+                            : isDark
+                              ? '#CBD5E1'
+                              : '#64748B'
+                        }
+                      />
                       <span>{isSavingPerson ? 'Buscando...' : 'Buscar y vincular'}</span>
                     </button>
                   </div>
@@ -1662,7 +1771,7 @@ export function CompartirCobrosModal({
                                   transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                                 }}
                               >
-                                {isSelected && <Check size={11} strokeWidth={3} color="#ffffff" />}
+                                {isSelected && <Check size={11} strokeWidth={3} color="#101C2C" />}
                               </div>
                             </div>
                           )}
@@ -1732,7 +1841,7 @@ export function CompartirCobrosModal({
                                 height: '32px',
                                 borderRadius: '50%',
                                 backgroundColor: isSelected ? '#B69A55' : 'var(--aureus-bg-muted)',
-                                color: isSelected ? '#FFFFFF' : 'var(--aureus-text-primary)',
+                                color: isSelected ? '#101C2C' : isDark ? '#FFFFFF' : '#252A31',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1815,7 +1924,7 @@ export function CompartirCobrosModal({
                                 transition: 'all 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
                               }}
                             >
-                              {isSelected && <Check size={12} strokeWidth={3} color="#ffffff" />}
+                              {isSelected && <Check size={12} strokeWidth={3} color="#101C2C" />}
                             </div>
                           </div>
                         </div>
@@ -1878,13 +1987,26 @@ export function CompartirCobrosModal({
                   width: '100%',
                   padding: '13px',
                   borderRadius: '12px',
-                  backgroundColor: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'var(--aureus-text-muted)' : '#B69A55',
-                  color: '#FFFFFF',
+                  background:
+                    !personaSeleccionadaId || selectedAgendaIds.size === 0
+                      ? isDark
+                        ? '#1D2E44'
+                        : '#E2E8F0'
+                      : 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)',
+                  color:
+                    !personaSeleccionadaId || selectedAgendaIds.size === 0
+                      ? isDark
+                        ? '#CBD5E1'
+                        : '#475569'
+                      : '#101C2C',
                   fontSize: '13px',
-                  fontWeight: 800,
-                  border: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'none' : '1px solid #B69A55',
+                  fontWeight: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 700 : 900,
+                  border:
+                    !personaSeleccionadaId || selectedAgendaIds.size === 0
+                      ? '1px solid var(--aureus-border-subtle)'
+                      : '1px solid #9E8342',
                   cursor: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 'not-allowed' : 'pointer',
-                  opacity: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 0.65 : 1,
+                  opacity: !personaSeleccionadaId || selectedAgendaIds.size === 0 ? 0.85 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1893,7 +2015,17 @@ export function CompartirCobrosModal({
                   transition: 'all 0.15s ease'
                 }}
               >
-                <Share2 size={16} strokeWidth={2.4} />
+                <Share2
+                  size={16}
+                  strokeWidth={2.4}
+                  color={
+                    !personaSeleccionadaId || selectedAgendaIds.size === 0
+                      ? isDark
+                        ? '#CBD5E1'
+                        : '#475569'
+                      : '#101C2C'
+                  }
+                />
                 <span>
                   {isSharing
                     ? 'Compartiendo cobros...'
@@ -1989,12 +2121,25 @@ export function CompartirCobrosModal({
                   width: '100%',
                   padding: '13px',
                   borderRadius: '12px',
-                  backgroundColor: cobrosSeleccionados.length === 0 ? 'var(--aureus-text-muted)' : '#B69A55',
-                  border: cobrosSeleccionados.length === 0 ? 'none' : '1px solid #B69A55',
-                  opacity: cobrosSeleccionados.length === 0 ? 0.65 : 1,
-                  color: '#FFFFFF',
+                  background:
+                    cobrosSeleccionados.length === 0
+                      ? isDark
+                        ? '#1D2E44'
+                        : '#E2E8F0'
+                      : 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)',
+                  border:
+                    cobrosSeleccionados.length === 0
+                      ? '1px solid var(--aureus-border-subtle)'
+                      : '1px solid #9E8342',
+                  opacity: cobrosSeleccionados.length === 0 ? 0.85 : 1,
+                  color:
+                    cobrosSeleccionados.length === 0
+                      ? isDark
+                        ? '#CBD5E1'
+                        : '#475569'
+                      : '#101C2C',
                   fontSize: '13px',
-                  fontWeight: 800,
+                  fontWeight: cobrosSeleccionados.length === 0 ? 700 : 900,
                   cursor: cobrosSeleccionados.length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2004,7 +2149,17 @@ export function CompartirCobrosModal({
                   transition: 'all 0.15s ease'
                 }}
               >
-                <FileDown size={18} strokeWidth={2.2} />
+                <FileDown
+                  size={18}
+                  strokeWidth={2.2}
+                  color={
+                    cobrosSeleccionados.length === 0
+                      ? isDark
+                        ? '#CBD5E1'
+                        : '#475569'
+                      : '#101C2C'
+                  }
+                />
                 <span>Descargar PDF del día</span>
               </button>
             </div>
@@ -2173,7 +2328,7 @@ export function CompartirCobrosModal({
                   borderRadius: '12px',
                   border: '1px solid var(--aureus-border-subtle)',
                   backgroundColor: 'var(--aureus-bg-elevated)',
-                  color: 'var(--aureus-text-primary)',
+                  color: isDark ? '#FFFFFF' : '#252A31',
                   fontWeight: 800,
                   fontSize: '14px',
                   cursor: isDeletingPersona ? 'not-allowed' : 'pointer',

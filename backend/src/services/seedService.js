@@ -1,5 +1,5 @@
 import bcryptjs from 'bcryptjs';
-import { query } from '../config/db.js';
+import { query, withTransaction } from '../config/db.js';
 
 let cachedCobradorId = null;
 
@@ -13,7 +13,18 @@ async function ensureUsuariosAuthColumns() {
       ADD COLUMN IF NOT EXISTS ultimo_acceso timestamptz,
       ADD COLUMN IF NOT EXISTS consentimiento_aceptado boolean DEFAULT false,
       ADD COLUMN IF NOT EXISTS consentimiento_version varchar(24) DEFAULT NULL,
-      ADD COLUMN IF NOT EXISTS consentimiento_aceptado_en timestamptz DEFAULT NULL;
+      ADD COLUMN IF NOT EXISTS consentimiento_aceptado_en timestamptz DEFAULT NULL,
+      ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS intentos_fallidos integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS bloqueado_hasta timestamptz,
+      ADD COLUMN IF NOT EXISTS telefono varchar(32);
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS notificaciones_revisadas (
+      notificacion_id text PRIMARY KEY,
+      revisada_en timestamptz DEFAULT now()
+    );
   `);
 
   await query(`
@@ -26,6 +37,29 @@ async function ensureUsuariosAuthColumns() {
     UPDATE usuarios
     SET codigo_vinculacion = 'CF-' || UPPER(SUBSTRING(id::text FROM 1 FOR 8))
     WHERE codigo_vinculacion IS NULL OR BTRIM(codigo_vinculacion) = '';
+  `);
+
+  await query(`
+    ALTER TABLE usuarios
+      ALTER COLUMN password_hash DROP NOT NULL;
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS cuentas_oauth (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      proveedor VARCHAR(20) NOT NULL CHECK (proveedor IN ('google', 'github')),
+      proveedor_usuario_id VARCHAR(191) NOT NULL,
+      correo_proveedor VARCHAR(255) NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+      actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT uq_cuentas_oauth_proveedor_sub UNIQUE (proveedor, proveedor_usuario_id)
+    );
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_cuentas_oauth_usuario_id
+      ON cuentas_oauth(usuario_id);
   `);
 }
 
@@ -52,10 +86,19 @@ async function ensureAdminPassword(adminUser) {
   const isLegacyPlaceholder = hash === LEGACY_PLACEHOLDER_HASH;
 
   if (!isValidPrefix || isLegacyPlaceholder) {
-    const newHash = await bcryptjs.hash('Admin1234!', 10);
+    const initialPass = String(process.env.ADMIN_INITIAL_PASSWORD || '').trim();
+    if (initialPass.length < 10) {
+      console.warn(
+        '[Semilla Técnica] La cuenta administrativa requiere definir ADMIN_INITIAL_PASSWORD (mínimo 10 caracteres) en .env para inicializar sus credenciales.'
+      );
+      return;
+    }
+
+    const newHash = await bcryptjs.hash(initialPass, 10);
     await query(
       `UPDATE usuarios
        SET password_hash = $1,
+           token_version = COALESCE(token_version, 1) + 1,
            estado_cuenta = 'ACTIVA',
            correo_verificado = true,
            correo_verificado_en = COALESCE(correo_verificado_en, now()),
@@ -204,11 +247,107 @@ async function purgarCuentasPruebaQA() {
   console.log(`[Semilla Técnica] Cuentas residuales depuradas dejando solo a Eiker Abarca Murillo (${ids.length} eliminadas).`);
 }
 
+let bitacoraRetentionFnReady = false;
+
+async function ensureBitacoraRetentionFunction() {
+  if (bitacoraRetentionFnReady) return;
+  await query(`
+    CREATE OR REPLACE FUNCTION public.bitacora_inmutable()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' AND current_setting('aureus.allow_bitacora_purge', true) = 'on' THEN
+        RETURN OLD;
+      END IF;
+      RAISE EXCEPTION 'La bitácora no se puede modificar ni borrar';
+    END;
+    $$;
+  `);
+  bitacoraRetentionFnReady = true;
+}
+
+export async function aplicarRetencionBitacora() {
+  let eliminadosQa = 0;
+  let eliminadosPrivados = 0;
+  let eliminadosRetencion = 0;
+
+  try {
+    await ensureBitacoraRetentionFunction();
+
+    await withTransaction(async (client) => {
+      await client.query("SELECT set_config('aureus.allow_bitacora_purge', 'on', true);");
+
+      // 1. Purgar registros de pruebas automatizadas QA
+      const resQa = await client.query(`
+        DELETE FROM bitacora_actividad
+        WHERE detalle::text ILIKE '%example.test%'
+           OR detalle::text ILIKE '%temp.verif%'
+           OR detalle::text ILIKE '%QA %'
+           OR detalle::text ILIKE '%Verificacion QA%'
+           OR detalle::text ILIKE '%Prueba Fase%';
+      `);
+      eliminadosQa = Number(resQa.rowCount || 0);
+
+      // 2. Purgar registros antiguos de tablas privadas de deudores o cuentas ya inexistentes (Ley N.° 8968)
+      const resPriv = await client.query(`
+        DELETE FROM bitacora_actividad b
+        WHERE (
+          b.entidad IN (
+            'clientes',
+            'clientes_baneados',
+            'prestamos',
+            'prestamos_baneados',
+            'agenda_cobros',
+            'pagos_prestamo',
+            'historial_clientes_archivo',
+            'historial_prestamos_archivo',
+            'lista_negra',
+            'lista_negra_global'
+          )
+          AND NOT (COALESCE(b.detalle, '{}'::jsonb) ? 'accion_admin')
+        )
+        OR (
+          NOT (COALESCE(b.detalle, '{}'::jsonb) ? 'accion_admin')
+          AND COALESCE(b.usuario_id, b.cobrador_id) IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM usuarios u
+            WHERE u.id = COALESCE(b.usuario_id, b.cobrador_id)
+          )
+        );
+      `);
+      eliminadosPrivados = Number(resPriv.rowCount || 0);
+
+      // 3. Política de retención automática: últimos 30 días y máximo 200 filas recientes
+      const resRet = await client.query(`
+        DELETE FROM bitacora_actividad
+        WHERE fecha_hora < now() - interval '30 days'
+           OR id NOT IN (
+             SELECT id FROM bitacora_actividad
+             ORDER BY fecha_hora DESC, id DESC
+             LIMIT 200
+           );
+      `);
+      eliminadosRetencion = Number(resRet.rowCount || 0);
+    });
+  } catch (err) {
+    console.warn('[Semilla Técnica] Advertencia al aplicar retención de bitácora:', err.message);
+  }
+
+  return {
+    eliminadosQa,
+    eliminadosPrivados,
+    eliminadosRetencion,
+    totalEliminados: eliminadosQa + eliminadosPrivados + eliminadosRetencion,
+  };
+}
+
 export async function ensureBaseUser() {
   try {
     await ensureUsuariosAuthColumns();
     await ensureAgendaDelegacionColumns();
     await purgarCuentasPruebaQA();
+    await aplicarRetencionBitacora();
 
     const { rows: adminByUsername } = await query(
       "SELECT id, usuario, rol, estado_cuenta, password_hash FROM usuarios WHERE LOWER(usuario) = 'admin' ORDER BY creado_en ASC LIMIT 1;"
@@ -234,8 +373,16 @@ export async function ensureBaseUser() {
       return cachedCobradorId;
     }
 
+    const initialAdminPass = String(process.env.ADMIN_INITIAL_PASSWORD || '').trim();
+    if (initialAdminPass.length < 10) {
+      console.warn(
+        '[Semilla Técnica] No existe una cuenta con rol ADMINISTRADOR y falta ADMIN_INITIAL_PASSWORD (mínimo 10 caracteres) en .env. Define esa variable para sembrar el administrador inicial.'
+      );
+      return null;
+    }
+
     console.log('[Semilla Técnica] Creando usuario administrador único admin...');
-    const initialAdminHash = await bcryptjs.hash('Admin1234!', 10);
+    const initialAdminHash = await bcryptjs.hash(initialAdminPass, 10);
     const insertSql = `
       INSERT INTO usuarios (
         usuario,
@@ -280,9 +427,4 @@ export async function ensureBaseUser() {
     console.error('[Semilla Técnica] Error al verificar/crear usuario base:', err.message);
     throw err;
   }
-}
-
-export async function getDefaultCobradorId() {
-  if (cachedCobradorId) return cachedCobradorId;
-  return await ensureBaseUser();
 }

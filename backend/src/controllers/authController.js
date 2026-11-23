@@ -5,53 +5,47 @@ import { firmarToken } from '../middlewares/authMiddleware.js';
 import { setSessionCookie, clearSessionCookie } from '../utils/cookies.js';
 import { generarTokenCsrf } from '../middlewares/csrf.js';
 import { redactarPII } from '../utils/piiRedactor.js';
+import { aprovisionarEmpresaRag } from '../middlewares/ragLimites.js';
 
 export const CONSENT_CURRENT_VERSION = 'v1.0-2026';
 
-let consentColumnsReady = false;
-async function ensureConsentColumns() {
-  if (consentColumnsReady) return;
-  await query(`
-    ALTER TABLE usuarios
-      ADD COLUMN IF NOT EXISTS consentimiento_aceptado boolean DEFAULT false,
-      ADD COLUMN IF NOT EXISTS consentimiento_version varchar(24) DEFAULT NULL,
-      ADD COLUMN IF NOT EXISTS consentimiento_aceptado_en timestamptz DEFAULT NULL;
-  `);
-  consentColumnsReady = true;
-}
+// Hash precalculado para comparación en tiempo constante cuando el usuario no existe (anti-enumeración)
+const DUMMY_BCRYPT_HASH = bcryptjs.hashSync('aureus_dummy_timing_guard_only', 10);
 
-const LOGIN_RATE_WINDOW_MS = 10 * 60 * 1000;
-const LOGIN_RATE_MAX_ATTEMPTS = 10;
-const failedLoginTracker = new Map();
-
-function getLoginAttemptKey(req, identificador) {
-  const ip = req.ip || req.headers['x-forwarded-for'] || 'local';
-  const idPart = String(identificador || '').trim().toLowerCase();
-  return `${ip}::${idPart}`;
-}
-
-function isLoginRateLimited(key) {
-  const now = Date.now();
-  const cutoff = now - LOGIN_RATE_WINDOW_MS;
-  const recent = (failedLoginTracker.get(key) || []).filter((ts) => ts > cutoff);
-  if (recent.length === 0) {
-    failedLoginTracker.delete(key);
-    return false;
+export function calcularBloqueoHasta(intentosFallidos) {
+  const n = Number(intentosFallidos || 0);
+  let minutos = 0;
+  if (n >= 10) {
+    minutos = 30;
+  } else if (n >= 8) {
+    minutos = 15;
+  } else if (n >= 5) {
+    minutos = 5;
   }
-  failedLoginTracker.set(key, recent);
-  return recent.length >= LOGIN_RATE_MAX_ATTEMPTS;
+  if (minutos <= 0) return null;
+  return new Date(Date.now() + minutos * 60 * 1000);
 }
 
-function recordFailedLogin(key) {
-  const now = Date.now();
-  const cutoff = now - LOGIN_RATE_WINDOW_MS;
-  const recent = (failedLoginTracker.get(key) || []).filter((ts) => ts > cutoff);
-  recent.push(now);
-  failedLoginTracker.set(key, recent);
-}
-
-function clearFailedLogin(key) {
-  failedLoginTracker.delete(key);
+async function registrarEventoSesion({ usuarioId, rol, accion, detalle = {} }) {
+  if (!usuarioId || !accion) return;
+  try {
+    await query(
+      `INSERT INTO bitacora_actividad (usuario_id, cobrador_id, accion, entidad, entidad_id, detalle)
+       VALUES ($1::uuid, $1::uuid, $2::public.accion_bitacora, 'sesiones', $1::uuid, $3::jsonb);`,
+      [
+        usuarioId,
+        accion,
+        JSON.stringify({
+          rol: String(rol || '').toUpperCase() || null,
+          ...detalle,
+        }),
+      ]
+    );
+  } catch (err) {
+    console.warn(
+      redactarPII(`[Auth] No se pudo registrar ${accion} en bitácora: ${err?.message || err}`)
+    );
+  }
 }
 
 function formatUsuarioPublico(u) {
@@ -120,22 +114,12 @@ export const login = async (req, res) => {
       });
     }
 
-    const attemptKey = getLoginAttemptKey(req, rawId);
-    if (isLoginRateLimited(attemptKey)) {
-      return res.status(429).json({
-        ok: false,
-        success: false,
-        status: 429,
-        error: 'Demasiados intentos',
-        userMessage:
-          'Has superado el límite de intentos fallidos. Espera 10 minutos antes de volver a intentarlo.',
-      });
-    }
-
-    await ensureConsentColumns();
-
     const { rows } = await query(
-      `SELECT id, usuario, nombre_completo, correo, password_hash, rol, estado_cuenta,
+      `SELECT id, usuario, nombre_completo, correo, password_hash,
+              rol::text AS rol, estado_cuenta::text AS estado_cuenta,
+              COALESCE(intentos_fallidos, 0) AS intentos_fallidos,
+              bloqueado_hasta,
+              COALESCE(token_version, 1) AS token_version,
               codigo_vinculacion, foto_url, creado_en,
               consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en
        FROM usuarios
@@ -146,7 +130,7 @@ export const login = async (req, res) => {
 
     const foundUser = rows[0];
     if (!foundUser) {
-      recordFailedLogin(attemptKey);
+      await bcryptjs.compare(rawPassword, DUMMY_BCRYPT_HASH);
       return res.status(401).json({
         ok: false,
         success: false,
@@ -156,13 +140,29 @@ export const login = async (req, res) => {
       });
     }
 
-    if (foundUser.estado_cuenta === 'SUSPENDIDA') {
-      return res.status(403).json({
+    if (
+      foundUser.bloqueado_hasta &&
+      new Date(foundUser.bloqueado_hasta).getTime() > Date.now()
+    ) {
+      return res.status(429).json({
         ok: false,
         success: false,
-        status: 403,
-        error: 'Cuenta suspendida',
-        userMessage: 'Tu cuenta se encuentra suspendida temporalmente por la administración.',
+        status: 429,
+        codigo: 'CUENTA_BLOQUEADA_TEMPORAL',
+        error: 'Acceso bloqueado temporalmente',
+        userMessage:
+          'Tu acceso está bloqueado temporalmente por intentos fallidos. Espera unos minutos antes de volver a intentarlo.',
+      });
+    }
+
+    if (!foundUser.password_hash) {
+      await bcryptjs.compare(rawPassword, DUMMY_BCRYPT_HASH);
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        status: 401,
+        error: 'Credenciales inválidas',
+        userMessage: 'El usuario o la contraseña ingresados no son correctos.',
       });
     }
 
@@ -172,10 +172,15 @@ export const login = async (req, res) => {
     );
 
     if (!isValidPassword) {
-      recordFailedLogin(attemptKey);
+      const nuevosIntentos = Number(foundUser.intentos_fallidos || 0) + 1;
+      const bloqueadoHasta = calcularBloqueoHasta(nuevosIntentos);
       await query(
-        'UPDATE usuarios SET intentos_fallidos = COALESCE(intentos_fallidos, 0) + 1 WHERE id = $1;',
-        [foundUser.id]
+        `UPDATE usuarios
+         SET intentos_fallidos = $2,
+             bloqueado_hasta = $3,
+             actualizado_en = now()
+         WHERE id = $1::uuid;`,
+        [foundUser.id, nuevosIntentos, bloqueadoHasta]
       );
       return res.status(401).json({
         ok: false,
@@ -186,7 +191,15 @@ export const login = async (req, res) => {
       });
     }
 
-    clearFailedLogin(attemptKey);
+    if (foundUser.estado_cuenta !== 'ACTIVA') {
+      return res.status(403).json({
+        ok: false,
+        success: false,
+        status: 403,
+        error: 'Cuenta suspendida',
+        userMessage: 'Tu cuenta se encuentra suspendida temporalmente por la administración.',
+      });
+    }
 
     let codigoVinculacion = foundUser.codigo_vinculacion;
     if (!codigoVinculacion) {
@@ -197,23 +210,31 @@ export const login = async (req, res) => {
       `UPDATE usuarios
        SET ultimo_acceso = now(),
            intentos_fallidos = 0,
+           bloqueado_hasta = NULL,
            codigo_vinculacion = COALESCE(codigo_vinculacion, $2),
-           estado_cuenta = CASE WHEN estado_cuenta = 'PENDIENTE_VERIFICACION' THEN 'ACTIVA' ELSE estado_cuenta END,
            correo_verificado = true,
            correo_verificado_en = COALESCE(correo_verificado_en, now()),
            actualizado_en = now()
        WHERE id = $1
-       RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
+       RETURNING id, usuario, nombre_completo, correo, rol::text AS rol, estado_cuenta::text AS estado_cuenta,
                  codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 COALESCE(token_version, 1) AS token_version,
                  consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
       [foundUser.id, codigoVinculacion]
     );
 
     const activeUser = updatedRows[0] || foundUser;
-    const sessionJwt = firmarToken(activeUser);
+    const sessionJwt = firmarToken(activeUser, { sessionStartedAt: Date.now() });
     setSessionCookie(res, sessionJwt);
     const csrfToken = generarTokenCsrf(activeUser.id);
     res.setHeader('X-CSRF-Token', csrfToken);
+
+    await registrarEventoSesion({
+      usuarioId: activeUser.id,
+      rol: activeUser.rol,
+      accion: 'INICIO_SESION',
+      detalle: { origen: 'credenciales' },
+    });
 
     return res.status(200).json({
       ok: true,
@@ -235,8 +256,6 @@ export const login = async (req, res) => {
 
 export const registro = async (req, res) => {
   try {
-    await ensureConsentColumns();
-
     const {
       nombre_completo,
       username,
@@ -364,8 +383,9 @@ export const registro = async (req, res) => {
          $1, $2, $3, true, now(), $4, 'COBRADOR', 'ACTIVA', $5, now(),
          $6, CASE WHEN $6 THEN $7 ELSE NULL END, CASE WHEN $6 THEN now() ELSE NULL END
        )
-       RETURNING id, usuario, nombre_completo, correo, rol, estado_cuenta,
+       RETURNING id, usuario, nombre_completo, correo, rol::text AS rol, estado_cuenta::text AS estado_cuenta,
                  codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
+                 COALESCE(token_version, 1) AS token_version,
                  consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en;`,
       [
         cleanUsername,
@@ -379,10 +399,21 @@ export const registro = async (req, res) => {
     );
 
     const newUser = createdRows[0];
-    const sessionJwt = firmarToken(newUser);
+    await aprovisionarEmpresaRag(newUser.id, newUser.nombre_completo || newUser.usuario, {
+      seedBaseDocs: false,
+    }).catch(() => {});
+
+    const sessionJwt = firmarToken(newUser, { sessionStartedAt: Date.now() });
     setSessionCookie(res, sessionJwt);
     const csrfToken = generarTokenCsrf(newUser.id);
     res.setHeader('X-CSRF-Token', csrfToken);
+
+    await registrarEventoSesion({
+      usuarioId: newUser.id,
+      rol: newUser.rol,
+      accion: 'INICIO_SESION',
+      detalle: { origen: 'registro' },
+    });
 
     return res.status(201).json({
       ok: true,
@@ -415,10 +446,8 @@ export const yo = async (req, res) => {
       });
     }
 
-    await ensureConsentColumns();
-
     const { rows } = await query(
-      `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,
+      `SELECT id, usuario, nombre_completo, correo, rol::text AS rol, estado_cuenta::text AS estado_cuenta,
               codigo_vinculacion, foto_url, creado_en, ultimo_acceso,
               consentimiento_aceptado, consentimiento_version, consentimiento_aceptado_en
        FROM usuarios
@@ -463,6 +492,22 @@ export const yo = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    const authUserId = req.user?.id || req.usuario?.id;
+    if (authUserId) {
+      await query(
+        `UPDATE usuarios
+         SET token_version = COALESCE(token_version, 1) + 1,
+             actualizado_en = now()
+         WHERE id = $1::uuid;`,
+        [authUserId]
+      );
+      await registrarEventoSesion({
+        usuarioId: authUserId,
+        rol: req.user?.rol || req.usuario?.rol,
+        accion: 'CIERRE_SESION',
+        detalle: { origen: 'manual' },
+      });
+    }
     clearSessionCookie(res);
     return res.status(200).json({
       ok: true,
@@ -470,7 +515,7 @@ export const logout = async (req, res) => {
       userMessage: 'Sesión finalizada correctamente.',
     });
   } catch (error) {
-    console.error('[Auth] Error en logout:', error);
+    console.error(redactarPII(`[Auth] Error en logout: ${error?.message || error}`));
     clearSessionCookie(res);
     return res.status(200).json({
       ok: true,
@@ -691,7 +736,8 @@ export const cambiarPassword = async (req, res) => {
     }
 
     const { rows } = await query(
-      `SELECT id, password_hash, estado_cuenta
+      `SELECT id, usuario, rol::text AS rol, password_hash, estado_cuenta::text AS estado_cuenta,
+              COALESCE(token_version, 1) AS token_version
        FROM usuarios
        WHERE id = $1
        LIMIT 1;`,
@@ -699,13 +745,25 @@ export const cambiarPassword = async (req, res) => {
     );
 
     const current = rows[0];
-    if (!current || current.estado_cuenta === 'SUSPENDIDA') {
+    if (!current || current.estado_cuenta !== 'ACTIVA') {
+      clearSessionCookie(res);
       return res.status(401).json({
         ok: false,
         success: false,
         status: 401,
         error: 'Sesión inválida',
         userMessage: 'Tu sesión ya no es válida.',
+      });
+    }
+
+    if (!current.password_hash) {
+      return res.status(400).json({
+        ok: false,
+        success: false,
+        status: 400,
+        error: 'Contraseña local no configurada',
+        userMessage:
+          'Tu cuenta utiliza acceso con Google o GitHub y no tiene una contraseña local configurada.',
       });
     }
 
@@ -725,17 +783,39 @@ export const cambiarPassword = async (req, res) => {
     }
 
     const newHash = await bcryptjs.hash(passwordNueva, 10);
-    await query(
+    const { rows: updatedRows } = await query(
       `UPDATE usuarios
        SET password_hash = $2,
+           token_version = COALESCE(token_version, 1) + 1,
            actualizado_en = now()
-       WHERE id = $1;`,
+       WHERE id = $1
+       RETURNING id, usuario, rol::text AS rol, estado_cuenta::text AS estado_cuenta, token_version;`,
       [authUserId, newHash]
     );
+
+    const updatedUser = updatedRows[0] || {
+      id: authUserId,
+      usuario: current.usuario,
+      rol: current.rol,
+      token_version: Number(current.token_version || 1) + 1,
+    };
+
+    const newSessionJwt = firmarToken(updatedUser, { sessionStartedAt: Date.now() });
+    setSessionCookie(res, newSessionJwt);
+    const newCsrfToken = generarTokenCsrf(updatedUser.id);
+    res.setHeader('X-CSRF-Token', newCsrfToken);
+
+    await registrarEventoSesion({
+      usuarioId: updatedUser.id,
+      rol: updatedUser.rol,
+      accion: 'CAMBIO_CONTRASENA',
+      detalle: { origen: 'perfil' },
+    });
 
     return res.status(200).json({
       ok: true,
       success: true,
+      csrfToken: newCsrfToken,
       userMessage: 'Tu contraseña se actualizó correctamente.',
     });
   } catch (error) {
@@ -762,8 +842,6 @@ export const aceptarConsentimientoLegal = async (req, res) => {
         userMessage: 'Debes iniciar sesión para registrar tu consentimiento.',
       });
     }
-
-    await ensureConsentColumns();
 
     const rawVersion = String(req.body?.version || CONSENT_CURRENT_VERSION).trim();
     const version = rawVersion && rawVersion.length <= 24 ? rawVersion : CONSENT_CURRENT_VERSION;
@@ -832,8 +910,6 @@ export const exportarMisDatosPersonales = async (req, res) => {
         userMessage: 'Debes iniciar sesión para exportar tus datos.',
       });
     }
-
-    await ensureConsentColumns();
 
     const { rows: userRows } = await query(
       `SELECT id, usuario, nombre_completo, correo, rol, estado_cuenta,

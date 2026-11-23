@@ -8,9 +8,11 @@ import {
   vaciarPapelera,
 } from '../controllers/papeleraController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requiereCobrador } from '../middlewares/roleMiddleware.js';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requiereCobrador);
 
 router.get('/', getPapelera);
 router.post('/prestamo/:prestamoId/restaurar', restaurarPrestamo);

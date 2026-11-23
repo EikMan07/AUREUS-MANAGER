@@ -7,9 +7,11 @@ import {
   eliminarPrestamos
 } from '../controllers/prestamosController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requiereCobrador } from '../middlewares/roleMiddleware.js';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requiereCobrador);
 
 router.get('/', getPrestamos);
 router.post('/', createPrestamo);

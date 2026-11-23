@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, X, Users, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { Plus, Search, X, Users, TrendingUp } from 'lucide-react';
 import { ClientCard } from './ClientCard';
 import { ClientFormModal } from './ClientFormModal';
 import { ClientOptionsModal } from './ClientOptionsModal';
 import { ConfirmModal } from './ConfirmModal';
+import { CrmPrestamistaDashboard } from './CrmPrestamistaDashboard';
 import { matchesClientSearch, formatFullName } from '../../utils/formatters';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -18,10 +19,39 @@ export function ClientsDirectory({
   onUpdateClient,
   onBlacklistClient,
   onDeleteClient,
+  onRefreshClients,
   onShowAlert
 }) {
   const { isDark } = useTheme();
+  const [activeSection, setActiveSection] = useState('directorio');
   const [searchTerm, setSearchTerm] = useState('');
+  const needsClientSyncRef = useRef(false);
+
+  const handleClientConverted = useCallback(
+    async (nuevoCliente = null) => {
+      needsClientSyncRef.current = true;
+      if (typeof onRefreshClients === 'function') {
+        await onRefreshClients(nuevoCliente);
+        needsClientSyncRef.current = false;
+      }
+    },
+    [onRefreshClients]
+  );
+
+  const handleSelectSection = useCallback(
+    (nextSection) => {
+      setActiveSection(nextSection);
+      if (
+        nextSection === 'directorio' &&
+        needsClientSyncRef.current &&
+        typeof onRefreshClients === 'function'
+      ) {
+        needsClientSyncRef.current = false;
+        onRefreshClients();
+      }
+    },
+    [onRefreshClients]
+  );
 
   // Modales
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -111,85 +141,158 @@ export function ClientsDirectory({
 
   return (
     <div className="clients-directory-view">
-      {/* 2.2. Encabezado de Sección y Botón "Nuevo" */}
-      <section className="directory-header-row" aria-label="Cabecera del directorio">
-        <div className="directory-header-info">
-          <h2 className="directory-main-heading aureus-imperial-title">Clientes registrados</h2>
-          <p className="directory-count-subtitle">{countSubtitle}</p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="btn-new-client"
-          aria-label="Registrar nuevo cliente"
+      {/* Selector segmentado superior: Directorio | CRM */}
+      <div
+        className="segmented-tabs-wrapper"
+        style={{ width: '100%', marginBottom: '16px' }}
+      >
+        <div
+          className="segmented-tabs-control-three"
+          role="tablist"
+          aria-label="Vistas del módulo de clientes"
+          style={{
+            backgroundColor: isDark ? '#162436' : '#FFFFFF',
+            borderColor: isDark ? 'rgba(212, 180, 106, 0.24)' : 'rgba(182, 154, 85, 0.28)',
+          }}
         >
-          <Plus size={18} strokeWidth={2.25} />
-          <span>Nuevo</span>
-        </button>
-      </section>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSection === 'directorio'}
+            onClick={() => handleSelectSection('directorio')}
+            className={`tab-btn segmented-tab-btn ${activeSection === 'directorio' ? 'active' : ''}`}
+            style={{
+              background:
+                activeSection === 'directorio'
+                  ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                  : 'transparent',
+              color:
+                activeSection === 'directorio'
+                  ? '#101C2C'
+                  : isDark
+                    ? '#FFFFFF'
+                    : '#252A31',
+              fontWeight: activeSection === 'directorio' ? 900 : 700,
+            }}
+          >
+            <Users size={15} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+            <span className="tab-btn-label">Directorio</span>
+          </button>
 
-      <ClassicalLaurelDivider compact isDark={isDark} />
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSection === 'crm'}
+            onClick={() => handleSelectSection('crm')}
+            className={`tab-btn segmented-tab-btn ${activeSection === 'crm' ? 'active' : ''}`}
+            style={{
+              background:
+                activeSection === 'crm'
+                  ? 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)'
+                  : 'transparent',
+              color:
+                activeSection === 'crm'
+                  ? '#101C2C'
+                  : isDark
+                    ? '#FFFFFF'
+                    : '#252A31',
+              fontWeight: activeSection === 'crm' ? 900 : 700,
+            }}
+          >
+            <TrendingUp size={15} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+            <span className="tab-btn-label">CRM</span>
+          </button>
+        </div>
+      </div>
 
-      {/* 2.3. Buscador Instantáneo Multi-Criterio */}
-      <section className="directory-search-wrapper" aria-label="Búsqueda de clientes">
-        <div className="directory-search-bar cf-search-pill">
-          <Search size={19} strokeWidth={1.75} className="search-input-icon" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, cédula, teléfono o ubicación"
-            className="directory-search-input"
-            autoComplete="off"
-            aria-label="Buscar clientes"
-          />
-          {searchTerm && (
+      {activeSection === 'crm' ? (
+        <CrmPrestamistaDashboard
+          onShowAlert={onShowAlert}
+          onClientConverted={handleClientConverted}
+        />
+      ) : (
+        <>
+          {/* 2.2. Encabezado de Sección y Botón "Nuevo" */}
+          <section className="directory-header-row" aria-label="Cabecera del directorio">
+            <div className="directory-header-info">
+              <h2 className="directory-main-heading aureus-imperial-title">Clientes registrados</h2>
+              <p className="directory-count-subtitle">{countSubtitle}</p>
+            </div>
+
             <button
               type="button"
-              onClick={() => setSearchTerm('')}
-              className="search-clear-btn"
-              aria-label="Limpiar búsqueda"
+              onClick={handleOpenCreate}
+              className="btn-new-client"
+              aria-label="Registrar nuevo cliente"
             >
-              <X size={16} strokeWidth={2} />
+              <Plus size={18} strokeWidth={2.25} />
+              <span>Nuevo</span>
             </button>
-          )}
-        </div>
-      </section>
+          </section>
 
-      {/* 2.4. Lista de Tarjetas de Clientes */}
-      <section className="directory-cards-list" aria-label="Listado de clientes">
-        {filteredClients.length > 0 ? (
-          filteredClients.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              onOptionsClick={handleOpenOptions}
-            />
-          ))
-        ) : (
-          <div
-            className="directory-empty-state rb-spotlight-card"
-            onMouseMove={handleSpotlightMouseMove}
-            style={{ position: 'relative', overflow: 'hidden' }}
-          >
-            <ImperialCornerAccents isDark={isDark} />
-            <div className="empty-state-icon-box">
-              <Users size={32} strokeWidth={1.5} />
+          <ClassicalLaurelDivider compact isDark={isDark} />
+
+          {/* 2.3. Buscador Instantáneo Multi-Criterio */}
+          <section className="directory-search-wrapper" aria-label="Búsqueda de clientes">
+            <div className="directory-search-bar cf-search-pill">
+              <Search size={19} strokeWidth={1.75} className="search-input-icon" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nombre, cédula, teléfono o ubicación"
+                className="directory-search-input"
+                autoComplete="off"
+                aria-label="Buscar clientes"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="search-clear-btn"
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X size={16} strokeWidth={2} />
+                </button>
+              )}
             </div>
-            <h3 className="empty-state-title aureus-imperial-title">
-              {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
-            </h3>
-            <p className="empty-state-desc">
-              {searchTerm
-                ? 'Intenta con otro nombre, teléfono, cédula o ubicación.'
-                : 'Presiona el botón "Nuevo" arriba para registrar el primer cliente.'}
-            </p>
-          </div>
-        )}
-      </section>
+          </section>
 
-      {/* MODAL 1: Formulario de Registro / Edición */}
+          {/* 2.4. Lista de Tarjetas de Clientes */}
+          <section className="directory-cards-list" aria-label="Listado de clientes">
+            {filteredClients.length > 0 ? (
+              filteredClients.map((client) => (
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  onOptionsClick={handleOpenOptions}
+                />
+              ))
+            ) : (
+              <div
+                className="directory-empty-state rb-spotlight-card"
+                onMouseMove={handleSpotlightMouseMove}
+                style={{ position: 'relative', overflow: 'hidden' }}
+              >
+                <ImperialCornerAccents isDark={isDark} />
+                <div className="empty-state-icon-box">
+                  <Users size={32} strokeWidth={1.5} />
+                </div>
+                <h3 className="empty-state-title aureus-imperial-title">
+                  {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
+                </h3>
+                <p className="empty-state-desc">
+                  {searchTerm
+                    ? 'Intenta con otro nombre, teléfono, cédula o ubicación.'
+                    : 'Presiona el botón "Nuevo" arriba para registrar el primer cliente.'}
+                </p>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {/* MODAL 1: Formulario de Registro y Edición */}
       <ClientFormModal
         isOpen={isFormOpen}
         client={editingClient}

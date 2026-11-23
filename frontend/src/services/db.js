@@ -319,8 +319,12 @@ export const dbService = {
     return await api.depurarRegistrosPrestamistaAdmin(targetId, tipo);
   },
 
-  async obtenerAuditoriaAdmin(limit = 80) {
-    return await api.obtenerAuditoriaAdmin(limit);
+  async obtenerAuditoriaAdmin(page = 1, limit = 15) {
+    return await api.obtenerAuditoriaAdmin(page, limit);
+  },
+
+  async limpiarAuditoriaAdmin(modo = 'antiguos') {
+    return await api.limpiarAuditoriaAdmin(modo);
   },
 
   async obtenerResumenSeneca() {

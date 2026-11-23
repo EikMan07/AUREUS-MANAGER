@@ -21,13 +21,19 @@ import {
   X,
   Minimize2,
   Maximize2,
-  GripHorizontal
+  GripHorizontal,
+  Megaphone,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { AureusLogo } from '../../components/Common/AureusLogo.jsx';
 import { UserAccountMenu } from '../../components/Profile/UserAccountMenu.jsx';
 import { UserProfileModal } from '../../components/Profile/UserProfileModal.jsx';
 import { ConfirmActionStage } from '../../components/Modals/ConfirmActionStage.jsx';
 import { AlertModal } from '../../components/Modals/AlertModal.jsx';
+import { AdminCrmDashboard } from '../../components/Admin/AdminCrmDashboard.jsx';
+import { SenecaRomanIcon } from '../../components/Common/SenecaRomanIcon.jsx';
+import { SenecaAssistantModal } from '../../components/Seneca/SenecaAssistantModal.jsx';
 import {
   ClassicalArchitecturalBackdrop,
   FlutedPilasters,
@@ -81,6 +87,13 @@ const ADMIN_MODULES = [
     label: 'Gobernanza y Auditoría',
     shortLabel: 'Auditoría',
     icon: FileCheck2
+  },
+  {
+    key: 'crm',
+    roman: 'V',
+    label: 'CRM y Mercadeo',
+    shortLabel: 'CRM y Mercadeo',
+    icon: Megaphone
   }
 ];
 
@@ -98,11 +111,15 @@ function formatDateTimeCR(iso) {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return 'Sin registro';
-    return d.toLocaleDateString('es-CR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    return d
+      .toLocaleDateString('es-CR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      .replace(/[/()]/g, '');
   } catch (_err) {
     return 'Sin registro';
   }
@@ -117,6 +134,7 @@ export function AdminDashboardPage() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalSection, setProfileModalSection] = useState('perfil');
+  const [isSenecaOpen, setIsSenecaOpen] = useState(false);
 
   const handleOpenAccountSection = useCallback((targetSection = 'perfil') => {
     const normalized =
@@ -136,6 +154,19 @@ export function AdminDashboardPage() {
   const [prestamistas, setPrestamistas] = useState([]);
   const [depuracionList, setDepuracionList] = useState([]);
   const [auditoriaList, setAuditoriaList] = useState([]);
+  const [auditoriaPage, setAuditoriaPage] = useState(1);
+  const [auditoriaPaginacion, setAuditoriaPaginacion] = useState({
+    page: 1,
+    limit: 15,
+    total: 0,
+    totalPaginas: 1,
+  });
+  const [auditoriaRetencion, setAuditoriaRetencion] = useState({
+    dias: 30,
+    maximoRegistros: 200,
+  });
+  const [auditoriaLoading, setAuditoriaLoading] = useState(false);
+  const [limpiarAuditoriaModo, setLimpiarAuditoriaModo] = useState('antiguos');
 
   // Filtros en módulo II y IV
   const [searchPrestamista, setSearchPrestamista] = useState('');
@@ -191,14 +222,14 @@ export function AdminDashboardPage() {
     });
   }, []);
 
-  const cargarTodoAdmin = useCallback(async () => {
+  const cargarTodoAdmin = useCallback(async (pageAuditoria = 1) => {
     setLoading(true);
     try {
       const [rResumen, rPrestamistas, rDepuracion, rAuditoria] = await Promise.allSettled([
         dbService.obtenerResumenAdmin(),
         dbService.obtenerPrestamistasAdmin(),
         dbService.obtenerResumenDepuracionAdmin(),
-        dbService.obtenerAuditoriaAdmin(80)
+        dbService.obtenerAuditoriaAdmin(pageAuditoria, 15)
       ]);
 
       if (rResumen.status === 'fulfilled') {
@@ -228,11 +259,53 @@ export function AdminDashboardPage() {
       if (rAuditoria.status === 'fulfilled') {
         const evList = rAuditoria.value?.eventos || rAuditoria.value?.data || [];
         setAuditoriaList(Array.isArray(evList) ? evList : []);
+        const pag = rAuditoria.value?.paginacion || {};
+        setAuditoriaPage(Number(pag.page || pageAuditoria || 1));
+        setAuditoriaPaginacion({
+          page: Number(pag.page || pageAuditoria || 1),
+          limit: Number(pag.limit || 15),
+          total: Number(pag.total ?? evList.length ?? 0),
+          totalPaginas: Math.max(1, Number(pag.totalPaginas || 1)),
+        });
+        if (rAuditoria.value?.politicaRetencion) {
+          setAuditoriaRetencion({
+            dias: Number(rAuditoria.value.politicaRetencion.dias ?? 30),
+            maximoRegistros: Number(rAuditoria.value.politicaRetencion.maximoRegistros ?? 200),
+          });
+        }
       } else {
         setAuditoriaList([]);
       }
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const cargarAuditoriaPagina = useCallback(async (page = 1) => {
+    const targetPage = Math.max(1, Number(page) || 1);
+    setAuditoriaLoading(true);
+    try {
+      const resAud = await dbService.obtenerAuditoriaAdmin(targetPage, 15);
+      const evList = resAud?.eventos || [];
+      setAuditoriaList(Array.isArray(evList) ? evList : []);
+      const pag = resAud?.paginacion || {};
+      setAuditoriaPage(Number(pag.page || targetPage));
+      setAuditoriaPaginacion({
+        page: Number(pag.page || targetPage),
+        limit: Number(pag.limit || 15),
+        total: Number(pag.total ?? evList.length ?? 0),
+        totalPaginas: Math.max(1, Number(pag.totalPaginas || 1)),
+      });
+      if (resAud?.politicaRetencion) {
+        setAuditoriaRetencion({
+          dias: Number(resAud.politicaRetencion.dias ?? 30),
+          maximoRegistros: Number(resAud.politicaRetencion.maximoRegistros ?? 200),
+        });
+      }
+    } catch (_err) {
+      // Conservar vista previa si falla un refresco puntual
+    } finally {
+      setAuditoriaLoading(false);
     }
   }, []);
 
@@ -296,15 +369,15 @@ export function AdminDashboardPage() {
     const term = searchAuditoria.trim().toLowerCase();
     if (!term) return auditoriaList;
     return auditoriaList.filter((ev) => {
-      const actor = String(ev.actor_nombre || '').toLowerCase();
-      const accion = String(ev.accion || '').toLowerCase();
-      const entidad = String(ev.entidad || '').toLowerCase();
-      const det = String(ev.detalle_sanitizado || '').toLowerCase();
+      const actor = String(ev.actor || '').toLowerCase();
+      const accion = String(ev.accion_legible || '').toLowerCase();
+      const categoria = String(ev.categoria_legible || '').toLowerCase();
+      const resumenEv = String(ev.resumen_ejecutivo || '').toLowerCase();
       return (
         actor.includes(term) ||
         accion.includes(term) ||
-        entidad.includes(term) ||
-        det.includes(term)
+        categoria.includes(term) ||
+        resumenEv.includes(term)
       );
     });
   }, [auditoriaList, searchAuditoria]);
@@ -477,11 +550,13 @@ export function AdminDashboardPage() {
           action.target.prestamista_id,
           'papelera'
         );
+      } else if (action.type === 'limpiar_auditoria') {
+        await dbService.limpiarAuditoriaAdmin(limpiarAuditoriaModo);
       }
 
       setConfirmAction(null);
       setIsExecutingConfirm(false);
-      cargarTodoAdmin();
+      await cargarTodoAdmin(1);
 
       await launchAdminStageAnimation({
         variant: action.stageVariant,
@@ -630,8 +705,50 @@ export function AdminDashboardPage() {
             </span>
           </div>
 
-          {/* Acciones Derecha: Refrescar y Menú Cuenta */}
+          {/* Acciones Derecha: SÉNECA IA, Refrescar y Menú Cuenta */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+            <button
+              type="button"
+              data-testid="btn-seneca-admin-header"
+              className="header-seneca-btn rb-halo-ring"
+              onClick={() => setIsSenecaOpen(true)}
+              aria-label={t('header.senecaTitle')}
+              title={t('header.senecaTitle')}
+              style={{
+                height: '40px',
+                padding: '0 12px',
+                borderRadius: '12px',
+                border: isDark ? '1px solid rgba(212, 180, 106, 0.48)' : '1px solid #D5C295',
+                backgroundColor: isDark ? '#1B2B40' : '#F7F2E4',
+                color: isDark ? '#D4B46A' : '#B69A55',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '7px',
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: isDark
+                  ? '0 2px 12px rgba(212, 180, 106, 0.18)'
+                  : '0 2px 8px rgba(182, 154, 85, 0.16)',
+                transition: 'all 0.22s ease',
+                flexShrink: 0
+              }}
+            >
+              <SenecaRomanIcon size={20} color={isDark ? '#D4B46A' : '#B69A55'} />
+              <span
+                className="header-seneca-label"
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  color: isDark ? '#E5C97B' : '#876B2D',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                SÉNECA IA
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={cargarTodoAdmin}
@@ -1033,7 +1150,7 @@ export function AdminDashboardPage() {
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--aureus-text-secondary)' }}>
-                  Inspeccionar eventos técnicos sanitizados bajo el estándar de privacidad Ley 8968.
+                  Consultar el historial administrativo protegido bajo el estándar de privacidad Ley 8968.
                 </span>
               </button>
             </div>
@@ -1784,6 +1901,112 @@ export function AdminDashboardPage() {
         {/* MÓDULO IV: GOBERNANZA Y AUDITORÍA */}
         {activeModule === 'auditoria' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Cabecera ejecutiva con política de retención y limpieza manual */}
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '16px',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                border: '1px solid var(--aureus-border-subtle)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2
+                    className="aureus-imperial-title"
+                    style={{
+                      margin: 0,
+                      fontSize: '15.5px',
+                      fontWeight: 900,
+                      color: 'var(--aureus-text-primary)',
+                    }}
+                  >
+                    Historial de auditoría
+                  </h2>
+                  <span
+                    style={{
+                      padding: '3px 9px',
+                      borderRadius: '999px',
+                      backgroundColor: 'rgba(182, 154, 85, 0.16)',
+                      color: isDark ? '#E5C97B' : '#8A6D2F',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                    }}
+                  >
+                    Privacidad protegida · Ley N.° 8968
+                  </span>
+                </div>
+                <p
+                  style={{
+                    margin: '4px 0 0',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'var(--aureus-text-secondary)',
+                  }}
+                >
+                  {`Se conservan automáticamente los últimos ${auditoriaRetencion.dias} días hasta un máximo de ${auditoriaRetencion.maximoRegistros} registros`}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--aureus-bg-elevated)',
+                    border: '1px solid var(--aureus-border-subtle)',
+                    fontSize: '11.5px',
+                    fontWeight: 800,
+                    color: 'var(--aureus-text-secondary)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  Página {auditoriaPaginacion.page} de {auditoriaPaginacion.totalPaginas}
+                </span>
+
+                <button
+                  type="button"
+                  data-testid="btn-limpiar-auditoria-admin"
+                  onClick={() => {
+                    setLimpiarAuditoriaModo('antiguos');
+                    triggerConfirmAction({
+                      type: 'limpiar_auditoria',
+                      target: { nombre_completo: 'Historial de auditoría' },
+                      title: 'Limpiar historial de auditoría',
+                      question:
+                        'Selecciona el alcance de la limpieza para liberar espacio manteniendo la trazabilidad vigente.',
+                      confirmText: 'Sí, limpiar historial',
+                      confirmTone: 'danger',
+                      stageVariant: 'admin_depurar_registros',
+                      detailPill: 'Historial de auditoría depurado',
+                    });
+                  }}
+                  style={{
+                    padding: '8px 13px',
+                    borderRadius: '11px',
+                    border: '1px solid var(--aureus-red-border)',
+                    backgroundColor: 'var(--aureus-red-light)',
+                    color: 'var(--aureus-red-text)',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Trash2 size={14} />
+                  <span>Limpiar historial antiguo</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Buscador limpio */}
             <div
               style={{
                 display: 'flex',
@@ -1791,10 +2014,10 @@ export function AdminDashboardPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '10px',
-                padding: '12px 14px',
-                borderRadius: '16px',
+                padding: '10px 14px',
+                borderRadius: '14px',
                 backgroundColor: 'var(--aureus-bg-surface)',
-                border: '1px solid var(--aureus-border-subtle)'
+                border: '1px solid var(--aureus-border-subtle)',
               }}
             >
               <div
@@ -1806,7 +2029,7 @@ export function AdminDashboardPage() {
                   padding: '8px 12px',
                   borderRadius: '12px',
                   backgroundColor: 'var(--aureus-bg-elevated)',
-                  border: '1px solid var(--aureus-border-subtle)'
+                  border: '1px solid var(--aureus-border-subtle)',
                 }}
               >
                 <Search size={16} color="var(--aureus-text-muted)" />
@@ -1814,7 +2037,7 @@ export function AdminDashboardPage() {
                   type="text"
                   value={searchAuditoria}
                   onChange={(e) => setSearchAuditoria(e.target.value)}
-                  placeholder="Filtrar eventos por acción, entidad o actor..."
+                  placeholder="Filtrar eventos por acción, categoría o responsable"
                   style={{
                     border: 'none',
                     outline: 'none',
@@ -1822,99 +2045,232 @@ export function AdminDashboardPage() {
                     color: 'var(--aureus-text-primary)',
                     fontSize: '13px',
                     fontWeight: 600,
-                    width: '100%'
+                    width: '100%',
                   }}
                 />
               </div>
 
               <span
                 style={{
-                  fontSize: '11.5px',
-                  fontWeight: 800,
-                  color: '#B69A55'
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--aureus-text-muted)',
+                  fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                PII Redactada Automáticamente · Ley N.° 8968
+                {auditoriaPaginacion.total === 1
+                  ? '1 evento conservado'
+                  : `${auditoriaPaginacion.total} eventos conservados`}
               </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredAuditoria.map((ev) => (
-                <div
-                  key={ev.id}
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '14px',
-                    backgroundColor: 'var(--aureus-bg-surface)',
-                    border: '1px solid var(--aureus-border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}
-                >
+            {/* Listado ejecutivo */}
+            {auditoriaLoading ? (
+              <div
+                style={{
+                  padding: '36px 16px',
+                  borderRadius: '16px',
+                  backgroundColor: 'var(--aureus-bg-surface)',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  color: 'var(--aureus-text-muted)',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
+                <RefreshCw size={16} className="animate-spin" />
+                <span>Cargando eventos recientes...</span>
+              </div>
+            ) : filteredAuditoria.length === 0 ? (
+              <div
+                style={{
+                  padding: '40px 20px',
+                  borderRadius: '16px',
+                  backgroundColor: 'var(--aureus-bg-surface)',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  textAlign: 'center',
+                  color: 'var(--aureus-text-muted)',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                }}
+              >
+                Sin eventos recientes
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {filteredAuditoria.map((ev) => (
                   <div
+                    key={ev.id}
                     style={{
+                      padding: '13px 15px',
+                      borderRadius: '14px',
+                      backgroundColor: 'var(--aureus-bg-surface)',
+                      border: '1px solid var(--aureus-border-subtle)',
                       display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px'
+                      flexDirection: 'column',
+                      gap: '6px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          padding: '3px 8px',
-                          borderRadius: '7px',
-                          backgroundColor: 'rgba(182, 154, 85, 0.16)',
-                          color: isDark ? '#E5C97B' : '#8A6D2F',
-                          fontSize: '11px',
-                          fontWeight: 900
-                        }}
-                      >
-                        {ev.accion}
-                      </span>
-                      <span style={{ fontSize: '12.5px', fontWeight: 800 }}>
-                        {ev.actor_nombre}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: 'var(--aureus-text-muted)'
-                        }}
-                      >
-                        · Entidad: {ev.entidad}
-                      </span>
-                    </div>
-                    <span
+                    <div
                       style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: 'var(--aureus-text-muted)'
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
                       }}
                     >
-                      {formatDateTimeCR(ev.fecha_evento)}
-                    </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            fontSize: '13.5px',
+                            fontWeight: 900,
+                            color: 'var(--aureus-text-primary)',
+                          }}
+                        >
+                          {ev.accion_legible || 'Actividad administrativa'}
+                        </span>
+                        <span
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: '999px',
+                            backgroundColor: 'rgba(182, 154, 85, 0.16)',
+                            color: isDark ? '#E5C97B' : '#8A6D2F',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                          }}
+                        >
+                          {ev.categoria_legible || 'Plataforma'}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'var(--aureus-text-secondary)',
+                          }}
+                        >
+                          {ev.actor || 'Administración'}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          color: 'var(--aureus-text-muted)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatDateTimeCR(ev.fecha)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '12.5px',
+                        fontWeight: 600,
+                        color: 'var(--aureus-text-secondary)',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {ev.resumen_ejecutivo || 'Operación administrativa registrada bajo resguardo de privacidad.'}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      color: 'var(--aureus-text-secondary)',
-                      wordBreak: 'break-word'
-                    }}
-                  >
-                    {ev.detalle_sanitizado}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+
+            {/* Paginación al pie */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--aureus-bg-surface)',
+                border: '1px solid var(--aureus-border-subtle)',
+              }}
+            >
+              <button
+                type="button"
+                disabled={auditoriaLoading || auditoriaPage <= 1}
+                onClick={() => cargarAuditoriaPagina(auditoriaPage - 1)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  color:
+                    auditoriaPage <= 1
+                      ? 'var(--aureus-text-muted)'
+                      : 'var(--aureus-text-primary)',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: auditoriaLoading || auditoriaPage <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: auditoriaPage <= 1 ? 0.55 : 1,
+                }}
+              >
+                <ChevronLeft size={15} />
+                <span>Anterior</span>
+              </button>
+
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  color: 'var(--aureus-text-secondary)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                Página {auditoriaPaginacion.page} de {auditoriaPaginacion.totalPaginas}
+              </span>
+
+              <button
+                type="button"
+                disabled={
+                  auditoriaLoading || auditoriaPage >= auditoriaPaginacion.totalPaginas
+                }
+                onClick={() => cargarAuditoriaPagina(auditoriaPage + 1)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--aureus-border-subtle)',
+                  backgroundColor: 'var(--aureus-bg-elevated)',
+                  color:
+                    auditoriaPage >= auditoriaPaginacion.totalPaginas
+                      ? 'var(--aureus-text-muted)'
+                      : 'var(--aureus-text-primary)',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor:
+                    auditoriaLoading || auditoriaPage >= auditoriaPaginacion.totalPaginas
+                      ? 'not-allowed'
+                      : 'pointer',
+                  opacity: auditoriaPage >= auditoriaPaginacion.totalPaginas ? 0.55 : 1,
+                }}
+              >
+                <span>Siguiente</span>
+                <ChevronRight size={15} />
+              </button>
             </div>
           </div>
         )}
+
+        {/* MÓDULO V: CRM Y MERCADEO */}
+        {activeModule === 'crm' && <AdminCrmDashboard />}
       </main>
 
-      {/* DOCK FLOTANTE ARRASTRABLE Y MINIMIZABLE DE 4 MÓDULOS */}
+      {/* DOCK FLOTANTE ARRASTRABLE Y MINIMIZABLE DE 5 MÓDULOS */}
       <nav
         className="aureus-admin-dock"
         aria-label="Navegación administrativa"
@@ -1937,6 +2293,7 @@ export function AdminDashboardPage() {
           boxShadow: '0 10px 28px rgba(0, 0, 0, 0.35)',
           backdropFilter: 'blur(12px)',
           maxWidth: 'calc(100vw - 20px)',
+          overflowX: 'auto',
           boxSizing: 'border-box'
         }}
       >
@@ -2526,6 +2883,40 @@ export function AdminDashboardPage() {
             >
               {confirmAction.question}
             </p>
+            {confirmAction.type === 'limpiar_auditoria' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { value: 'antiguos', label: 'Registros mayores a 7 días' },
+                  { value: 'todo', label: 'Limpiar todo el historial' },
+                ].map((opt) => {
+                  const selected = limpiarAuditoriaModo === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setLimpiarAuditoriaModo(opt.value)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '11px',
+                        border: selected
+                          ? '1.5px solid #B69A55'
+                          : '1px solid var(--aureus-border-subtle)',
+                        backgroundColor: selected
+                          ? 'rgba(182, 154, 85, 0.14)'
+                          : 'var(--aureus-bg-elevated)',
+                        color: 'var(--aureus-text-primary)',
+                        fontSize: '12.5px',
+                        fontWeight: selected ? 800 : 600,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
               <button
                 type="button"
@@ -2611,6 +3002,12 @@ export function AdminDashboardPage() {
         isOpen={isProfileModalOpen}
         section={profileModalSection}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* ASISTENTE SÉNECA ADMINISTRATIVO */}
+      <SenecaAssistantModal
+        isOpen={isSenecaOpen}
+        onClose={() => setIsSenecaOpen(false)}
       />
 
       {/* MODAL DE ALERTA GLOBAL */}

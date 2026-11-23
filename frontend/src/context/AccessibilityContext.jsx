@@ -2459,6 +2459,899 @@ export const EXACT_TEXT_MAP = {
     pt: 'Você deve aceitar os Termos de Uso e a Política de Privacidade Lei 8968 para criar sua conta.',
     fr: 'Vous devez accepter les Conditions d’Utilisation et la Politique de Confidentialité Loi 8968 pour créer votre compte.',
   },
+  'Asesor financiero y operativo': {
+    en: 'Financial and operational advisor',
+    pt: 'Consultor financeiro e operacional',
+    fr: 'Conseiller financier et opérationnel',
+  },
+  'Séneca Administrativo': {
+    en: 'Seneca Administrative',
+    pt: 'Sêneca Administrativo',
+    fr: 'Sénèque Administratif',
+  },
+  'Consultor documental y de plataforma': {
+    en: 'Document and platform advisor',
+    pt: 'Consultor documental e de plataforma',
+    fr: 'Conseiller documentaire et plateforme',
+  },
+  'SÉNECA IA': {
+    en: 'SENECA AI',
+    pt: 'SÊNECA IA',
+    fr: 'SÉNÈQUE IA',
+  },
+  'Séneca Documental': {
+    en: 'Seneca Document Advisor',
+    pt: 'Sêneca Documental',
+    fr: 'Sénèque Documentaire',
+  },
+  'Consultor con respaldo en Google Drive': {
+    en: 'Advisor backed by Google Drive',
+    pt: 'Consultor com respaldo no Google Drive',
+    fr: 'Conseiller adossé à Google Drive',
+  },
+  'Consultas': {
+    en: 'Queries',
+    pt: 'Consultas',
+    fr: 'Requêtes',
+  },
+  'Documentos Drive': {
+    en: 'Drive Documents',
+    pt: 'Documentos Drive',
+    fr: 'Documents Drive',
+  },
+  'Consumo': {
+    en: 'Usage',
+    pt: 'Consumo',
+    fr: 'Consommation',
+  },
+  'Uso del Plan': {
+    en: 'Plan Usage',
+    pt: 'Uso do Plano',
+    fr: 'Utilisation du Plan',
+  },
+  'Administración': {
+    en: 'Administration',
+    pt: 'Administração',
+    fr: 'Administration',
+  },
+  'Consulta tus cobros del día, realiza cálculos con tus cifras o revisa las políticas y guías de uso de Aureus Manager.': {
+    en: 'Check your collections for today, run calculations with your numbers, or review Aureus Manager policies and usage guides.',
+    pt: 'Consulte suas cobranças do dia, faça cálculos com seus números ou revise as políticas e guias de uso do Aureus Manager.',
+    fr: 'Consultez vos recouvrements du jour, effectuez des calculs avec vos chiffres ou consultez les politiques et guides d’utilisation d’Aureus Manager.',
+  },
+  'Consulta la arquitectura técnica, políticas de gobernanza, auditoría y matriz de roles de Aureus Manager.': {
+    en: 'Check the technical architecture, governance policies, auditing, and role matrix of Aureus Manager.',
+    pt: 'Consulte a arquitetura técnica, políticas de governança, auditoria e matriz de funções do Aureus Manager.',
+    fr: 'Consultez l’architecture technique, les politiques de gouvernance, l’audit et la matrice des rôles d’Aureus Manager.',
+  },
+  'Escribe tu consulta o cálculo...': {
+    en: 'Write your question or calculation...',
+    pt: 'Escreva sua consulta ou cálculo...',
+    fr: 'Saisissez votre question ou calcul...',
+  },
+  'Escribe tu consulta administrativa o técnica...': {
+    en: 'Write your administrative or technical query...',
+    pt: 'Escreva sua consulta administrativa ou técnica...',
+    fr: 'Saisissez votre requête administrative ou technique...',
+  },
+  'Consultas sugeridas': {
+    en: 'Suggested queries',
+    pt: 'Consultas sugeridas',
+    fr: 'Requêtes suggérées',
+  },
+  'Politica de montos y tasas': {
+    en: 'Loan amounts and interest rules',
+    pt: 'Política de valores e taxas',
+    fr: 'Politique de montants et taux',
+  },
+  'Reglas de atrasos y renovacion': {
+    en: 'Overdue and renewal rules',
+    pt: 'Regras de atrasos e renovação',
+    fr: 'Règles de retard et renouvellement',
+  },
+  'Reglas de atrasos y renovaciones': {
+    en: 'Overdue and renewal rules',
+    pt: 'Regras de atrasos e renovações',
+    fr: 'Règles de retard et renouvellements',
+  },
+  'Políticas de privacidad y uso': {
+    en: 'Privacy and usage policies',
+    pt: 'Políticas de privacidade e uso',
+    fr: 'Politiques de confidentialité et d’usage',
+  },
+  'Si presto ₡200,000 al 20% en 4 cuotas, ¿cuánto queda cada cuota?': {
+    en: 'If I lend ₡200,000 at 20% in 4 installments, how much is each installment?',
+    pt: 'Se eu emprestar ₡200,000 a 20% em 4 parcelas, quanto fica cada parcela?',
+    fr: 'Si je prête ₡200 000 à 20 % en 4 échéances, combien coûte chaque échéance ?',
+  },
+  'Arquitectura técnica de la plataforma': {
+    en: 'Platform technical architecture',
+    pt: 'Arquitetura técnica da plataforma',
+    fr: 'Architecture technique de la plateforme',
+  },
+  'Políticas de gobernanza y auditoría': {
+    en: 'Governance and auditing policies',
+    pt: 'Políticas de governança e auditoria',
+    fr: 'Politiques de gouvernance et d’audit',
+  },
+  'Matriz de roles y permisos': {
+    en: 'Roles and permissions matrix',
+    pt: 'Matriz de funções e permissões',
+    fr: 'Matrice des rôles et permissions',
+  },
+  'Viaticos y zonas de cobro': {
+    en: 'Travel allowances and zones',
+    pt: 'Diárias e zonas de cobrança',
+    fr: 'Frais de déplacement et zones',
+  },
+  'Resumen operativo de hoy': {
+    en: 'Today operational summary',
+    pt: 'Resumo operacional de hoje',
+    fr: 'Résumé opérationnel du jour',
+  },
+  'Consultando información de tu cartera...': {
+    en: 'Checking your portfolio information...',
+    pt: 'Consultando informações da sua carteira...',
+    fr: 'Consultation des informations de votre portefeuille...',
+  },
+  'Fuentes de respaldo': {
+    en: 'Supporting sources',
+    pt: 'Fontes de respaldo',
+    fr: 'Sources de référence',
+  },
+  'Copiar correo': {
+    en: 'Copy email',
+    pt: 'Copiar e-mail',
+    fr: 'Copier l’adresse',
+  },
+  'Correo copiado': {
+    en: 'Email copied',
+    pt: 'E-mail copiado',
+    fr: 'Adresse copiée',
+  },
+  'Conectar carpeta': {
+    en: 'Connect folder',
+    pt: 'Conectar pasta',
+    fr: 'Connecter le dossier',
+  },
+  'Sincronizar ahora': {
+    en: 'Sync now',
+    pt: 'Sincronizar agora',
+    fr: 'Synchroniser maintenant',
+  },
+  'Subir documento desde tu equipo': {
+    en: 'Upload document from your device',
+    pt: 'Enviar documento do seu dispositivo',
+    fr: 'Téléverser un document depuis votre appareil',
+  },
+  'Formatos admitidos: TXT, Markdown, CSV, JSON, PDF o Word': {
+    en: 'Supported formats: TXT, Markdown, CSV, JSON, PDF or Word',
+    pt: 'Formatos compatíveis: TXT, Markdown, CSV, JSON, PDF ou Word',
+    fr: 'Formats pris en charge : TXT, Markdown, CSV, JSON, PDF ou Word',
+  },
+  'Subir archivo': {
+    en: 'Upload file',
+    pt: 'Enviar arquivo',
+    fr: 'Téléverser un fichier',
+  },
+  'Documentos indexados': {
+    en: 'Indexed documents',
+    pt: 'Documentos indexados',
+    fr: 'Documents indexés',
+  },
+  'Google Drive': {
+    en: 'Google Drive',
+    pt: 'Google Drive',
+    fr: 'Google Drive',
+  },
+  'Carga directa': {
+    en: 'Direct upload',
+    pt: 'Envio direto',
+    fr: 'Téléversement direct',
+  },
+  'Plan activo de la cuenta': {
+    en: 'Active account plan',
+    pt: 'Plano ativo da conta',
+    fr: 'Forfait actif du compte',
+  },
+  'Cambiar nivel de capacidad': {
+    en: 'Change capacity tier',
+    pt: 'Alterar nível de capacidade',
+    fr: 'Changer le niveau de capacité',
+  },
+  'Consultas mensuales': {
+    en: 'Monthly queries',
+    pt: 'Consultas mensais',
+    fr: 'Requêtes mensuelles',
+  },
+  'Documentos almacenados': {
+    en: 'Stored documents',
+    pt: 'Documentos armazenados',
+    fr: 'Documents stockés',
+  },
+  'Plan Estandar': {
+    en: 'Standard Plan',
+    pt: 'Plano Padrão',
+    fr: 'Forfait Standard',
+  },
+  'Plan Estándar': {
+    en: 'Standard Plan',
+    pt: 'Plano Padrão',
+    fr: 'Forfait Standard',
+  },
+  'Plan Ejecutivo Pro': {
+    en: 'Executive Pro Plan',
+    pt: 'Plano Executivo Pro',
+    fr: 'Forfait Exécutif Pro',
+  },
+  // CRM Crediticio del Prestamista (Módulo II: Clientes)
+  'Directorio': {
+    en: 'Directory',
+    pt: 'Diretório',
+    fr: 'Répertoire',
+  },
+  'CRM': {
+    en: 'CRM',
+    pt: 'CRM',
+    fr: 'CRM',
+  },
+  'Seguimiento Comercial': {
+    en: 'Commercial Tracking',
+    pt: 'Acompanhamento Comercial',
+    fr: 'Suivi Commercial',
+  },
+  'Nuevo prospecto': {
+    en: 'New prospect',
+    pt: 'Novo prospecto',
+    fr: 'Nouveau prospect',
+  },
+  'Configurar tono': {
+    en: 'Configure tone',
+    pt: 'Configurar tom',
+    fr: 'Configurer le ton',
+  },
+  'Embudo': {
+    en: 'Funnel',
+    pt: 'Funil',
+    fr: 'Entonnoir',
+  },
+  'Tablero': {
+    en: 'Board',
+    pt: 'Quadro',
+    fr: 'Tableau',
+  },
+  'Qué atender hoy': {
+    en: 'What to attend today',
+    pt: 'O que atender hoje',
+    fr: 'À traiter aujourd\'hui',
+  },
+  'Pendiente de aprobación': {
+    en: 'Pending approval',
+    pt: 'Pendente de aprovação',
+    fr: 'En attente d\'approbation',
+  },
+  'Aprobar y copiar': {
+    en: 'Approve and copy',
+    pt: 'Aprovar e copiar',
+    fr: 'Approuver et copier',
+  },
+  'Descartar': {
+    en: 'Discard',
+    pt: 'Descartar',
+    fr: 'Ignorer',
+  },
+  'Prospecto': {
+    en: 'Prospect',
+    pt: 'Prospecto',
+    fr: 'Prospect',
+  },
+  'Evaluación de riesgo': {
+    en: 'Risk assessment',
+    pt: 'Avaliação de risco',
+    fr: 'Évaluation du risque',
+  },
+  'Propuesta aprobada': {
+    en: 'Approved proposal',
+    pt: 'Proposta aprovada',
+    fr: 'Proposition approuvée',
+  },
+  'Préstamo activo': {
+    en: 'Active loan',
+    pt: 'Empréstimo ativo',
+    fr: 'Prêt actif',
+  },
+  'Alerta de atraso': {
+    en: 'Overdue alert',
+    pt: 'Alerta de atraso',
+    fr: 'Alerte de retard',
+  },
+  'Finiquitado renovable': {
+    en: 'Settled renewable',
+    pt: 'Quitado renovável',
+    fr: 'Soldé renouvelable',
+  },
+  'Ingresos últimos 7 días': {
+    en: 'Entries last 7 days',
+    pt: 'Entradas últimos 7 dias',
+    fr: 'Entrées 7 derniers jours',
+  },
+  'Sin revisar': {
+    en: 'Unreviewed',
+    pt: 'Não revisados',
+    fr: 'Non examinés',
+  },
+  'Pendientes hoy': {
+    en: 'Pending today',
+    pt: 'Pendentes hoje',
+    fr: 'En attente aujourd\'hui',
+  },
+  'Mover etapa': {
+    en: 'Move stage',
+    pt: 'Mover etapa',
+    fr: 'Déplacer l\'étape',
+  },
+  'Mensaje IA': {
+    en: 'AI Message',
+    pt: 'Mensagem IA',
+    fr: 'Message IA',
+  },
+  'Redactar mensaje': {
+    en: 'Draft message',
+    pt: 'Redigir mensagem',
+    fr: 'Rédiger un message',
+  },
+  'Confirmar movimiento': {
+    en: 'Confirm move',
+    pt: 'Confirmar movimento',
+    fr: 'Confirmer le déplacement',
+  },
+  'Conversión real': {
+    en: 'Actual conversion',
+    pt: 'Conversão real',
+    fr: 'Conversion réelle',
+  },
+  'Meta': {
+    en: 'Target',
+    pt: 'Meta',
+    fr: 'Objectif',
+  },
+  'Días promedio': {
+    en: 'Average days',
+    pt: 'Dias médios',
+    fr: 'Jours moyens',
+  },
+  'Meta cumplida': {
+    en: 'Target met',
+    pt: 'Meta cumprida',
+    fr: 'Objectif atteint',
+  },
+  'Distribución por canal de origen': {
+    en: 'Distribution by source channel',
+    pt: 'Distribuição por canal de origem',
+    fr: 'Répartition par canal d\'origine',
+  },
+  'Canal de origen': {
+    en: 'Source channel',
+    pt: 'Canal de origem',
+    fr: 'Canal d\'origine',
+  },
+  'Monto estimado en colones': {
+    en: 'Estimated amount in colones',
+    pt: 'Valor estimado em colones',
+    fr: 'Montant estimé en colones',
+  },
+  'Notas de seguimiento': {
+    en: 'Follow-up notes',
+    pt: 'Notas de acompanhamento',
+    fr: 'Notes de suivi',
+  },
+  'Guardar prospecto': {
+    en: 'Save prospect',
+    pt: 'Salvar prospecto',
+    fr: 'Enregistrer le prospect',
+  },
+  'Tono de redacción': {
+    en: 'Writing tone',
+    pt: 'Tom de redação',
+    fr: 'Ton de rédaction',
+  },
+  'Ejecutivo cercano': {
+    en: 'Approachable executive',
+    pt: 'Executivo próximo',
+    fr: 'Exécutif proche',
+  },
+  'Formal institucional': {
+    en: 'Formal institutional',
+    pt: 'Formal institucional',
+    fr: 'Formel institutionnel',
+  },
+  'Directo y breve': {
+    en: 'Direct and brief',
+    pt: 'Direto e breve',
+    fr: 'Direct et bref',
+  },
+  'Instrucción base *': {
+    en: 'Base instruction *',
+    pt: 'Instrução base *',
+    fr: 'Instruction de base *',
+  },
+  'Mensaje guía *': {
+    en: 'Guide message *',
+    pt: 'Mensagem guia *',
+    fr: 'Message guide *',
+  },
+  'Toca un dato para agregarlo al mensaje': {
+    en: 'Tap a detail to add it to the message',
+    pt: 'Toque em um dado para adicioná-lo à mensagem',
+    fr: 'Touchez une donnée pour l’ajouter au message',
+  },
+  'Reglas adicionales': {
+    en: 'Additional rules',
+    pt: 'Regras adicionais',
+    fr: 'Règles supplémentaires',
+  },
+  'Indicaciones adicionales': {
+    en: 'Additional notes',
+    pt: 'Indicações adicionais',
+    fr: 'Indications supplémentaires',
+  },
+  'Guardar configuración': {
+    en: 'Save configuration',
+    pt: 'Salvar configuração',
+    fr: 'Enregistrer la configuration',
+  },
+  'Propuesta de Séneca': {
+    en: 'Seneca Proposal',
+    pt: 'Proposta de Sêneca',
+    fr: 'Proposition de Sénèque',
+  },
+  'Seguimiento al día': {
+    en: 'Tracking up to date',
+    pt: 'Acompanhamento em dia',
+    fr: 'Suivi à jour',
+  },
+  'Mostrar prospectos sin avance desde': {
+    en: 'Show prospects with no progress since',
+    pt: 'Mostrar prospectos sem avanço desde',
+    fr: 'Afficher les prospects sans progrès depuis',
+  },
+  'Sin prospectos en esta etapa': {
+    en: 'No prospects in this stage',
+    pt: 'Sem prospectos nesta etapa',
+    fr: 'Aucun prospect à cette étape',
+  },
+  // Módulo V Administrativo: CRM y Mercadeo
+  'CRM y Mercadeo': {
+    en: 'CRM and Marketing',
+    pt: 'CRM e Marketing',
+    fr: 'CRM et Marketing',
+  },
+  'Crecimiento y Mercadeo': {
+    en: 'Growth and Marketing',
+    pt: 'Crescimento e Marketing',
+    fr: 'Croissance et Marketing',
+  },
+  'Nuevo interesado': {
+    en: 'New lead',
+    pt: 'Novo interessado',
+    fr: 'Nouveau prospect',
+  },
+  'Nueva campaña': {
+    en: 'New campaign',
+    pt: 'Nova campanha',
+    fr: 'Nouvelle campagne',
+  },
+  'Campañas': {
+    en: 'Campaigns',
+    pt: 'Campanhas',
+    fr: 'Campagnes',
+  },
+  'Generar 3 piezas con IA': {
+    en: 'Generate 3 AI assets',
+    pt: 'Gerar 3 peças com IA',
+    fr: 'Générer 3 contenus avec IA',
+  },
+  'Costo por inscrito': {
+    en: 'Cost per sign-up',
+    pt: 'Custo por inscrito',
+    fr: 'Coût par inscrit',
+  },
+  'Aprobar': {
+    en: 'Approve',
+    pt: 'Aprovar',
+    fr: 'Approuver',
+  },
+  'Visitante en portada': {
+    en: 'Landing visitor',
+    pt: 'Visitante na página inicial',
+    fr: 'Visiteur sur la page d\'accueil',
+  },
+  'Registro iniciado': {
+    en: 'Registration started',
+    pt: 'Cadastro iniciado',
+    fr: 'Inscription commencée',
+  },
+  'Consentimiento legal': {
+    en: 'Legal consent',
+    pt: 'Consentimento legal',
+    fr: 'Consentement légal',
+  },
+  'Cuenta activa': {
+    en: 'Active account',
+    pt: 'Conta ativa',
+    fr: 'Compte actif',
+  },
+  'Primer préstamo': {
+    en: 'First loan',
+    pt: 'Primeiro empréstimo',
+    fr: 'Premier prêt',
+  },
+  'Prestamista activo': {
+    en: 'Active lender',
+    pt: 'Credor ativo',
+    fr: 'Prêteur actif',
+  },
+  'En riesgo de baja': {
+    en: 'At risk of churn',
+    pt: 'Em risco de saída',
+    fr: 'À risque de départ',
+  },
+  'Objetivo': {
+    en: 'Objective',
+    pt: 'Objetivo',
+    fr: 'Objectif',
+  },
+  'Ficha de campaña': {
+    en: 'Campaign brief',
+    pt: 'Ficha da campanha',
+    fr: 'Fiche de campagne',
+  },
+  'Plan de piezas': {
+    en: 'Asset plan',
+    pt: 'Plano de peças',
+    fr: 'Plan de contenus',
+  },
+  'En generación': {
+    en: 'Generating',
+    pt: 'Em geração',
+    fr: 'En génération',
+  },
+  'Programada': {
+    en: 'Scheduled',
+    pt: 'Agendada',
+    fr: 'Programmée',
+  },
+  'Publicada': {
+    en: 'Published',
+    pt: 'Publicada',
+    fr: 'Publiée',
+  },
+  'Finalizada': {
+    en: 'Completed',
+    pt: 'Finalizada',
+    fr: 'Terminée',
+  },
+  'Interesados últimos 7 días': {
+    en: 'Leads last 7 days',
+    pt: 'Interessados últimos 7 dias',
+    fr: 'Intéressés 7 derniers jours',
+  },
+  'Campañas activas': {
+    en: 'Active campaigns',
+    pt: 'Campanhas ativas',
+    fr: 'Campagnes actives',
+  },
+  'Presupuesto en campañas': {
+    en: 'Campaign budget',
+    pt: 'Orçamento em campanhas',
+    fr: 'Budget des campagnes',
+  },
+  'Presupuesto': {
+    en: 'Budget',
+    pt: 'Orçamento',
+    fr: 'Budget',
+  },
+  'Inscritos logrados': {
+    en: 'Sign-ups achieved',
+    pt: 'Inscritos alcançados',
+    fr: 'Inscrits obtenus',
+  },
+  'Piezas aprobadas': {
+    en: 'Approved assets',
+    pt: 'Peças aprovadas',
+    fr: 'Contenus approuvés',
+  },
+  'Editar campaña': {
+    en: 'Edit campaign',
+    pt: 'Editar campanha',
+    fr: 'Modifier la campagne',
+  },
+  'Nombre de campaña *': {
+    en: 'Campaign name *',
+    pt: 'Nome da campanha *',
+    fr: 'Nom de la campagne *',
+  },
+  'Objetivo *': {
+    en: 'Objective *',
+    pt: 'Objetivo *',
+    fr: 'Objectif *',
+  },
+  'Público objetivo': {
+    en: 'Target audience',
+    pt: 'Público-alvo',
+    fr: 'Public cible',
+  },
+  'Mensaje central': {
+    en: 'Core message',
+    pt: 'Mensagem central',
+    fr: 'Message central',
+  },
+  'Canales': {
+    en: 'Channels',
+    pt: 'Canais',
+    fr: 'Canaux',
+  },
+  'Fecha de inicio': {
+    en: 'Start date',
+    pt: 'Data de início',
+    fr: 'Date de début',
+  },
+  'Fecha de fin': {
+    en: 'End date',
+    pt: 'Data de término',
+    fr: 'Date de fin',
+  },
+  'Crear campaña': {
+    en: 'Create campaign',
+    pt: 'Criar campanha',
+    fr: 'Créer la campagne',
+  },
+  'Guardar interesado': {
+    en: 'Save lead',
+    pt: 'Salvar interessado',
+    fr: 'Enregistrer le prospect',
+  },
+  'Portada informativa': {
+    en: 'Landing page',
+    pt: 'Página inicial',
+    fr: 'Page d\'accueil',
+  },
+  'Aprobada': {
+    en: 'Approved',
+    pt: 'Aprovada',
+    fr: 'Approuvée',
+  },
+  'Descartada': {
+    en: 'Discarded',
+    pt: 'Descartada',
+    fr: 'Écartée',
+  },
+  'Avanzar estado:': {
+    en: 'Advance status:',
+    pt: 'Avançar estado:',
+    fr: 'Avancer l\'état :',
+  },
+  'Sin interesados en esta etapa': {
+    en: 'No leads in this stage',
+    pt: 'Sem interessados nesta etapa',
+    fr: 'Aucun intéressé à cette étape',
+  },
+  'No hay campañas registradas': {
+    en: 'No campaigns registered',
+    pt: 'Não há campanhas registradas',
+    fr: 'Aucune campagne enregistrée',
+  },
+  'Mostrar interesados sin avance desde': {
+    en: 'Show leads with no progress since',
+    pt: 'Mostrar interessados sem avanço desde',
+    fr: 'Afficher les intéressés sans progrès depuis',
+  },
+  'Sin registros': {
+    en: 'No records',
+    pt: 'Sem registros',
+    fr: 'Aucun dossier',
+  },
+  'Editar prospecto': {
+    en: 'Edit prospect',
+    pt: 'Editar prospecto',
+    fr: 'Modifier le prospect',
+  },
+  'Editar interesado': {
+    en: 'Edit lead',
+    pt: 'Editar interessado',
+    fr: 'Modifier l\'intéressé',
+  },
+  'Pasar a Clientes': {
+    en: 'Move to Clients',
+    pt: 'Mover para Clientes',
+    fr: 'Transférer vers Clients',
+  },
+  'En directorio': {
+    en: 'In directory',
+    pt: 'No diretório',
+    fr: 'Dans le répertoire',
+  },
+  'Copiado al portapapeles': {
+    en: 'Copied to clipboard',
+    pt: 'Copiado para a área de transferência',
+    fr: 'Copié dans le presse-papiers',
+  },
+  'Eliminar prospecto': {
+    en: 'Delete prospect',
+    pt: 'Excluir prospecto',
+    fr: 'Supprimer le prospect',
+  },
+  'Eliminar interesado': {
+    en: 'Delete lead',
+    pt: 'Excluir interessado',
+    fr: 'Supprimer l\'intéressé',
+  },
+  // Módulo IV Administrativo: Gobernanza y Auditoría
+  'Historial de auditoría': {
+    en: 'Audit history',
+    pt: 'Histórico de auditoria',
+    fr: 'Historique d\'audit',
+  },
+  'Se conservan automáticamente los últimos 30 días hasta un máximo de 200 registros': {
+    en: 'The last 30 days up to a maximum of 200 records are automatically retained',
+    pt: 'Os últimos 30 dias até o máximo de 200 registros são mantidos automaticamente',
+    fr: 'Les 30 derniers jours jusqu\'à un maximum de 200 enregistrements sont conservés automatiquement',
+  },
+  'Limpiar historial antiguo': {
+    en: 'Clear older history',
+    pt: 'Limpar histórico antigo',
+    fr: 'Nettoyer l\'ancien historique',
+  },
+  'Sí, limpiar historial': {
+    en: 'Yes, clear history',
+    pt: 'Sim, limpar histórico',
+    fr: 'Oui, nettoyer l\'historique',
+  },
+  'Limpiar todo el historial': {
+    en: 'Clear full history',
+    pt: 'Limpar todo o histórico',
+    fr: 'Effacer tout l\'historique',
+  },
+  'Registros mayores a 7 días': {
+    en: 'Records older than 7 days',
+    pt: 'Registros com mais de 7 dias',
+    fr: 'Enregistrements de plus de 7 jours',
+  },
+  'Anterior': {
+    en: 'Previous',
+    pt: 'Anterior',
+    fr: 'Précédent',
+  },
+  'Siguiente': {
+    en: 'Next',
+    pt: 'Próxima',
+    fr: 'Suivant',
+  },
+  'Sin eventos recientes': {
+    en: 'No recent events',
+    pt: 'Sem eventos recentes',
+    fr: 'Aucun événement récent',
+  },
+  'Limpiar': {
+    en: 'Clear',
+    pt: 'Limpar',
+    fr: 'Effacer',
+  },
+  'Cuenta actualizada': {
+    en: 'Account updated',
+    pt: 'Conta atualizada',
+    fr: 'Compte mis à jour',
+  },
+  'Estado de cuenta modificado': {
+    en: 'Account status updated',
+    pt: 'Estado da conta alterado',
+    fr: 'Statut du compte modifié',
+  },
+  'Contraseña restablecida': {
+    en: 'Password reset',
+    pt: 'Senha redefinida',
+    fr: 'Mot de passe réinitialisé',
+  },
+  'Cuenta eliminada': {
+    en: 'Account deleted',
+    pt: 'Conta excluída',
+    fr: 'Compte supprimé',
+  },
+  'Depuración ejecutada': {
+    en: 'Cleanup executed',
+    pt: 'Depuração executada',
+    fr: 'Nettoyage exécuté',
+  },
+  'Papelera depurada': {
+    en: 'Trash emptied',
+    pt: 'Lixeira limpa',
+    fr: 'Corbeille vidée',
+  },
+  'Historial de auditoría depurado': {
+    en: 'Audit history cleaned',
+    pt: 'Histórico de auditoria limpo',
+    fr: 'Historique d\'audit nettoyé',
+  },
+  'Actividad administrativa': {
+    en: 'Administrative activity',
+    pt: 'Atividade administrativa',
+    fr: 'Activité administrative',
+  },
+  'Privacidad protegida · Ley N.° 8968': {
+    en: 'Privacy protected · Law No. 8968',
+    pt: 'Privacidade protegida · Lei n.º 8968',
+    fr: 'Confidentialité protégée · Loi n° 8968',
+  },
+  'Sin zona': {
+    en: 'No area',
+    pt: 'Sem região',
+    fr: 'Sans zone',
+  },
+  'Ingresa un correo electrónico válido.': {
+    en: 'Enter a valid email address.',
+    pt: 'Digite um e-mail válido.',
+    fr: 'Veuillez saisir une adresse e-mail valide.',
+  },
+  'O continúa con': {
+    en: 'Or continue with',
+    pt: 'Ou continue com',
+    fr: 'Ou continuer avec',
+  },
+  'Continuar con Google': {
+    en: 'Continue with Google',
+    pt: 'Continuar com Google',
+    fr: 'Continuer avec Google',
+  },
+  'Continuar con GitHub': {
+    en: 'Continue with GitHub',
+    pt: 'Continuar com GitHub',
+    fr: 'Continuer avec GitHub',
+  },
+  'Conectando con Google...': {
+    en: 'Connecting with Google...',
+    pt: 'Conectando com o Google...',
+    fr: 'Connexion avec Google...',
+  },
+  'Conectando con GitHub...': {
+    en: 'Connecting with GitHub...',
+    pt: 'Conectando com o GitHub...',
+    fr: 'Connexion avec GitHub...',
+  },
+  'Cancelaste el acceso externo antes de completar la verificación.': {
+    en: 'You canceled the external sign-in before completing verification.',
+    pt: 'Você cancelou o acesso externo antes de concluir a verificação.',
+    fr: 'Vous avez annulé la connexion externe avant la fin de la vérification.',
+  },
+  'Tu cuenta externa debe tener un correo electrónico verificado para ingresar.': {
+    en: 'Your external account must have a verified email address to sign in.',
+    pt: 'Sua conta externa deve ter um e-mail verificado para entrar.',
+    fr: 'Votre compte externe doit disposer d’une adresse e-mail vérifiée pour se connecter.',
+  },
+  'Tu cuenta se encuentra suspendida temporalmente por la administración.': {
+    en: 'Your account has been temporarily suspended by the administration.',
+    pt: 'Sua conta foi suspensa temporariamente pela administração.',
+    fr: 'Votre compte a été temporairement suspendu par l’administration.',
+  },
+  'Esta cuenta debe ingresar únicamente con sus credenciales directas.': {
+    en: 'This account must sign in using only its direct credentials.',
+    pt: 'Esta conta deve entrar apenas com suas credenciais diretas.',
+    fr: 'Ce compte doit se connecter uniquement avec ses identifiants directs.',
+  },
+  'La verificación de seguridad expiró. Inténtalo nuevamente.': {
+    en: 'The security verification expired. Please try again.',
+    pt: 'A verificação de segurança expirou. Tente novamente.',
+    fr: 'La vérification de sécurité a expiré. Veuillez réessayer.',
+  },
+  'Este método de acceso aún no está disponible.': {
+    en: 'This sign-in method is not available yet.',
+    pt: 'Este método de acesso ainda não está disponível.',
+    fr: 'Cette méthode de connexion n’est pas encore disponible.',
+  },
+  'No fue posible completar el acceso externo. Inténtalo nuevamente.': {
+    en: 'Unable to complete external sign-in. Please try again.',
+    pt: 'Não foi possível concluir o acesso externo. Tente novamente.',
+    fr: 'Impossible de finaliser la connexion externe. Veuillez réessayer.',
+  },
 };
 
 // Construir mapa normalizado en minúsculas para capturar variantes de capitalización (CSS uppercase / Title Case)

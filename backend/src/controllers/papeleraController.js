@@ -1,11 +1,9 @@
 import { query, pool, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 import {
   restorePrestamoFromBaneado,
   restoreClienteFromBaneadoRow,
   ensureArchivoCliente,
   archivePrestamoBaneado,
-  purgeExpiredPapeleraForCobrador,
   ensureHistorialArchivoSchema,
 } from '../utils/papeleraHelpers.js';
 
@@ -25,21 +23,19 @@ function calcDiasRestantes(fechaBorradoDefinitivo) {
 
 /**
  * GET /api/papelera
- * Retorna la lista unificada y agrupada por cliente_id de registros en papelera
- * (combinando clientes_baneados y prestamos_baneados sin duplicar tarjetas de cliente).
+ * Retorna la lista unificada y agrupada por cliente_id de registros vigentes en papelera
+ * (solo lectura: la purga de vencidos > 30 días se ejecuta en cron/arranque).
  */
 export async function getPapelera(req, res) {
-  const client = await pool.connect();
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
-
-    // 1. Purga automática transaccional de registros vencidos (> 30 días) archivando historial
-    await ensureHistorialArchivoSchema();
-    await client.query('BEGIN');
-    await purgeExpiredPapeleraForCobrador(client, cobradorId);
-    await client.query('COMMIT');
-
-    // 2. Consultar ambas tablas activas en papelera
+    // Consultar ambas tablas activas en papelera (exclusivamente vigentes)
     const [clientesRes, prestamosRes] = await Promise.all([
       query(
         `SELECT cb.*,
@@ -195,19 +191,12 @@ export async function getPapelera(req, res) {
 
     return res.json(rows);
   } catch (err) {
-    try {
-      await client.query('ROLLBACK');
-    } catch {
-      // ignore rollback failure on closed/idle tx
-    }
     console.error('[Error SQL detallado]: Error en getPapelera:', err);
     return res.status(500).json({
       error: 'No se pudo consultar los registros de la papelera.',
       userMessage: 'No se pudo consultar la papelera en este momento.',
       ...debugPayload(err),
     });
-  } finally {
-    client.release();
   }
 }
 
@@ -218,14 +207,19 @@ export async function getPapelera(req, res) {
  * y conserva sus demás préstamos en papelera como 'PRESTAMO_ELIMINADO'.
  */
 export async function restaurarPrestamo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { prestamoId } = req.params;
     if (!UUID_REGEX.test(String(prestamoId || ''))) {
       return res.status(400).json({ error: 'Identificador de préstamo inválido.' });
     }
-
-    const cobradorId = req.body?.cobrador_id || req.user?.id || (await getDefaultCobradorId());
 
     await ensureHistorialArchivoSchema();
     await client.query('BEGIN');
@@ -247,8 +241,8 @@ export async function restaurarPrestamo(req, res) {
     let clienteRestauradoConElPrestamo = false;
 
     const { rows: activeCliRows } = await client.query(
-      'SELECT id FROM clientes WHERE id = $1::uuid FOR UPDATE;',
-      [clienteId]
+      'SELECT id FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid FOR UPDATE;',
+      [clienteId, cobradorId]
     );
 
     if (activeCliRows.length === 0) {
@@ -326,14 +320,19 @@ export async function restaurarPrestamo(req, res) {
  * Archiva el préstamo individual en historial_prestamos_archivo y lo elimina definitivamente de prestamos_baneados.
  */
 export async function eliminarPrestamoDefinitivo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { prestamoId } = req.params;
     if (!UUID_REGEX.test(String(prestamoId || ''))) {
       return res.status(400).json({ error: 'Identificador de préstamo inválido.' });
     }
-
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
 
     await ensureHistorialArchivoSchema();
     await client.query('BEGIN');
@@ -355,12 +354,15 @@ export async function eliminarPrestamoDefinitivo(req, res) {
 
     // Obtener datos del dueño (activo o en clientes_baneados)
     const { rows: activeCli } = await client.query(
-      'SELECT * FROM clientes WHERE id = $1::uuid;',
-      [clienteId]
+      'SELECT * FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid;',
+      [clienteId, cobradorId]
     );
     const { rows: bannedCli } =
       activeCli.length === 0
-        ? await client.query('SELECT * FROM clientes_baneados WHERE id = $1::uuid;', [clienteId])
+        ? await client.query(
+            'SELECT * FROM clientes_baneados WHERE id = $1::uuid AND cobrador_id = $2::uuid;',
+            [clienteId, cobradorId]
+          )
         : { rows: [] };
 
     const cli = activeCli[0] || bannedCli[0] || null;
@@ -377,7 +379,10 @@ export async function eliminarPrestamoDefinitivo(req, res) {
     });
 
     await archivePrestamoBaneado(client, archivoId, loanRow);
-    await client.query('DELETE FROM prestamos_baneados WHERE id = $1::uuid;', [prestamoId]);
+    await client.query(
+      'DELETE FROM prestamos_baneados WHERE id = $1::uuid AND cobrador_id = $2::uuid;',
+      [prestamoId, cobradorId]
+    );
 
     try {
       await client.query('SAVEPOINT sp_notif_del;');
@@ -429,10 +434,16 @@ export async function eliminarPrestamoDefinitivo(req, res) {
  * Restaura un cliente desde clientes_baneados y/o todos sus préstamos en prestamos_baneados.
  */
 export async function restaurarCliente(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const cobradorId = req.body?.cobrador_id || req.user?.id || (await getDefaultCobradorId());
     const restaurarPrestamosIndividuales =
       req.body?.restaurarPrestamosIndividuales !== undefined
         ? Boolean(req.body.restaurarPrestamosIndividuales)
@@ -530,10 +541,16 @@ export async function restaurarCliente(req, res) {
  * préstamos en prestamos_baneados.
  */
 export async function eliminarDefinitivo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
 
     await ensureHistorialArchivoSchema();
     await client.query('BEGIN');
@@ -554,7 +571,7 @@ export async function eliminarDefinitivo(req, res) {
 
     const activeRes =
       cbRows.length === 0
-        ? await client.query('SELECT * FROM clientes WHERE id = $1::uuid;', [id])
+        ? await client.query('SELECT * FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid;', [id, cobradorId])
         : { rows: [] };
     const cli = cbRows[0] || activeRes.rows[0] || {
       cedula: pbRows[0]?.cliente_cedula,
@@ -633,10 +650,15 @@ export async function eliminarDefinitivo(req, res) {
  * Archiva y vacía toda la papelera del cobrador (clientes_baneados + prestamos_baneados).
  */
 export async function vaciarPapelera(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
-    const cobradorId =
-      req.body?.cobrador_id || req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
 
     await ensureHistorialArchivoSchema();
     await client.query('BEGIN');

@@ -1,5 +1,4 @@
 import { pool, query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 import { snapshotPrestamoToBaneado } from '../utils/papeleraHelpers.js';
 
 const DIA_SEMANA_ENUM = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
@@ -181,7 +180,13 @@ function generateScheduleDates(fechaInput, modalidad, diaFijoOriginal, diaMes1, 
  */
 export async function getPrestamos(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const sql = `
       SELECT 
@@ -293,6 +298,13 @@ export async function getPrestamos(req, res) {
  * Crea un préstamo en una transacción SQL y genera su agenda de cobros.
  */
 export async function createPrestamo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const {
@@ -308,8 +320,6 @@ export async function createPrestamo(req, res) {
       fecha_inicio,
       total_periodos
     } = req.body;
-
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     // 1. Validaciones básicas con mensaje formal unificado
     if (!cliente_id) {
@@ -368,8 +378,8 @@ export async function createPrestamo(req, res) {
 
     // Comprobar si está en lista negra
     const blacklistCheck = await client.query(
-      `SELECT id FROM lista_negra WHERE (cliente_id = $1 OR cedula = $2) AND activo = true`,
-      [cliente_id, clienteObj.cedula]
+      `SELECT id FROM lista_negra WHERE cobrador_id = $3 AND (cliente_id = $1 OR cedula = $2) AND activo = true`,
+      [cliente_id, clienteObj.cedula, cobradorId]
     );
     if (blacklistCheck.rows.length > 0) {
       return res.status(400).json({
@@ -617,6 +627,13 @@ export async function createPrestamo(req, res) {
  * Renueva un préstamo existente, sustituyendo cuotas pendientes futuras.
  */
 export async function renovarPrestamo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -626,8 +643,6 @@ export async function renovarPrestamo(req, res) {
       total_periodos,
       nueva_cuota
     } = req.body;
-
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const nuevoMontoNum = Number(nuevo_monto_prestado);
     const interesNum = Number(porcentaje_interes);
@@ -781,7 +796,7 @@ export async function renovarPrestamo(req, res) {
         estado = 'RENOVADO'::public.estado_prestamo,
         version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $7::uuid
+      WHERE id = $7::uuid AND cobrador_id = $8::uuid
       RETURNING *;`,
       [
         nuevoMontoNum,
@@ -790,7 +805,8 @@ export async function renovarPrestamo(req, res) {
         cuotaNum,
         periodosInt,
         nuevaFechaFinalStr,
-        id
+        id,
+        cobradorId
       ]
     );
 
@@ -843,6 +859,13 @@ export async function renovarPrestamo(req, res) {
  * Establece un acuerdo de pago reestructurado.
  */
 export async function arregloPagoPrestamo(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -853,8 +876,6 @@ export async function arregloPagoPrestamo(req, res) {
       nuevo_dia_mes_1,
       nuevo_dia_mes_2
     } = req.body;
-
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const montoAcordadoNum = Number(monto_fijo_acordado);
     const cuotaEspecialNum = Number(cuota_especial);
@@ -1032,7 +1053,7 @@ export async function arregloPagoPrestamo(req, res) {
         periodos_pendientes = $7::int,
         version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $8::uuid
+      WHERE id = $8::uuid AND cobrador_id = $9::uuid
       RETURNING *;`,
       [
         montoFijoReal,
@@ -1042,7 +1063,8 @@ export async function arregloPagoPrestamo(req, res) {
         diaMes2Acordado,
         nuevaFechaFinalStr,
         cuotasRestantes,
-        id
+        id,
+        cobradorId
       ]
     );
 
@@ -1095,10 +1117,15 @@ export async function arregloPagoPrestamo(req, res) {
  * manteniendo el registro del cliente completamente intacto.
  */
 export async function eliminarPrestamos(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
-    const cobradorId = req.user?.id || (await getDefaultCobradorId());
-
     // 1. Unificar y validar IDs recibidos por parámetro de ruta o cuerpo en lote
     let rawIds = [];
     if (req.params.id) {

@@ -876,3 +876,34 @@ export async function purgeExpiredPapeleraForCobrador(client, cobradorId) {
     }
   }
 }
+
+export async function purgeExpiredPapeleraGlobal() {
+  const { rows: cobradorRows } = await pool.query(`
+    SELECT DISTINCT cobrador_id FROM (
+      SELECT cobrador_id FROM clientes_baneados WHERE fecha_borrado_definitivo <= now()
+      UNION
+      SELECT cobrador_id FROM prestamos_baneados WHERE fecha_borrado_definitivo <= now()
+    ) expired;
+  `);
+
+  if (cobradorRows.length === 0) return 0;
+
+  const client = await pool.connect();
+  let processed = 0;
+  try {
+    await ensureHistorialArchivoSchema();
+    for (const row of cobradorRows) {
+      if (!row.cobrador_id) continue;
+      await client.query('BEGIN');
+      await purgeExpiredPapeleraForCobrador(client, row.cobrador_id);
+      await client.query('COMMIT');
+      processed += 1;
+    }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.warn('[Papelera] Advertencia en purga programada de papelera vencida:', err?.message || err);
+  } finally {
+    client.release();
+  }
+  return processed;
+}

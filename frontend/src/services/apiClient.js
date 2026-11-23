@@ -358,8 +358,16 @@ export async function depurarRegistrosPrestamistaAdmin(targetId, tipo = 'anteced
   );
 }
 
-export async function obtenerAuditoriaAdmin(limit = 80) {
-  return apiFetch(`/api/admin/auditoria?limit=${encodeURIComponent(limit)}`);
+export async function obtenerAuditoriaAdmin(page = 1, limit = 15) {
+  return apiFetch(
+    `/api/admin/auditoria?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`
+  );
+}
+
+export async function limpiarAuditoriaAdmin(modo = 'antiguos') {
+  return apiFetch(`/api/admin/auditoria/limpiar?modo=${encodeURIComponent(modo)}`, {
+    method: 'DELETE'
+  });
 }
 
 // =========================================================================
@@ -402,6 +410,184 @@ export async function aceptarConsentimientoLegalUsuario(version = 'v1.0-2026') {
 
 export async function exportarDatosPersonalesUsuario() {
   return await apiFetch('/api/auth/exportar-datos');
+}
+
+// =========================================================================
+// MÓDULO II: CRM CREDITICIO DEL PRESTAMISTA (/api/crm)
+// =========================================================================
+export async function obtenerProspectosCrm(filtros = {}) {
+  const params = new URLSearchParams();
+  if (filtros?.etapa) params.set('etapa', String(filtros.etapa).trim());
+  if (filtros?.canal_origen) params.set('canal_origen', String(filtros.canal_origen).trim());
+  if (filtros?.busqueda) params.set('busqueda', String(filtros.busqueda).trim());
+  const qs = params.toString();
+  const ruta = qs ? `/api/crm/prospectos?${qs}` : '/api/crm/prospectos';
+  return await apiFetch(ruta);
+}
+
+export async function crearProspectoCrm(payload) {
+  return await apiFetch('/api/crm/prospectos', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function actualizarProspectoCrm(id, payload) {
+  return await apiFetch(`/api/crm/prospectos/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: payload,
+  });
+}
+
+export async function eliminarProspectoCrm(id) {
+  return await apiFetch(`/api/crm/prospectos/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function convertirProspectoAClienteCrm(id) {
+  return await apiFetch(`/api/crm/prospectos/${encodeURIComponent(id)}/convertir-cliente`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function moverEtapaProspectoCrm(id, payload) {
+  return await apiFetch(`/api/crm/prospectos/${encodeURIComponent(id)}/etapa`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function obtenerEmbudoCrm() {
+  return await apiFetch('/api/crm/embudo');
+}
+
+export async function obtenerAtencionCrm(dias = 3) {
+  const diasNum = Number(dias);
+  const diasValido = Number.isFinite(diasNum) && diasNum >= 1 ? Math.floor(diasNum) : 3;
+  return await apiFetch(`/api/crm/atencion?dias=${encodeURIComponent(diasValido)}`);
+}
+
+export async function redactarMensajeCrm(id) {
+  return await apiFetch(`/api/crm/prospectos/${encodeURIComponent(id)}/mensaje`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function actualizarEstadoMensajeCrm(mensajeId, estado) {
+  return await apiFetch(`/api/crm/mensajes/${encodeURIComponent(mensajeId)}/estado`, {
+    method: 'PATCH',
+    body: { estado },
+  });
+}
+
+export async function obtenerCerebroCrm() {
+  return await apiFetch('/api/crm/cerebro');
+}
+
+export async function actualizarCerebroCrm(payload) {
+  return await apiFetch('/api/crm/cerebro', {
+    method: 'PUT',
+    body: payload,
+  });
+}
+
+export async function actualizarMetasCrm(payload) {
+  return await apiFetch('/api/crm/metas', {
+    method: 'PUT',
+    body: payload,
+  });
+}
+
+// =========================================================================
+// MÓDULO V ADMINISTRATIVO: CRM COMERCIAL Y MERCADEO (/api/admin/crm)
+// =========================================================================
+export async function obtenerProspectosCrmAdmin(filtros = {}) {
+  const params = new URLSearchParams();
+  if (filtros?.etapa) params.set('etapa', String(filtros.etapa).trim());
+  if (filtros?.canal_origen) params.set('canal_origen', String(filtros.canal_origen).trim());
+  if (filtros?.busqueda) params.set('busqueda', String(filtros.busqueda).trim());
+  const qs = params.toString();
+  const ruta = qs ? `/api/admin/crm/prospectos?${qs}` : '/api/admin/crm/prospectos';
+  return await apiFetch(ruta);
+}
+
+export async function crearProspectoCrmAdmin(payload) {
+  return await apiFetch('/api/admin/crm/prospectos', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function actualizarProspectoCrmAdmin(id, payload) {
+  return await apiFetch(`/api/admin/crm/prospectos/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: payload,
+  });
+}
+
+export async function eliminarProspectoCrmAdmin(id) {
+  return await apiFetch(`/api/admin/crm/prospectos/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function moverEtapaProspectoCrmAdmin(id, payload) {
+  return await apiFetch(`/api/admin/crm/prospectos/${encodeURIComponent(id)}/etapa`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function obtenerEmbudoCrmAdmin() {
+  return await apiFetch('/api/admin/crm/embudo');
+}
+
+export async function obtenerAtencionCrmAdmin(dias = 3) {
+  const diasNum = Number(dias);
+  const diasValido = Number.isFinite(diasNum) && diasNum >= 1 ? Math.floor(diasNum) : 3;
+  return await apiFetch(`/api/admin/crm/atencion?dias=${encodeURIComponent(diasValido)}`);
+}
+
+export async function redactarMensajeCrmAdmin(id) {
+  return await apiFetch(`/api/admin/crm/prospectos/${encodeURIComponent(id)}/mensaje`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function obtenerCampanasCrmAdmin() {
+  return await apiFetch('/api/admin/crm/campanas');
+}
+
+export async function crearCampanaCrmAdmin(payload) {
+  return await apiFetch('/api/admin/crm/campanas', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function actualizarCampanaCrmAdmin(id, payload) {
+  return await apiFetch(`/api/admin/crm/campanas/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function generarPiezasCampanaCrmAdmin(id) {
+  return await apiFetch(`/api/admin/crm/campanas/${encodeURIComponent(id)}/generar-piezas`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function actualizarEstadoPiezaCrmAdmin(piezaId, estado) {
+  return await apiFetch(`/api/admin/crm/piezas/${encodeURIComponent(piezaId)}/estado`, {
+    method: 'PATCH',
+    body: { estado },
+  });
 }
 
 export default apiFetch;

@@ -1,5 +1,4 @@
 import { query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 import { fetchHaciendaByCedula } from '../services/haciendaService.js';
 import { DEFAULT_TELEFONO_LISTA_NEGRA, DEFAULT_CAMPO_LISTA_NEGRA } from './clientesController.js';
 
@@ -15,7 +14,13 @@ function cleanCedula9(raw) {
  */
 export async function getListaNegra(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const sql = `
       SELECT 
@@ -235,7 +240,13 @@ export async function verificarPersonaInterna(cobradorId, searchTerm) {
  */
 export async function consultarCedulaListaNegra(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const { cedula } = req.params;
     const resultado = await verificarPersonaInterna(cobradorId, cedula);
 
@@ -260,7 +271,13 @@ export async function consultarCedulaListaNegra(req, res) {
  */
 export async function verificarPersonaListaNegra(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const q = req.query.q || req.query.query || req.query.cedula || '';
     const resultado = await verificarPersonaInterna(cobradorId, q);
 
@@ -285,8 +302,14 @@ export async function verificarPersonaListaNegra(req, res) {
  */
 export async function registrarEnListaNegra(req, res) {
   try {
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
-    const { cedula, nombre, apellidos } = req.body;
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
+    const { cedula, nombre, apellidos } = req.body || {};
 
     const trimmedNombre = (nombre || '').trim();
     const trimmedApellidos = (apellidos || '').trim();
@@ -320,9 +343,20 @@ export async function registrarEnListaNegra(req, res) {
       }
     }
 
-    // 2. Verificar si coincide con un cliente existente en la base de datos
-    let clienteId = req.body.cliente_id || null;
-    if (!clienteId && cleanCedula) {
+    // 2. Verificar si coincide con un cliente existente en la base de datos del cobrador
+    let clienteId = req.body?.cliente_id || null;
+    if (clienteId) {
+      const { rows: ownClientRows } = await query(
+        `SELECT id FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid LIMIT 1;`,
+        [clienteId, cobradorId]
+      );
+      if (ownClientRows.length === 0) {
+        return res.status(404).json({
+          error: 'Cliente no encontrado',
+          userMessage: 'El cliente indicado no pertenece a tu cartera.'
+        });
+      }
+    } else if (cleanCedula) {
       const { rows: clientRows } = await query(
         `SELECT id FROM clientes WHERE cobrador_id = $1 AND cedula = $2 LIMIT 1;`,
         [cobradorId, cleanCedula]
@@ -332,15 +366,18 @@ export async function registrarEnListaNegra(req, res) {
       }
     }
 
-    // Si existe cliente, actualizar su estado a EN_LISTA_NEGRA y suspender sus préstamos con casteo explícito
+    // Si existe cliente del cobrador, actualizar su estado a EN_LISTA_NEGRA y suspender sus préstamos con casteo explícito
     if (clienteId) {
-      await query(
+      const { rows: updClienteRows } = await query(
         `UPDATE clientes 
          SET estado = 'EN_LISTA_NEGRA'::public.estado_cliente, version = COALESCE(version, 1) + 1, actualizado_en = now()
-         WHERE id = $1::uuid AND cobrador_id = $2::uuid;`,
+         WHERE id = $1::uuid AND cobrador_id = $2::uuid
+         RETURNING id;`,
         [clienteId, cobradorId]
       );
-      await query('SELECT suspender_prestamos_cliente($1);', [clienteId]);
+      if (updClienteRows.length > 0) {
+        await query('SELECT suspender_prestamos_cliente($1);', [clienteId]);
+      }
     }
 
     // 3. Insertar o reactivar en lista_negra
@@ -448,7 +485,13 @@ export async function registrarEnListaNegra(req, res) {
  */
 export async function sacarDeListaNegra(req, res) {
   try {
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const { id } = req.params;
 
     // 1. Obtener y actualizar el registro en lista_negra
@@ -473,16 +516,18 @@ export async function sacarDeListaNegra(req, res) {
 
     // 2. Si tenía cliente_id asociado, reactivarlo en clientes con casteo explícito de estado_cliente
     if (finalClienteId) {
-      await query(
+      const { rows: reactivatedRows } = await query(
         `UPDATE clientes
          SET estado = 'ACTIVO'::public.estado_cliente,
              version = COALESCE(version, 1) + 1,
              actualizado_en = now()
-         WHERE id = $1::uuid AND cobrador_id = $2::uuid;`,
+         WHERE id = $1::uuid AND cobrador_id = $2::uuid
+         RETURNING id;`,
         [finalClienteId, cobradorId]
       );
-      // Reactivar préstamos que estaban suspendidos
-      await query('SELECT reactivar_prestamos_cliente($1);', [finalClienteId]);
+      if (reactivatedRows.length > 0) {
+        await query('SELECT reactivar_prestamos_cliente($1);', [finalClienteId]);
+      }
     } else if (regLn.cedula) {
       // Si no tenía cliente_id pero tiene cédula, comprobar si existe un cliente con esa cédula
       const { rows: clientCheck } = await query(
@@ -501,7 +546,10 @@ export async function sacarDeListaNegra(req, res) {
           [finalClienteId, cobradorId]
         );
         await query('SELECT reactivar_prestamos_cliente($1);', [finalClienteId]);
-        await query(`UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid;`, [finalClienteId, id]);
+        await query(
+          `UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid AND cobrador_id = $3::uuid;`,
+          [finalClienteId, id, cobradorId]
+        );
       } else {
         // Crear el cliente en la tabla clientes para que aparezca en el Módulo 2
         const insertClientSql = `
@@ -527,7 +575,10 @@ export async function sacarDeListaNegra(req, res) {
           DEFAULT_CAMPO_LISTA_NEGRA
         ]);
         finalClienteId = newClientRows[0].id;
-        await query(`UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid;`, [finalClienteId, id]);
+        await query(
+          `UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid AND cobrador_id = $3::uuid;`,
+          [finalClienteId, id, cobradorId]
+        );
       }
     } else {
       // Sin cliente_id y sin cédula: crear cliente en tabla clientes
@@ -553,7 +604,10 @@ export async function sacarDeListaNegra(req, res) {
         DEFAULT_CAMPO_LISTA_NEGRA
       ]);
       finalClienteId = newClientRows[0].id;
-      await query(`UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid;`, [finalClienteId, id]);
+      await query(
+        `UPDATE lista_negra SET cliente_id = $1::uuid WHERE id = $2::uuid AND cobrador_id = $3::uuid;`,
+        [finalClienteId, id, cobradorId]
+      );
     }
 
     // 3. Bitácora de actividad con casteo explícito de enum

@@ -1,5 +1,4 @@
 import { pool, query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 
 const DIA_SEMANA_ENUM = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 
@@ -140,7 +139,13 @@ async function notifyOwnerWithSavepoint(client, { savepointName = 'sp_notif_dele
 
 export async function getCobros(req, res) {
   try {
-    const usuarioActualId = req.user?.id || req.query.cobrador_id || await getDefaultCobradorId();
+    const usuarioActualId = req.user?.id;
+    if (!usuarioActualId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     // Fecha consultada (YYYY-MM-DD), por defecto hoy en Costa Rica
     const nowCR = new Intl.DateTimeFormat('en-CA', {
@@ -313,30 +318,6 @@ export async function getCobros(req, res) {
     `;
     const { rows: rowsDiasSemana } = await query(sqlDiasConCobrosSemana, [usuarioActualId, fecha]);
 
-    if (rowsDiasSinCerrar.length > 0) {
-      const totalRezagados = rowsDiasSinCerrar.reduce((acc, r) => acc + Number(r.total_pendientes || 0), 0);
-      const montoRezagado = rowsDiasSinCerrar.reduce((acc, r) => acc + Number(r.monto_total || 0), 0);
-      const checkNotifSql = `
-        SELECT id FROM notificaciones
-        WHERE usuario_id = $1::uuid
-          AND titulo = 'Cobros pendientes sin cerrar'
-          AND leida = false
-          AND (fecha_creacion AT TIME ZONE 'America/Costa_Rica')::date = $2::date
-        LIMIT 1;
-      `;
-      const { rows: existingNotif } = await query(checkNotifSql, [usuarioActualId, nowCR]);
-      if (existingNotif.length === 0) {
-        const msgNotif = totalRezagados === 1
-          ? 'Tienes 1 cobro de días anteriores sin registrar. Indica si el cliente pagó, pasó de día o no pagó.'
-          : `Tienes ${totalRezagados} cobros de días anteriores sin registrar. Indica si el cliente pagó, pasó de día o no pagó.`;
-        await query(
-          `INSERT INTO notificaciones (usuario_id, titulo, mensaje, monto_resaltado, leida)
-           VALUES ($1::uuid, 'Cobros pendientes sin cerrar', $2, $3, false)`,
-          [usuarioActualId, msgNotif, montoRezagado]
-        );
-      }
-    }
-
     // 5. Lista de Registrados (propios + compartidos recibidos o delegados ya gestionados en la fecha)
     const sqlRegistrados = `
       SELECT 
@@ -473,11 +454,16 @@ export async function getCobros(req, res) {
 }
 
 export async function registrarPago(req, res) {
+  const usuarioActualId = req.user?.id;
+  if (!usuarioActualId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params; // ID de agenda_cobros (o prestamo_id)
-    const defaultCobrador = await getDefaultCobradorId();
-    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
     const rawMonto = req.body.monto_pagado ?? req.body.monto;
     const montoRecibido = rawMonto !== undefined && rawMonto !== null && Number(rawMonto) > 0
       ? Number(rawMonto)
@@ -582,7 +568,7 @@ export async function registrarPago(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado o ya procesado.' });
     }
 
-    const ownerId = String(cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador);
+    const ownerId = String(cuota.prestamo_cobrador_id || cuota.cobrador_id || usuarioActualId);
     const delegatedId = cuota.compartido_con_usuario_id ? String(cuota.compartido_con_usuario_id) : '';
     const isDelegado = ownerId !== String(usuarioActualId);
     if (isDelegado && delegatedId !== String(usuarioActualId)) {
@@ -784,7 +770,7 @@ export async function registrarPago(req, res) {
     );
 
     // 5. Si aún queda saldo y ya no quedan cuotas PENDIENTE futuras en agenda_cobros, crear la siguiente para el propietario real
-    const finalUsuarioId = ownerId || (await getDefaultCobradorId());
+    const finalUsuarioId = ownerId || usuarioActualId;
 
     if (nuevoSaldo > 0 && nextPendingRes.rows.length === 0) {
       const maxNumRes = await client.query(
@@ -892,6 +878,13 @@ export async function registrarPago(req, res) {
 }
 
 export async function pasarCobro(req, res) {
+  const usuarioActualId = req.user?.id;
+  if (!usuarioActualId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -900,8 +893,6 @@ export async function pasarCobro(req, res) {
     const modoAcumulacion = String(
       req.body.modo_acumulacion || req.body.modoAcumulacion || 'ACUMULAR'
     ).toUpperCase();
-    const defaultCobrador = await getDefaultCobradorId();
-    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
 
     if (!nuevaFecha) {
       return res.status(400).json({ error: 'Se requiere la nueva fecha para reprogramar el cobro.' });
@@ -967,7 +958,7 @@ export async function pasarCobro(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado.' });
     }
 
-    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador;
+    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || usuarioActualId;
     const delegatedId = cuota.compartido_con_usuario_id || null;
     if (
       ownerId &&
@@ -1254,11 +1245,16 @@ export async function pasarCobro(req, res) {
 }
 
 export async function registrarNoPago(req, res) {
+  const usuarioActualId = req.user?.id;
+  if (!usuarioActualId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const defaultCobrador = await getDefaultCobradorId();
-    const usuarioActualId = req.user?.id || req.body.cobrador_id || defaultCobrador;
 
     await client.query('BEGIN');
 
@@ -1302,7 +1298,7 @@ export async function registrarNoPago(req, res) {
       return res.status(404).json({ error: 'Registro de cobro no encontrado.' });
     }
 
-    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || defaultCobrador;
+    const ownerId = cuota.prestamo_cobrador_id || cuota.cobrador_id || usuarioActualId;
     const delegatedId = cuota.compartido_con_usuario_id || null;
     if (
       ownerId &&

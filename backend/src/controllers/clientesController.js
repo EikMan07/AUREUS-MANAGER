@@ -1,5 +1,4 @@
 import { query, pool, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 import {
   snapshotPrestamoToBaneado,
   ensureHistorialArchivoSchema,
@@ -214,7 +213,13 @@ function validarCamposObligatoriosCliente(body = {}, isEdit = false) {
 
 export async function getClientes(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const sql = `
       SELECT 
@@ -264,7 +269,13 @@ export async function createCliente(req, res) {
       cleanDetalles
     } = validacion.values;
 
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const phoneKey = normalizePhoneKeyBackend(cleanTelefono);
     const secPhoneKey = cleanTelefonoSecundario ? normalizePhoneKeyBackend(cleanTelefonoSecundario) : null;
@@ -406,7 +417,7 @@ export async function createCliente(req, res) {
           detalles = $7,
           version = COALESCE(version, 1) + 1,
           actualizado_en = now()
-        WHERE id = $8 AND estado = 'ACTIVO'
+        WHERE id = $8 AND cobrador_id = $9::uuid AND estado = 'ACTIVO'
         RETURNING *;
       `;
 
@@ -418,7 +429,8 @@ export async function createCliente(req, res) {
         cleanTelefonoSecundario,
         cleanUbicacion,
         cleanDetalles,
-        existingId
+        existingId,
+        cobradorId
       ]);
 
       const updatedCliente = updatedRows[0] || existingCliente;
@@ -643,7 +655,13 @@ export async function updateCliente(req, res) {
       cleanDetalles
     } = validacion.values;
 
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const phoneKey = normalizePhoneKeyBackend(cleanTelefono);
 
@@ -737,7 +755,7 @@ export async function updateCliente(req, res) {
         detalles = $7,
         version = version + 1,
         actualizado_en = now()
-      WHERE id = $8 AND estado = 'ACTIVO'
+      WHERE id = $8 AND cobrador_id = $9::uuid AND estado = 'ACTIVO'
       RETURNING *;
     `;
 
@@ -749,7 +767,8 @@ export async function updateCliente(req, res) {
       cleanTelefonoSecundario,
       cleanUbicacion,
       cleanDetalles,
-      id
+      id,
+      cobradorId
     ]);
 
     if (rows.length === 0) {
@@ -811,17 +830,24 @@ export async function updateCliente(req, res) {
 }
 
 export async function enviarPapelera(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
+
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const cobradorId = req.body?.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     await client.query('BEGIN');
 
     // 1. Obtener datos del cliente actual desde la tabla clientes
     const { rows: clientRows } = await client.query(
-      'SELECT * FROM clientes WHERE id = $1::uuid FOR UPDATE;',
-      [id]
+      'SELECT * FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid FOR UPDATE;',
+      [id, cobradorId]
     );
 
     if (clientRows.length === 0) {
@@ -836,8 +862,8 @@ export async function enviarPapelera(req, res) {
 
     // Respaldo de seguridad en prestamos_baneados ANTES de borrar el cliente por ON DELETE CASCADE
     const { rows: activePrestamosRows } = await client.query(
-      'SELECT * FROM prestamos WHERE cliente_id = $1::uuid FOR UPDATE;',
-      [id]
+      'SELECT * FROM prestamos WHERE cliente_id = $1::uuid AND cobrador_id = $2::uuid FOR UPDATE;',
+      [id, cobradorId]
     );
 
     const hoyRes = await client.query(
@@ -875,8 +901,8 @@ export async function enviarPapelera(req, res) {
       await client.query('DELETE FROM prestamos WHERE id = ANY($1::uuid[]);', [activeLoanIds]);
     }
     // Blindaje adicional ante cualquier residuo ligado al cliente antes de borrar su fila
-    await client.query('DELETE FROM agenda_cobros WHERE cliente_id = $1::uuid;', [id]);
-    await client.query('DELETE FROM prestamos WHERE cliente_id = $1::uuid;', [id]);
+    await client.query('DELETE FROM agenda_cobros WHERE cliente_id = $1::uuid AND cobrador_id = $2::uuid;', [id, cobradorId]);
+    await client.query('DELETE FROM prestamos WHERE cliente_id = $1::uuid AND cobrador_id = $2::uuid;', [id, cobradorId]);
 
     // 3. Mover al cliente a la tabla clientes_baneados (con 30 días de retención)
     const insertBaneadoSql = `
@@ -924,7 +950,7 @@ export async function enviarPapelera(req, res) {
     const clienteBaneado = baneadoRows[0];
 
     // 4. Eliminar al cliente de la tabla clientes para dejar la tabla limpia
-    await client.query('DELETE FROM clientes WHERE id = $1::uuid;', [id]);
+    await client.query('DELETE FROM clientes WHERE id = $1::uuid AND cobrador_id = $2::uuid;', [id, cobradorId]);
 
     // 5. Registrar en bitácora de actividad
     const finalCedula = cleanCedula9(clienteBaneado.cedula);
@@ -975,8 +1001,14 @@ export async function enviarPapelera(req, res) {
 
 export async function enviarListaNegra(req, res) {
   try {
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const { id } = req.params;
-    const cobradorId = req.body.cobrador_id || req.user?.id || await getDefaultCobradorId();
 
     const updateSql = `
       UPDATE clientes
@@ -984,11 +1016,11 @@ export async function enviarListaNegra(req, res) {
         estado = 'EN_LISTA_NEGRA'::public.estado_cliente,
         version = COALESCE(version, 1) + 1,
         actualizado_en = now()
-      WHERE id = $1::uuid
+      WHERE id = $1::uuid AND cobrador_id = $2::uuid
       RETURNING *;
     `;
 
-    const { rows } = await query(updateSql, [id]);
+    const { rows } = await query(updateSql, [id, cobradorId]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Cliente no encontrado.' });
     }
@@ -1103,8 +1135,13 @@ export async function consultarHistorialArchivo(req, res) {
       });
     }
 
-    await ensureHistorialArchivoSchema();
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     // 1. Verificar si la cédula ya existe activa en la tabla clientes del mismo cobrador
     const { rows: activeCandidates } = await query(
@@ -1278,8 +1315,13 @@ const UUID_CHECK_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 export async function listarAntecedentesArchivados(req, res) {
   try {
-    await ensureHistorialArchivoSchema();
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
 
     const { rows: archivoRows } = await query(
       `SELECT id, cliente_id_actual, cedula, nombre, apellidos, telefono,
@@ -1414,10 +1456,16 @@ export async function listarAntecedentesArchivados(req, res) {
 }
 
 export async function eliminarAntecedenteCliente(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     await ensureHistorialArchivoSchema();
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
     const rawTarget = String(req.params.archivoId || req.query.cedula || '').trim();
 
     if (!rawTarget) {
@@ -1503,10 +1551,16 @@ export async function eliminarAntecedenteCliente(req, res) {
 }
 
 export async function eliminarPrestamoAntecedenteIndividual(req, res) {
+  const cobradorId = req.user?.id;
+  if (!cobradorId) {
+    return res.status(401).json({
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
     await ensureHistorialArchivoSchema();
-    const cobradorId = req.query.cobrador_id || req.user?.id || (await getDefaultCobradorId());
     const { prestamoArchivoId } = req.params;
 
     if (!prestamoArchivoId || !UUID_CHECK_RX.test(prestamoArchivoId)) {

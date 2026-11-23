@@ -11,9 +11,10 @@ function getCsrfSecret() {
   return secret;
 }
 
-function getAllowedOrigins() {
-  const configured = String(process.env.FRONTEND_URL || '')
-    .split(',')
+export function getAllowedOrigins() {
+  const configured = [process.env.FRONTEND_URL, process.env.ALLOWED_ORIGINS]
+    .filter(Boolean)
+    .flatMap((raw) => String(raw).split(','))
     .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
@@ -28,6 +29,10 @@ function getAllowedOrigins() {
         ];
 
   return new Set([...configured, ...defaults]);
+}
+
+export function getAllowedOriginsList() {
+  return Array.from(getAllowedOrigins());
 }
 
 function extractOriginFromHeader(headerVal) {
@@ -72,32 +77,68 @@ export function validarTokenCsrf(token, userId) {
   return crypto.timingSafeEqual(receivedBuf, expectedBuf);
 }
 
+function hasSessionCookie(req) {
+  if (req?.cookies?.sid || req?.cookies?.['__Host-sid']) {
+    return true;
+  }
+  const rawCookieHeader = String(req?.headers?.cookie || '');
+  return /(?:^|;\s*)(?:__Host-)?sid=[^;\s]+/.test(rawCookieHeader);
+}
+
 export function verificarOrigen(req, res, next) {
   if (!MUTABLE_METHODS.has(req.method)) return next();
 
-  const rawOrigin = req.headers.origin;
-  const rawReferer = req.headers.referer;
-
-  if (!rawOrigin && !rawReferer) {
-    return next();
-  }
-
+  const originHeader = req.get('origin');
+  const refererHeader = req.get('referer');
   const allowed = getAllowedOrigins();
-  const requestOrigin = extractOriginFromHeader(rawOrigin || rawReferer);
-  const hostOrigin = req.headers.host ? `${req.protocol}://${req.headers.host}` : '';
 
-  if (allowed.has(requestOrigin) || (hostOrigin && requestOrigin === hostOrigin)) {
-    return next();
+  if (originHeader) {
+    const normalizedOrigin = String(originHeader).trim().replace(/\/+$/, '');
+    if (allowed.has(normalizedOrigin)) {
+      return next();
+    }
+    return res.status(403).json({
+      ok: false,
+      success: false,
+      status: 403,
+      codigo: 'ORIGEN_NO_PERMITIDO',
+      error: 'Origen no autorizado',
+      userMessage: 'La solicitud proviene de un origen no autorizado.',
+    });
   }
 
-  return res.status(403).json({
-    ok: false,
-    success: false,
-    status: 403,
-    codigo: 'ORIGEN_NO_PERMITIDO',
-    error: 'Origen no autorizado',
-    userMessage: 'La solicitud proviene de un origen no autorizado.',
-  });
+  if (refererHeader) {
+    let refererOrigin = '';
+    try {
+      refererOrigin = new URL(refererHeader).origin;
+    } catch {
+      refererOrigin = '';
+    }
+    if (refererOrigin && allowed.has(refererOrigin)) {
+      return next();
+    }
+    return res.status(403).json({
+      ok: false,
+      success: false,
+      status: 403,
+      codigo: 'ORIGEN_NO_PERMITIDO',
+      error: 'Origen no autorizado',
+      userMessage: 'La solicitud proviene de un origen no autorizado.',
+    });
+  }
+
+  if (hasSessionCookie(req)) {
+    return res.status(403).json({
+      ok: false,
+      success: false,
+      status: 403,
+      codigo: 'ORIGEN_NO_VERIFICADO',
+      error: 'Origen no verificado',
+      userMessage: 'No fue posible verificar el origen de tu solicitud.',
+    });
+  }
+
+  return next();
 }
 
 export function verificarCsrf(req, res, next) {
@@ -126,6 +167,8 @@ export function verificarCsrf(req, res, next) {
 }
 
 export default {
+  getAllowedOrigins,
+  getAllowedOriginsList,
   generarTokenCsrf,
   validarTokenCsrf,
   verificarOrigen,

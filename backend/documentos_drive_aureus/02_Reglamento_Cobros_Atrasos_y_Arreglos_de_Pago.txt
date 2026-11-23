@@ -1,0 +1,15 @@
+REGLAMENTO DE COBROS, ATRASOS Y ARREGLOS DE PAGO — AUREUS MANAGER
+
+1. Operacion de la Agenda Diaria
+- La agenda de cobros opera de Lunes a Domingo.
+- Cada cuota programada admite tres acciones operativas oficiales:
+  a) Pago: cancelacion total de la cuota o abono parcial registrado en la agenda.
+  b) Pasar de dia: reprogramacion de cobro permitiendo elegir entre Acumular la cuota con la siguiente o Correr las fechas del calendario.
+  c) No Pago: marca de incumplimiento en la fecha programada.
+
+2. Reglas de Atraso Automatico
+- Un prestamo pasa automaticamente al estado Atrasado cuando acumula 4 semanas sin pago en modalidad semanal o 2 quincenas sin pago en modalidad quincenal.
+
+3. Renovaciones y Arreglos de Pago
+- Para solicitar una Renovacion de prestamo, el cliente debe haber cubierto al menos el 70% del monto total a financiar sin atrasos activos.
+- Los clientes en mora pueden acogerse a un Arreglo de Pago con una cuota especial reestructurada autorizada por el titular de la cuenta.

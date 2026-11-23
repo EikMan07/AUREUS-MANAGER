@@ -13,7 +13,12 @@ import {
 } from 'lucide-react';
 import { dbService } from '../../services/db';
 import { ConfirmModal } from '../Clients/ConfirmModal';
-import { formatColones, formatFullName, formatPhone } from '../../utils/formatters';
+import {
+  formatColones,
+  formatFullName,
+  formatPhone,
+  formatCedulaCR
+} from '../../utils/formatters';
 import { useTheme } from '../../context/ThemeContext';
 import {
   ClassicalLaurelDivider,
@@ -21,9 +26,15 @@ import {
   handleSpotlightMouseMove
 } from '../Common/ClassicalAppArchitecture';
 
+function toSafeNumber(value, fallback = 0) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
 function getInitials(nombre, apellidos) {
-  const n = (nombre || '').trim().charAt(0).toUpperCase();
-  const a = (apellidos || '').trim().charAt(0).toUpperCase();
+  const n = String(nombre || '').trim().charAt(0).toUpperCase();
+  const a = String(apellidos || '').trim().charAt(0).toUpperCase();
   return `${n}${a}` || 'CF';
 }
 
@@ -147,30 +158,37 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
   }, [clientes, filterTab, searchTerm]);
 
   const [antecedentes, setAntecedentes] = useState([]);
+  const [antecedentesError, setAntecedentesError] = useState('');
   const [antecedenteParaEliminar, setAntecedenteParaEliminar] = useState(null);
   const [prestamoAntecedenteParaEliminar, setPrestamoAntecedenteParaEliminar] = useState(null);
 
-  const loadAntecedentes = async () => {
+  const loadAntecedentes = useCallback(async () => {
+    setAntecedentesError('');
     try {
       const res = await dbService.obtenerAntecedentesArchivados();
       setAntecedentes(Array.isArray(res?.antecedentes) ? res.antecedentes : []);
     } catch (err) {
       console.warn('Error cargando antecedentes archivados:', err?.message || err);
+      setAntecedentes([]);
+      setAntecedentesError(
+        err?.userMessage || 'No fue posible cargar los antecedentes archivados en este momento.'
+      );
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadAntecedentes();
-  }, []);
+  }, [loadAntecedentes]);
 
   const filteredAntecedentes = useMemo(() => {
+    const lista = Array.isArray(antecedentes) ? antecedentes.filter(Boolean) : [];
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return antecedentes;
-    return antecedentes.filter((ant) => {
-      const fullName = formatFullName(ant.nombre, ant.apellidos).toLowerCase();
-      const ced = String(ant.cedula || '').toLowerCase();
-      const tel = String(ant.telefono || '').toLowerCase();
-      const dir = String(ant.direccion_exacta || '').toLowerCase();
+    if (!term) return lista;
+    return lista.filter((ant) => {
+      const fullName = formatFullName(ant?.nombre, ant?.apellidos).toLowerCase();
+      const ced = String(ant?.cedula || '').toLowerCase();
+      const tel = String(ant?.telefono || '').toLowerCase();
+      const dir = String(ant?.ubicacion || ant?.direccion_exacta || '').toLowerCase();
       return (
         fullName.includes(term) ||
         ced.includes(term) ||
@@ -734,7 +752,11 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                   color: 'var(--aureus-text-primary)'
                 }}
               >
-                {searchTerm ? 'No se encontraron coincidencias' : 'Sin antecedentes archivados'}
+                {antecedentesError
+                  ? 'No se pudieron cargar los antecedentes'
+                  : searchTerm
+                    ? 'No se encontraron coincidencias'
+                    : 'Sin antecedentes archivados'}
               </h3>
               <p
                 style={{
@@ -746,8 +768,28 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                   maxWidth: '340px'
                 }}
               >
-                No tienes antecedentes ni préstamos no finiquitados archivados en tu cartera.
+                {antecedentesError ||
+                  'No tienes antecedentes ni préstamos archivados en este momento.'}
               </p>
+              {antecedentesError && (
+                <button
+                  type="button"
+                  onClick={loadAntecedentes}
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #B69A55',
+                    background: 'linear-gradient(135deg, #E5C97B 0%, #B69A55 100%)',
+                    color: '#101C2C',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Reintentar
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -758,19 +800,31 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
               gap: '12px'
             }}
           >
-            {filteredAntecedentes.map((ant) => {
-              const nombreCompleto = formatFullName(ant.nombre, ant.apellidos);
-              const initials = getInitials(ant.nombre, ant.apellidos);
-              const prestamosArch = Array.isArray(ant.prestamos) ? ant.prestamos : [];
-              const dejoSinPagar = Number(ant.saldo_pendiente_acumulado || 0);
-              const totalAbonado = Number(ant.total_pagado_acumulado || 0);
-              const cantPrestamos = Number(
-                ant.total_prestamos_historicos || prestamosArch.length || 0
+            {filteredAntecedentes.map((ant, idx) => {
+              const nombreCompleto =
+                formatFullName(ant?.nombre, ant?.apellidos) || ant?.nombre_completo || 'Sin nombre';
+              const initials = getInitials(ant?.nombre, ant?.apellidos);
+              const prestamosArch = Array.isArray(ant?.prestamos) ? ant.prestamos.filter(Boolean) : [];
+              const resumen = ant?.resumen && typeof ant.resumen === 'object' ? ant.resumen : {};
+              const dejoSinPagar = toSafeNumber(
+                resumen.saldo_impago_total ?? ant?.saldo_pendiente_acumulado,
+                0
               );
+              const totalAbonado = toSafeNumber(
+                resumen.total_abonado ?? ant?.total_pagado_acumulado,
+                0
+              );
+              const cantPrestamos = toSafeNumber(
+                resumen.total_prestamos ?? ant?.total_prestamos_historicos ?? prestamosArch.length,
+                0
+              );
+              const cedulaFormateada = ant?.cedula ? formatCedulaCR(ant.cedula) : '';
+              const telefonoFormateado = ant?.telefono ? formatPhone(ant.telefono) : '';
+              const ubicacionTexto = ant?.ubicacion || ant?.direccion_exacta || '';
 
               return (
                 <div
-                  key={ant.id || ant.cedula}
+                  key={ant?.id || ant?.archivo_id || ant?.cedula || `ant-${idx}`}
                   className="rb-spotlight-card"
                   onMouseMove={handleSpotlightMouseMove}
                   style={{
@@ -848,15 +902,27 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                             color: 'var(--aureus-text-secondary)'
                           }}
                         >
-                          Cédula {formatCedulaCR(ant.cedula || '')}
-                          {ant.telefono ? ` · Tel ${ant.telefono}` : ''}
+                          {cedulaFormateada ? `Cédula ${cedulaFormateada}` : 'Sin cédula'}
+                          {telefonoFormateado ? ` · Tel ${telefonoFormateado}` : ''}
                         </div>
+                        {ubicacionTexto && (
+                          <div
+                            style={{
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              color: 'var(--aureus-text-muted)',
+                              marginTop: '2px'
+                            }}
+                          >
+                            {ubicacionTexto}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <button
                       type="button"
-                      data-testid={`btn-eliminar-antecedente-papelera-${ant.id}`}
+                      data-testid={`btn-eliminar-antecedente-papelera-${ant?.id || idx}`}
                       onClick={() => setAntecedenteParaEliminar(ant)}
                       style={{
                         padding: '7px 11px',
@@ -983,72 +1049,83 @@ export function PapeleraDashboard({ onShowAlert, onSync }) {
                   {/* LISTA DE PRÉSTAMOS ARCHIVADOS CON OPCIÓN DE BORRADO INDIVIDUAL */}
                   {prestamosArch.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {prestamosArch.map((loan) => (
-                        <div
-                          key={loan.id}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '10px',
-                            backgroundColor: 'var(--aureus-bg-elevated)',
-                            border: '1px solid var(--aureus-border-subtle)',
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '8px',
-                            fontSize: '12px'
-                          }}
-                        >
-                          <div style={{ fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
-                            Monto {formatColones(loan.monto_prestado)} · Abonado{' '}
-                            {formatColones(loan.monto_pagado_acumulado)}
+                      {prestamosArch.map((loan, loanIdx) => {
+                        const montoPrestadoLoan = toSafeNumber(loan?.monto_prestado, 0);
+                        const montoPagadoLoan = toSafeNumber(
+                          loan?.monto_pagado_acumulado ?? loan?.monto_pagado,
+                          0
+                        );
+                        const saldoLoan = toSafeNumber(
+                          loan?.saldo_por_pagar ?? loan?.saldo_pendiente,
+                          0
+                        );
+                        return (
+                          <div
+                            key={loan?.id || `loan-${idx}-${loanIdx}`}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '10px',
+                              backgroundColor: 'var(--aureus-bg-elevated)',
+                              border: '1px solid var(--aureus-border-subtle)',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, color: 'var(--aureus-text-secondary)' }}>
+                              Monto {formatColones(montoPrestadoLoan)} · Abonado{' '}
+                              {formatColones(montoPagadoLoan)}
+                            </div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color:
+                                    saldoLoan > 0
+                                      ? isDark
+                                        ? '#F87171'
+                                        : '#C65D58'
+                                      : isDark
+                                        ? '#34D399'
+                                        : '#397D67'
+                                }}
+                              >
+                                Saldo {formatColones(saldoLoan)}
+                              </span>
+                              <button
+                                type="button"
+                                data-testid={`btn-eliminar-prestamo-arch-${loan?.id || loanIdx}`}
+                                onClick={() =>
+                                  setPrestamoAntecedenteParaEliminar({
+                                    antecedente: ant,
+                                    loan
+                                  })
+                                }
+                                title="Eliminar este préstamo archivado"
+                                style={{
+                                  padding: '5px 8px',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--aureus-red-border)',
+                                  backgroundColor: 'var(--aureus-red-light)',
+                                  color: 'var(--aureus-red-text)',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Trash2 size={12} strokeWidth={2.2} />
+                                <span>Eliminar préstamo</span>
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span
-                              style={{
-                                fontWeight: 800,
-                                color:
-                                  Number(loan.saldo_por_pagar || 0) > 0
-                                    ? isDark
-                                      ? '#F87171'
-                                      : '#C65D58'
-                                    : isDark
-                                      ? '#34D399'
-                                      : '#397D67'
-                              }}
-                            >
-                              Saldo {formatColones(loan.saldo_por_pagar)}
-                            </span>
-                            <button
-                              type="button"
-                              data-testid={`btn-eliminar-prestamo-arch-${loan.id}`}
-                              onClick={() =>
-                                setPrestamoAntecedenteParaEliminar({
-                                  antecedente: ant,
-                                  loan
-                                })
-                              }
-                              title="Eliminar este préstamo archivado"
-                              style={{
-                                padding: '5px 8px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--aureus-red-border)',
-                                backgroundColor: 'var(--aureus-red-light)',
-                                color: 'var(--aureus-red-text)',
-                                fontSize: '11px',
-                                fontWeight: 800,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <Trash2 size={12} strokeWidth={2.2} />
-                              <span>Eliminar préstamo</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

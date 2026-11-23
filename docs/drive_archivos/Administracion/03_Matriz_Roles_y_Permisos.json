@@ -1,0 +1,93 @@
+{
+  "sistema": "Aureus Manager",
+  "version_matriz": "2.0",
+  "roles": [
+    {
+      "rol": "COBRADOR",
+      "nombre_visible": "Prestamista Independiente",
+      "alcance_datos": "Exclusivo de su propia cartera vinculada a su identificador de usuario",
+      "rag_niveles_permitidos": [
+        "PRESTAMISTA"
+      ],
+      "permisos_operativos": [
+        "Gestionar sus propios clientes, prestamos, cobros, zonas, lista negra y papelera de 30 dias",
+        "Consultar a Seneca en modo lectura sobre su propia cartera, reglas operativas y simulaciones",
+        "Visualizar en el estado documental unicamente los documentos con nivel PRESTAMISTA"
+      ],
+      "restricciones_estrictas": [
+        "Acceso denegado con HTTP 403 a subida de documentos, borrado documental, conexion o sincronizacion Google Drive y cambio de plan RAG",
+        "Prohibido recuperar fragmentos ADMIN o recibir informacion sobre PostgreSQL, Node.js, Express, Sequelize, Groq, API o arquitectura interna",
+        "Prohibido consultar datos o metricas de otros prestamistas"
+      ]
+    },
+    {
+      "rol": "ADMINISTRADOR",
+      "nombre_visible": "Administrador de Plataforma",
+      "alcance_datos": "Gobernanza administrativa, auditoria RAG y metricas globales agregadas sin datos personales de deudores",
+      "rag_niveles_permitidos": [
+        "PRESTAMISTA",
+        "ADMIN"
+      ],
+      "permisos_operativos": [
+        "Administrar cuentas de prestamistas, planes RAG, documentos propios y sincronizacion recursiva con Google Drive",
+        "Consultar a Seneca sobre arquitectura tecnica, gobernanza, ADRs, roles, permisos y metricas globales agregadas de la plataforma",
+        "Visualizar documentos de niveles PRESTAMISTA y ADMIN en el panel de estado RAG"
+      ],
+      "restricciones_estrictas": [
+        "Prohibido exponer nombres, cedulas, telefonos o direcciones individuales de clientes deudores conforme a Ley 8968",
+        "Seneca mantiene modo estricto de solo lectura conforme a ADR-0002 sin mutaciones automaticas en base de datos"
+      ]
+    }
+  ],
+  "endpoints_rag_protegidos": [
+    {
+      "metodo": "GET",
+      "ruta": "/api/seneca/rag/estado",
+      "roles_permitidos": [
+        "COBRADOR",
+        "ADMINISTRADOR"
+      ],
+      "regla": "Retorna solo documentos PRESTAMISTA para COBRADOR y todos los niveles para ADMINISTRADOR"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/api/seneca/rag/documentos",
+      "roles_permitidos": [
+        "ADMINISTRADOR"
+      ],
+      "regla": "Protegido por soloAdminRag con respuesta HTTP 403 para COBRADOR"
+    },
+    {
+      "metodo": "DELETE",
+      "ruta": "/api/seneca/rag/documentos/:id",
+      "roles_permitidos": [
+        "ADMINISTRADOR"
+      ],
+      "regla": "Protegido por soloAdminRag con respuesta HTTP 403 para COBRADOR"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/api/seneca/rag/drive/conectar",
+      "roles_permitidos": [
+        "ADMINISTRADOR"
+      ],
+      "regla": "Protegido por soloAdminRag con respuesta HTTP 403 para COBRADOR"
+    },
+    {
+      "metodo": "POST",
+      "ruta": "/api/seneca/rag/drive/sincronizar",
+      "roles_permitidos": [
+        "ADMINISTRADOR"
+      ],
+      "regla": "Protegido por soloAdminRag con respuesta HTTP 403 para COBRADOR"
+    },
+    {
+      "metodo": "PUT y PATCH",
+      "ruta": "/api/seneca/rag/plan",
+      "roles_permitidos": [
+        "ADMINISTRADOR"
+      ],
+      "regla": "Protegido por soloAdminRag con respuesta HTTP 403 para COBRADOR"
+    }
+  ]
+}
