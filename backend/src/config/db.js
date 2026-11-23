@@ -57,10 +57,10 @@ export async function withTransaction(work) {
 }
 
 /**
- * Cuerpo de error técnico para las respuestas HTTP: el detalle (`debugError`) solo se incluye fuera de
- * producción. En producción el usuario recibe únicamente `userMessage`; el detalle queda en los logs.
+ * Cuerpo de error técnico para las respuestas HTTP: el detalle (`debugError`) solo se incluye en desarrollo.
+ * En cualquier otro entorno el usuario recibe únicamente `userMessage`; el detalle queda en los logs.
  */
 export function debugPayload(err) {
-  if (process.env.NODE_ENV === 'production') return {};
+  if (process.env.NODE_ENV !== 'development') return {};
   return { debugError: err?.message || err?.detail || String(err) };
 }

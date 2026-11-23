@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { pool } from '../config/db.js';
+import { pool, withTransaction, debugPayload } from '../config/db.js';
+import { aplicarRetencionBitacora } from '../services/seedService.js';
+import { aprovisionarEmpresaRag } from '../middlewares/ragLimites.js';
 
 const ADMIN_EMAIL_UNICO = 'admin@cobrofirme.cr';
 
@@ -94,18 +96,127 @@ export function redactarPII(rawDetalle) {
   if (!rawDetalle) return 'Operación registrada en plataforma';
   const str = typeof rawDetalle === 'string' ? rawDetalle : JSON.stringify(rawDetalle);
   return str
-    .replace(/\b[1-9]\d{8}\b/g, '[CÉDULA PROTEGIDA]')
-    .replace(/\b\d{4}[-\s]?\d{4}\b/g, '[TELÉFONO PROTEGIDO]')
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, 'registro')
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, 'correo protegido')
+    .replace(/\b[1-9]\d{8}\b/g, 'cédula protegida')
+    .replace(/\b\d{4}[-\s]?\d{4}\b/g, 'teléfono protegido')
     .replace(
-      /"(nombre|apellidos|nombre_completo|cedula|telefono|direccion|direccion_exacta)"\s*:\s*"[^"]*"/gi,
-      '"$1":"[PROTEGIDO LEY 8968]"'
-    );
+      /"(nombre|apellidos|nombre_completo|cedula|telefono|correo|correo_asignado|correo_actualizado|correo_eliminado|direccion|direccion_exacta)"\s*:\s*"[^"]*"/gi,
+      '$1 protegido'
+    )
+    .replace(/[{}"[\]]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-// 1. GET /api/admin/resumen
+function formatearEventoAuditoriaEjecutivo(row) {
+  const det = row?.detalle && typeof row.detalle === 'object' ? row.detalle : {};
+  const accionRaw = String(det.accion_admin || row?.accion || '').toUpperCase();
+  const entidadRaw = String(row?.entidad || '').toLowerCase();
+
+  let accion_legible = 'Actividad administrativa';
+  let categoria_legible = 'Plataforma';
+  let resumen_ejecutivo = 'Operación administrativa registrada bajo resguardo de privacidad.';
+
+  if (accionRaw === 'CREAR_PRESTAMISTA_ADMIN') {
+    accion_legible = 'Prestamista registrado';
+    categoria_legible = 'Prestamistas';
+    resumen_ejecutivo = 'Se registró una nueva cuenta de prestamista en la plataforma.';
+  } else if (accionRaw === 'EDITAR_PRESTAMISTA_ADMIN') {
+    accion_legible = 'Cuenta actualizada';
+    categoria_legible = 'Prestamistas';
+    resumen_ejecutivo = 'Se actualizaron los datos de perfil de una cuenta de prestamista.';
+  } else if (
+    accionRaw === 'CAMBIAR_ESTADO_PRESTAMISTA_ADMIN' ||
+    accionRaw === 'USUARIO_SUSPENDIDO' ||
+    accionRaw === 'USUARIO_REACTIVADO'
+  ) {
+    accion_legible = 'Estado de cuenta modificado';
+    categoria_legible = 'Prestamistas';
+    const estadoNuevo = String(det.estado_nuevo || '').toUpperCase();
+    if (estadoNuevo === 'SUSPENDIDA' || accionRaw === 'USUARIO_SUSPENDIDO') {
+      resumen_ejecutivo = 'Se suspendió temporalmente el acceso de una cuenta de prestamista.';
+    } else if (estadoNuevo === 'ACTIVA') {
+      resumen_ejecutivo = 'Se activó el acceso de una cuenta de prestamista.';
+    } else {
+      resumen_ejecutivo = 'Se actualizó el estado operativo de una cuenta de prestamista.';
+    }
+  } else if (
+    accionRaw === 'RESTABLECER_PASSWORD_PRESTAMISTA_ADMIN' ||
+    accionRaw === 'CLAVE_RESTABLECIDA'
+  ) {
+    accion_legible = 'Contraseña restablecida';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = 'Se renovó la contraseña de acceso para una cuenta de prestamista.';
+  } else if (accionRaw === 'ELIMINAR_PRESTAMISTA_ADMIN') {
+    accion_legible = 'Cuenta eliminada';
+    categoria_legible = 'Prestamistas';
+    resumen_ejecutivo = 'Se retiró definitivamente una cuenta de prestamista y sus registros asociados.';
+  } else if (accionRaw === 'DEPURAR_ANTECEDENTES_ADMIN') {
+    const prim = Number(det.registros_primarios_eliminados ?? 0);
+    const sec = Number(det.registros_secundarios_eliminados ?? 0);
+    accion_legible = 'Depuración ejecutada';
+    categoria_legible = 'Depuración';
+    resumen_ejecutivo = `Se depuraron ${prim} antecedentes históricos y ${sec} registros asociados.`;
+  } else if (accionRaw === 'DEPURAR_PAPELERA_ADMIN') {
+    const prim = Number(det.registros_primarios_eliminados ?? 0);
+    const sec = Number(det.registros_secundarios_eliminados ?? 0);
+    accion_legible = 'Papelera depurada';
+    categoria_legible = 'Depuración';
+    resumen_ejecutivo = `Se vaciaron ${prim} elementos de papelera y ${sec} registros asociados.`;
+  } else if (accionRaw === 'LIMPIAR_AUDITORIA_ADMIN') {
+    const elim = Number(det.registros_eliminados ?? 0);
+    accion_legible = 'Historial de auditoría depurado';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = `Se ejecutó la limpieza manual del historial retirando ${elim} eventos antiguos.`;
+  } else if (accionRaw.includes('CAMPANA') || entidadRaw.includes('campana')) {
+    accion_legible = 'Campaña comercial creada';
+    categoria_legible = 'CRM y Mercadeo';
+    resumen_ejecutivo = 'Se registró o actualizó una campaña comercial de mercadeo.';
+  } else if (accionRaw.includes('CRM') || entidadRaw.startsWith('crm')) {
+    accion_legible = 'Seguimiento comercial actualizado';
+    categoria_legible = 'CRM y Mercadeo';
+    resumen_ejecutivo = 'Se actualizó el seguimiento comercial dentro de la plataforma.';
+  } else if (accionRaw === 'INICIO_SESION') {
+    accion_legible = 'Inicio de sesión';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = 'Se registró un inicio de sesión autorizado en la plataforma.';
+  } else if (accionRaw === 'CIERRE_SESION') {
+    accion_legible = 'Cierre de sesión';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = 'Se cerró y revocó una sesión activa de usuario.';
+  } else if (accionRaw === 'CAMBIO_CONTRASENA') {
+    accion_legible = 'Cambio de contraseña';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = 'Se actualizó la contraseña y se revocaron sesiones anteriores.';
+  } else if (entidadRaw === 'lista_negra_global') {
+    accion_legible = 'Consulta de riesgo actualizada';
+    categoria_legible = 'Seguridad';
+    resumen_ejecutivo = 'Se registró un movimiento administrativo en el control de riesgo.';
+  }
+
+  const resumenSeguro = redactarPII(resumen_ejecutivo).replace(/[/()]/g, '').trim();
+  const actorRaw = String(row?.actor_nombre || '').trim();
+  const actor =
+    String(row?.actor_rol || '').toUpperCase() === 'ADMINISTRADOR' ||
+    !actorRaw ||
+    actorRaw === 'Cuenta histórica eliminada'
+      ? 'Administración'
+      : actorRaw;
+
+  return {
+    id: row.id,
+    accion_legible,
+    categoria_legible,
+    resumen_ejecutivo: resumenSeguro,
+    actor,
+    fecha: row.fecha_evento,
+  };
+}
+
+// 1. GET /api/admin/resumen (solo lectura)
 export const getResumenPlataforma = async (_req, res) => {
   try {
-    await ensureAdminSchemaReady();
     const { rows } = await pool.query(`
       SELECT
         (SELECT COUNT(*)::int FROM usuarios WHERE rol = 'COBRADOR') AS total_prestamistas,
@@ -130,17 +241,17 @@ export const getResumenPlataforma = async (_req, res) => {
       }
     });
   } catch (error) {
+    console.error('[adminController] Error en getResumenPlataforma:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo obtener el resumen global de la plataforma.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
 
-// 2. GET /api/admin/prestamistas
+// 2. GET /api/admin/prestamistas (solo lectura)
 export const getPrestamistas = async (_req, res) => {
   try {
-    await ensureAdminSchemaReady();
     const { rows } = await pool.query(`
       SELECT
         u.id,
@@ -170,9 +281,10 @@ export const getPrestamistas = async (_req, res) => {
       prestamistas: rows
     });
   } catch (error) {
+    console.error('[adminController] Error en getPrestamistas:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo cargar el directorio de prestamistas.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -270,6 +382,10 @@ export const crearPrestamistaAdmin = async (req, res) => {
 
     const nuevoPrestamista = rows[0];
 
+    await aprovisionarEmpresaRag(nuevoPrestamista.id, nuevoPrestamista.nombre_completo, {
+      seedBaseDocs: false
+    }).catch(() => {});
+
     await registrarBitacoraAdmin({
       usuarioId: req.user.id,
       accionEnum: 'USUARIO_REACTIVADO',
@@ -296,9 +412,10 @@ export const crearPrestamistaAdmin = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('[adminController] Error en crearPrestamistaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo crear la cuenta del prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -405,9 +522,10 @@ export const editarPrestamistaAdmin = async (req, res) => {
       prestamista: rows[0]
     });
   } catch (error) {
+    console.error('[adminController] Error en editarPrestamistaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudieron actualizar los datos del prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -447,6 +565,7 @@ export const cambiarEstadoPrestamistaAdmin = async (req, res) => {
     const { rows } = await pool.query(
       `UPDATE usuarios
        SET estado_cuenta = $1,
+           token_version = COALESCE(token_version, 1) + 1,
            actualizado_en = CURRENT_TIMESTAMP
        WHERE id = $2 AND rol = 'COBRADOR'
        RETURNING id, usuario, nombre_completo, correo, telefono, rol, estado_cuenta, creado_en AS fecha_creacion, actualizado_en AS fecha_actualizacion`,
@@ -473,9 +592,10 @@ export const cambiarEstadoPrestamistaAdmin = async (req, res) => {
       prestamista: rows[0]
     });
   } catch (error) {
+    console.error('[adminController] Error en cambiarEstadoPrestamistaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo cambiar el estado de la cuenta del prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -520,6 +640,7 @@ export const restablecerPasswordPrestamistaAdmin = async (req, res) => {
     await pool.query(
       `UPDATE usuarios
        SET password_hash = $1,
+           token_version = COALESCE(token_version, 1) + 1,
            intentos_fallidos = 0,
            bloqueado_hasta = NULL,
            actualizado_en = CURRENT_TIMESTAMP
@@ -544,9 +665,10 @@ export const restablecerPasswordPrestamistaAdmin = async (req, res) => {
       credencialTemporal: passwordPlana
     });
   } catch (error) {
+    console.error('[adminController] Error en restablecerPasswordPrestamistaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo restablecer la contraseña del prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -681,19 +803,19 @@ export const eliminarPrestamistaAdmin = async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[adminController] Error en eliminarPrestamistaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo eliminar definitivamente la cuenta del prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   } finally {
     client.release();
   }
 };
 
-// 8A. GET /api/admin/depuracion/antecedentes
+// 8A. GET /api/admin/depuracion/antecedentes (solo lectura)
 export const getResumenAntecedentesPorPrestamista = async (_req, res) => {
   try {
-    await ensureAdminSchemaReady();
     const { rows } = await pool.query(`
       SELECT
         u.id AS prestamista_id,
@@ -717,9 +839,10 @@ export const getResumenAntecedentesPorPrestamista = async (_req, res) => {
       prestamistas: rows
     });
   } catch (error) {
+    console.error('[adminController] Error en getResumenAntecedentesPorPrestamista:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo obtener el resumen de depuración por prestamista.',
-      devError: error.message
+      ...debugPayload(error)
     });
   }
 };
@@ -783,7 +906,7 @@ export const depurarAntecedentesPrestamista = async (req, res) => {
       usuarioId: req.user.id,
       accionEnum: 'CLIENTE_ELIMINADO_DEFINITIVO',
       accionLabel: tipo === 'papelera' ? 'DEPURAR_PAPELERA_ADMIN' : 'DEPURAR_ANTECEDENTES_ADMIN',
-      entidad: tipo === 'papelera' ? 'papelera' : 'historial_clientes_archivo',
+      entidad: 'depuracion',
       entidadId: targetId,
       detalle: {
         operacion: tipo === 'papelera' ? 'PURGA_PAPELERA_PRESTAMISTA' : 'PURGA_ANTECEDENTES_PRESTAMISTA',
@@ -805,20 +928,26 @@ export const depurarAntecedentesPrestamista = async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[adminController] Error en depurarAntecedentesPrestamista:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo completar la depuración administrativa solicitada.',
-      devError: error.message
+      ...debugPayload(error)
     });
   } finally {
     client.release();
   }
 };
 
-// 9. GET /api/admin/auditoria
+// 9. GET /api/admin/auditoria (solo lectura)
 export const getBitacoraAuditoriaAdmin = async (req, res) => {
   try {
-    await ensureAdminSchemaReady();
-    const limit = Math.min(Math.max(Number(req.query.limit) || 80, 10), 200);
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 25);
+    const offset = (page - 1) * limit;
+
+    const { rows: countRows } = await pool.query('SELECT COUNT(*)::int AS total FROM bitacora_actividad');
+    const total = Number(countRows[0]?.total ?? 0);
+    const totalPaginas = Math.max(1, Math.ceil(total / limit));
 
     const { rows } = await pool.query(
       `SELECT
@@ -830,35 +959,92 @@ export const getBitacoraAuditoriaAdmin = async (req, res) => {
          b.entidad_id,
          b.detalle,
          b.fecha_hora AS fecha_evento,
-         COALESCE(u.nombre_completo, 'Cuenta histórica eliminada') AS actor_nombre,
-         COALESCE(u.rol::text, 'COBRADOR') AS actor_rol
+         u.nombre_completo AS actor_nombre,
+         COALESCE(u.rol::text, 'ADMINISTRADOR') AS actor_rol
        FROM bitacora_actividad b
        LEFT JOIN usuarios u ON u.id = COALESCE(b.usuario_id, b.cobrador_id)
-       ORDER BY b.fecha_hora DESC
-       LIMIT $1`,
-      [limit]
+       ORDER BY b.fecha_hora DESC, b.id DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
 
-    const eventos = rows.map((row) => ({
-      id: row.id,
-      fecha_evento: row.fecha_evento,
-      actor_nombre: row.actor_nombre,
-      actor_rol: row.actor_rol,
-      accion: row.detalle?.accion_admin || row.accion,
-      entidad: row.entidad,
-      entidad_id: row.entidad_id,
-      detalle_sanitizado: redactarPII(row.detalle)
-    }));
+    const eventos = rows.map(formatearEventoAuditoriaEjecutivo);
 
     return res.json({
       ok: true,
-      total: eventos.length,
-      eventos
+      eventos,
+      paginacion: {
+        page,
+        limit,
+        total,
+        totalPaginas,
+      },
+      politicaRetencion: {
+        dias: 30,
+        maximoRegistros: 200,
+      },
     });
   } catch (error) {
+    console.error('[adminController] Error en getBitacoraAuditoriaAdmin:', redactarPII(error?.message || 'Error'));
     return res.status(500).json({
       userMessage: 'No se pudo consultar la bitácora de auditoría.',
-      devError: error.message
+      ...debugPayload(error)
+    });
+  }
+};
+
+// 10. DELETE /api/admin/auditoria/limpiar
+export const limpiarAuditoriaAdmin = async (req, res) => {
+  try {
+    await ensureAdminSchemaReady();
+    await aplicarRetencionBitacora();
+
+    const modo =
+      String(req.query.modo || req.body?.modo || 'antiguos').toLowerCase() === 'todo'
+        ? 'todo'
+        : 'antiguos';
+
+    const eliminados = await withTransaction(async (client) => {
+      await client.query("SELECT set_config('aureus.allow_bitacora_purge', 'on', true);");
+
+      let count = 0;
+      if (modo === 'todo') {
+        const delAll = await client.query('DELETE FROM bitacora_actividad');
+        count = Number(delAll.rowCount || 0);
+      } else {
+        const delOld = await client.query(
+          "DELETE FROM bitacora_actividad WHERE fecha_hora < now() - interval '7 days'"
+        );
+        count = Number(delOld.rowCount || 0);
+      }
+
+      const detalleLimpieza = JSON.stringify({
+        accion_admin: 'LIMPIAR_AUDITORIA_ADMIN',
+        operacion: modo === 'todo' ? 'LIMPIEZA_TOTAL_AUDITORIA' : 'LIMPIEZA_ANTIGUOS_AUDITORIA',
+        registros_eliminados: count,
+      });
+
+      await client.query(
+        `INSERT INTO bitacora_actividad (usuario_id, cobrador_id, accion, entidad, entidad_id, detalle)
+         VALUES ($1::uuid, $1::uuid, 'USUARIO_REACTIVADO'::public.accion_bitacora, 'seguridad', $2::uuid, $3::jsonb)`,
+        [req.user.id, req.user.id, detalleLimpieza]
+      );
+
+      return count;
+    });
+
+    return res.status(200).json({
+      ok: true,
+      eliminados,
+      modo,
+      userMessage: 'Historial de auditoría depurado correctamente.',
+    });
+  } catch (error) {
+    console.error('[adminController] Error en limpiarAuditoriaAdmin:', redactarPII(error?.message || 'Error'));
+    return res.status(500).json({
+      ok: false,
+      userMessage: 'No se pudo limpiar el historial de auditoría en este momento.',
+      ...debugPayload(error),
     });
   }
 };

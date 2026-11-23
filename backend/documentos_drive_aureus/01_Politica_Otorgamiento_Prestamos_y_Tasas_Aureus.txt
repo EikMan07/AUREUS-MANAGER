@@ -1,0 +1,17 @@
+POLITICA OFICIAL DE OTORGAMIENTO DE PRESTAMOS Y TASAS — AUREUS MANAGER
+
+1. Montos Autorizados
+- Monto minimo de prestamo operativo: ₡25,000 colones.
+- Monto maximo para clientes de primer ingreso: ₡250,000 colones.
+- Ampliacion para clientes con clasificacion Buen Pagador: hasta ₡1,500,000 colones previo historial sin atrasos vigentes.
+
+2. Tasa de Interes y Modalidades
+- Tasa de interes operativa estandar: 20% sobre el capital otorgado.
+- Modalidades autorizadas:
+  a) Modalidad Semanal: plazo de 10 cuotas semanales.
+  b) Modalidad Quincenal: plazo de 5 cuotas quincenales.
+
+3. Requisitos de Identificacion y Restricciones
+- Todo solicitante nacional debe presentar cedula de 9 digitos verificada mediante escaneo fotografico y consulta tributaria en Hacienda.
+- Los solicitantes extranjeros deben presentar documento DIMEX vigente.
+- Queda estrictamente prohibido otorgar prestamos nuevos a personas registradas activamente en Lista Negra.

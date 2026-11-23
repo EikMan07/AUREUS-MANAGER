@@ -32,7 +32,7 @@ export const errorHandler = (err, req, res, next) => {
 
   const isTechnical = (str) => {
     if (!str || typeof str !== 'string') return false;
-    return /\b(column|columna|relation|syntax|constraint|postgresql|postgres|sequelize|sql|base de datos|bases de datos|database|backend|frontend|servidor|server|api|endpoint|fetch|networkerror|localhost|puerto|port|stack|syntaxerror|typeerror|referenceerror|econnrefused|aplicativo|sistema|sistemas|cartera|carteras|violates|unexpected token|json at position)\b/i.test(
+    return /\b(column|columna|relation|syntax|constraint|postgresql|postgres|sequelize|sql|jsonb|jwt|base de datos|bases de datos|database|backend|frontend|servidor|server|api|endpoint|fetch|networkerror|localhost|puerto|port|stack|syntaxerror|typeerror|referenceerror|econnrefused|aplicativo|sistema|sistemas|cartera|carteras|violates|unexpected token|json at position)\b/i.test(
       str
     );
   };
@@ -56,15 +56,18 @@ export const errorHandler = (err, req, res, next) => {
     redactarPII(`[Error ${statusCode}] ${req.method} ${req.originalUrl}: ${err?.message || err}`)
   );
 
-  res.status(statusCode).json({
+  const responseBody = {
     ok: false,
     success: false,
     status: statusCode,
     error: errorLabel,
     userMessage,
-    debugError: process.env.NODE_ENV === 'production' ? undefined : err.message,
     field: err.field || null,
-  });
+  };
+  if (process.env.NODE_ENV === 'development') {
+    responseBody.debugError = err.message;
+  }
+  res.status(statusCode).json(responseBody);
 };
 
 export default errorHandler;

@@ -11,9 +11,11 @@ import {
   enviarListaNegra
 } from '../controllers/clientesController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requiereCobrador } from '../middlewares/roleMiddleware.js';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requiereCobrador);
 
 router.get('/', getClientes);
 router.get('/historial-archivo/consultar', consultarHistorialArchivo);

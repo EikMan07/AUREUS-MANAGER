@@ -15,9 +15,16 @@ dist-ssr
 
 # Environment variables
 .env
+backend/.env
+**/.env
 .env.local
 .env.*.local
 !*.example
+
+# Credenciales de Google Drive y cuentas de servicio (nunca subir a Git)
+credenciales/
+backend/credenciales/
+*29fbb8644fbc*.json
 
 # Editor directories and files
 .vscode/*

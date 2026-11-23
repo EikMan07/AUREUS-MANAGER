@@ -11,7 +11,8 @@ import {
   eliminarPrestamistaAdmin,
   getResumenAntecedentesPorPrestamista,
   depurarAntecedentesPrestamista,
-  getBitacoraAuditoriaAdmin
+  getBitacoraAuditoriaAdmin,
+  limpiarAuditoriaAdmin
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -29,5 +30,6 @@ router.delete('/prestamistas/:id', eliminarPrestamistaAdmin);
 router.get('/depuracion/antecedentes', getResumenAntecedentesPorPrestamista);
 router.delete('/depuracion/antecedentes/:targetId', depurarAntecedentesPrestamista);
 router.get('/auditoria', getBitacoraAuditoriaAdmin);
+router.delete('/auditoria/limpiar', limpiarAuditoriaAdmin);
 
 export default router;

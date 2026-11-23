@@ -33,7 +33,8 @@ import {
   eliminarPrestamistaAdmin as apiEliminarPrestamistaAdmin,
   obtenerResumenDepuracionAdmin as apiObtenerResumenDepuracionAdmin,
   depurarRegistrosPrestamistaAdmin as apiDepurarRegistrosPrestamistaAdmin,
-  obtenerAuditoriaAdmin as apiObtenerAuditoriaAdmin
+  obtenerAuditoriaAdmin as apiObtenerAuditoriaAdmin,
+  limpiarAuditoriaAdmin as apiLimpiarAuditoriaAdmin
 } from './apiClient.js';
 
 // API Service for Aureus Manager connected to Node/Express + PostgreSQL backend
@@ -540,8 +541,12 @@ export const api = {
     return await apiDepurarRegistrosPrestamistaAdmin(targetId, tipo);
   },
 
-  async obtenerAuditoriaAdmin(limit = 80) {
-    return await apiObtenerAuditoriaAdmin(limit);
+  async obtenerAuditoriaAdmin(page = 1, limit = 15) {
+    return await apiObtenerAuditoriaAdmin(page, limit);
+  },
+
+  async limpiarAuditoriaAdmin(modo = 'antiguos') {
+    return await apiLimpiarAuditoriaAdmin(modo);
   },
 
   async obtenerResumenSeneca() {

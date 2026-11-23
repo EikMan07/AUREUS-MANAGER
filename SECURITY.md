@@ -3,37 +3,44 @@
 ## Versiones Compatibles
 | Versión | Soportada | Estado |
 | :--- | :--- | :--- |
-| 1.0.x | :white_check_mark: | Activa / En Producción |
+| 1.0.x | :white_check_mark: | Activa / Endurecida (Fases 1, 2 y 3) |
 
 ---
 
 ## Directrices de Seguridad del Sistema
 
-### 1. Gestión de Secretos, Autenticación y Sesiones Reforzadas
-- **Cookies Seguras `HttpOnly` y JWT**: Toda sesión autenticada emite un JSON Web Token firmado (`HS256`) almacenado exclusivamente en cookies seguras **`HttpOnly`** (`sid` en desarrollo y `__Host-sid` en producción) con atributos `SameSite=Lax`, `Path=/` y expiración deslizante de **25 minutos por inactividad**. Está estrictamente prohibido guardar tokens de sesión en `localStorage` o `sessionStorage`, así como exponer el JWT en respuestas JSON.
-- **Defensa Anti-CSRF en 3 Capas**: Todas las mutaciones (`POST`, `PUT`, `PATCH`, `DELETE`) están protegidas mediante:
-  1. Atributo `SameSite=Lax` en la cookie de sesión.
-  2. Verificación estricta de cabeceras `Origin` y `Referer` contra orígenes autorizados (`verificarOrigen`).
-  3. Validación criptográfica de token HMAC enviado en memoria a través de la cabecera `X-CSRF-Token`, comparado en tiempo constante mediante `crypto.timingSafeEqual`.
-- **Consentimiento de Cookies y Bloqueo de Rutas Privadas**: El acceso a la operativa exige la aceptación explícita de cookies esenciales de seguridad en primera visita. Las rutas del cliente protegidas con `PrivateRoutes.jsx` y todos los endpoints `/api/*` privados rechazan solicitudes sin sesión verificada devolviendo `401 Unauthorized`.
-- **Protección contra Fuerza Bruta (Rate Limiting)**: Limitación de intentos fallidos en inicio de sesión (`10` intentos por ventana de `10` minutos por origen) y control de frecuencia en consultas al asistente IA (`30` consultas por minuto por usuario autenticado).
-- **Hash de Contraseñas y Secretos**: Cifrado irreversible de contraseñas con `bcryptjs` tanto en registro (`POST /api/auth/registro`) como en actualización de credenciales (`PUT /api/auth/password`, con verificación previa de la contraseña actual), variables sensibles (`DATABASE_URL`, `JWT_SECRET`, `CSRF_SECRET`, `GROQ_API_KEY`) cargadas exclusivamente desde el entorno del servidor (`dotenv`) y provisión únicamente de plantillas `.env.example` públicas sin credenciales reales.
-- **Cero almacenamiento de secretos en Git**: Ningún archivo `.env`, contraseña, clave privada, cadena de conexión ni archivos de notas de desarrollo local se confirman en el repositorio.
+### 1. Autenticación Dual y Sesiones Endurecidas
+- **Credenciales Locales con Protección Anti-Enumeración**: El acceso con usuario o correo utiliza `bcryptjs` y ejecuta comparación contra un hash ficticio (`DUMMY_BCRYPT_HASH`) en tiempo constante cuando la cuenta no existe o carece de contraseña local (`password_hash IS NULL`), respondiendo siempre un `401` genérico para evitar enumeración de usuarios.
+- **Inicio de Sesión Social OAuth 2.0 y OpenID Connect (Patrón BFF)**:
+  - Integración oficial con **Google (OpenID Connect)** y **GitHub (OAuth 2.0)** usando exclusivamente el flujo **Authorization Code + PKCE (`S256`)**; los flujos obsoletos `Implicit` y `ROPC` están prohibidos.
+  - Los parámetros `state` criptográfico (`crypto.randomBytes(32)`), `nonce` obligatorio en Google y `code_verifier` PKCE se almacenan en una cookie efímera de un solo uso de 10 minutos (`oauth_tx` en desarrollo, `__Host-oauth_tx` en producción) cifrada y autenticada con **AES-256-GCM** (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` en producción) y verificada en tiempo constante mediante `crypto.timingSafeEqual`.
+  - **Validación de Identidad Externa**: El ID Token de Google se verifica criptográficamente contra el JWKS oficial (`https://www.googleapis.com/oauth2/v3/certs`) con `jose` exigiendo `RS256`, `iss`, `aud`, `exp`, `nonce` y `email_verified === true`. En GitHub (`scope: read:user user:email`) se exige un correo con `verified === true`. El ID Token externo se consume solo para identificar al usuario y **nunca** autoriza endpoints propios.
+  - **Aislamiento de Roles en OAuth**: Toda cuenta creada vía Google o GitHub recibe estrictamente `rol = 'COBRADOR'` y `password_hash = NULL`. La cuenta única `ADMINISTRADOR` rechaza cualquier vinculación o ingreso social y permanece restringida a acceso local.
+  - Ningún token de Google, GitHub ni JWT de sesión se expone en parámetros de URL, `localStorage` ni `sessionStorage`.
+- **Sesiones en Cookies `HttpOnly` con Revocación Inmediata**:
+  - Toda sesión activa emite un JWT `HS256` propio con claims explícitos `iss` y `aud`, almacenado exclusivamente en cookie `HttpOnly` (`sid` en desarrollo, `__Host-sid` en producción con `Secure=true` y `SameSite=Lax`).
+  - Ventana deslizante de **25 minutos por inactividad** combinada con un **tope máximo absoluto de 12 horas** (`SESSION_MAX_HOURS`).
+  - Cada petición autenticada verifica `usuarios.token_version` y `estado_cuenta === 'ACTIVA'` contra PostgreSQL, garantizando revocación inmediata al cerrar sesión, cambiar contraseña o suspender la cuenta.
 
-### 2. Capa de Base de Datos y Persistencia (PostgreSQL + Sequelize)
-- **Consultas Parametrizadas y ORM**: Todas las operaciones en PostgreSQL a través de `Sequelize` y `pg` utilizan enlace de parámetros seguro para neutralizar cualquier vector de inyección SQL (SQLi).
-- **Aislamiento por Usuario Autenticado**: Cada consulta operativa filtra estrictamente por el `cobrador_id` extraído de la sesión autenticada en el servidor, reforzado con políticas a nivel de fila (`Row Level Security`) en esquema.
-- **Separación Estricta de Administrador Único (`adminMiddleware.js`)**: Existe una única cuenta con rol `ADMINISTRADOR` desvinculada de cualquier operación de cobros. Todos los endpoints `/api/admin/*` validan `rol === 'ADMINISTRADOR'` (`403 Forbidden` para `COBRADOR`), devuelven únicamente métricas agregadas y aplican redacción automática de PII (`redactarPII` / `piiRedactor.js`) conforme a la Ley N.° 8968.
-- **Bitácora Inmutable**: La tabla `bitacora_actividad` cuenta con triggers que impiden modificaciones (`UPDATE`) o eliminaciones (`DELETE`), garantizando una pista de auditoría inalterable.
-- **Validación de Integridad**: Restricciones de esquema para cédulas (`CHECK (cedula ~ '^[0-9]{9}$')`), códigos únicos de vinculación (`CF-XXXXXXXX`) y respaldo transaccional en Papelera por 30 días antes del archivo permanente.
+### 2. Defensa Anti-CSRF en 3 Capas
+Todas las mutaciones (`POST`, `PUT`, `PATCH`, `DELETE`) se protegen mediante tres controles independientes:
+1. Cookie de sesión con `SameSite=Lax` (y `Secure` obligatorio en producción).
+2. Validación estricta de cabeceras `Origin` y `Referer` contra lista blanca (`getAllowedOrigins()` en `csrf.js`), rechazando con `403 Forbidden` toda petición mutable con cookie que omita ambas cabeceras o provenga de un origen no autorizado.
+3. Token criptográfico HMAC enviado en memoria mediante `X-CSRF-Token`, validado en tiempo constante con `crypto.timingSafeEqual`.
 
-### 3. Gobernanza de IA (Séneca)
-- **Principio de Privilegio Mínimo (Solo Lectura)**: El agente informativo **Séneca** opera exclusivamente con consultas `SELECT` sobre los registros pertenecientes al usuario autenticado. No posee capacidad, rutas ni permisos para ejecutar `INSERT`, `UPDATE` ni `DELETE` sobre saldos, clientes o préstamos; toda transacción exige confirmación humana explícita.
-- **Aislamiento de Clave y Datos**: `GROQ_API_KEY` permanece aislada únicamente en el entorno del servidor backend. Las consultas enviadas al proveedor de inferencia omiten contraseñas, hashes, cookies y tokens de seguridad, aplicando además sanitización estricta de salidas en `seneca.schema.js`.
+### 3. Control de Acceso, Aislamiento y Privacidad (RBAC, IDOR, ABAC, ReBAC)
+- **RBAC en Servidor (`roleMiddleware.js`, `adminMiddleware.js`)**: Toda ruta privada encadena `authMiddleware -> requiereRol(...)`. Los endpoints `/api/admin/*` y `/api/admin/crm/*` exigen `rol === 'ADMINISTRADOR'`; las rutas operativas y `/api/crm/*` exigen `rol === 'COBRADOR'`.
+- **Cierre Total de IDOR Horizontal**: Ningún controlador confía en identificadores de propietario enviados en `req.body` o `req.query`; toda consulta y mutación deriva el titular exclusivamente desde `req.user.id`.
+- **ReBAC en Delegación de Cobros**: Compartir rutas diarias (`/api/compartir/dia`) valida explícitamente la relación activa previa en `contactos_cobradores`, devolviendo `403 Forbidden` ante destinatarios no vinculados.
+- **ABAC en RAG Documental**: Los documentos de Séneca se etiquetan por `nivel_acceso` (`PRESTAMISTA` frente a `ADMIN`), impidiendo que un rol recupere fragmentos destinados al otro.
+- **Cumplimiento Ley N.° 8968 y Redacción de PII**: Enmascaramiento automático de datos personales en logs y auditoría (`piiRedactor.js`), separación absoluta entre el administrador y las carteras de deudores, consentimiento legal versionado y exportación ARCO (`/api/auth/exportar-datos`).
 
-### 4. Comunicaciones y Red
-- **Políticas CORS y Validación de Origen**: El servidor configura `cors({ origin: true, credentials: true })`, analiza cookies con `cookie-parser` y valida estrictamente las cabeceras `Origin`/`Referer` mediante `verificarOrigen` antes de procesar las rutas bajo `/api`.
-- **Proxy Inverso en Desarrollo**: Vite redirige las solicitudes `/api` al backend local preservando las cookies seguras sin exponer puertos de infraestructura al usuario.
+### 4. Endurecimiento HTTP, Limitación de Tasa y Base de Datos
+- **Cabeceras de Seguridad y CORS**: `helmet` activo con política CSP (incluyendo `https://lh3.googleusercontent.com` y `https://avatars.githubusercontent.com` en `imgSrc` para avatares), `HSTS` en producción, `x-powered-by` deshabilitado, `trust proxy = 1`, CORS restringido a orígenes explícitos con credenciales y endpoint `/api/health` mínimo sin metadatos internos. Las trazas de error detalladas nunca se exponen fuera de desarrollo.
+- **Limitación de Tasa y Bloqueo Progresivo Persistente**: `express-rate-limit` (`rateLimiters.js`) protege login, registro, cambio de contraseña, flujos OAuth y tráfico global `/api`. Adicionalmente, el inicio de sesión local aplica bloqueo progresivo persistente en PostgreSQL (`intentos_fallidos`, `bloqueado_hasta`: 5, 8 y 10 fallos bloquean 5, 15 y 30 minutos respectivamente) con reinicio automático al autenticarse correctamente.
+- **Endpoints `GET` Estrictamente de Solo Lectura**: Ninguna ruta `GET` ejecuta escrituras ni DDL; el aprovisionamiento inicial corre en el arranque del servidor y la retención de bitácora junto con la purga de papelera vencida (> 30 días) se ejecutan mediante tareas programadas diarias (`node-cron`).
+- **Base de Datos y Mínimo Privilegio**: Consultas parametrizadas con Sequelize y `pg`, bitácora protegida contra alteraciones mediante trigger, cero contraseñas hardcodeadas en semillas (`ADMIN_INITIAL_PASSWORD` desde entorno) y script `backend/sql/06_rol_minimo_privilegio.sql` para aprovisionar en producción el rol dedicado `aureus_app` (`NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION`).
+- **Gobernanza de Secretos e IA**: Todas las llaves (`DATABASE_URL`, `JWT_SECRET`, `CSRF_SECRET`, `GROQ_API_KEY`, credenciales OAuth y cuenta de servicio de Google Drive) viven exclusivamente fuera del control de versiones. Séneca opera en estricto modo de solo lectura y nunca ejecuta mutaciones transaccionales en la base de datos.
 
 ---
 

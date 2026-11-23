@@ -1,13 +1,27 @@
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 import app from './app.js';
 import { pool } from './config/db.js';
-import { ensureBaseUser } from './services/seedService.js';
-import { ensureHistorialArchivoSchema } from './utils/papeleraHelpers.js';
+import {
+  ensureBaseUser,
+  aplicarRetencionBitacora
+} from './services/seedService.js';
+import {
+  ensureHistorialArchivoSchema,
+  purgeExpiredPapeleraGlobal
+} from './utils/papeleraHelpers.js';
+import { ensureRagSchema } from './db/ragSchema.js';
+import { inicializarEmpresasRagUsuariosExistentes } from './middlewares/ragLimites.js';
+import {
+  iniciarCronSincronizacionDrive,
+  detenerCronSincronizacionDrive
+} from './jobs/sincronizar-drive.js';
 import { initOcrWorker, terminateOcrWorker } from './services/ocrService.js';
 
 dotenv.config();
 
 const PORT = process.env.PUERTO || process.env.PORT || 5000;
+let dailyMaintenanceTask = null;
 
 async function startServer() {
   try {
@@ -17,13 +31,33 @@ async function startServer() {
     console.log(`[Servidor] Conexión establecida con éxito. Zona horaria activa: ${tzRes.rows[0].TimeZone}`);
     client.release();
 
-    // Semilla técnica base y verificación idempotente de columnas del archivo histórico
+    // Semilla técnica base y verificación idempotente de esquemas al arranque
     await ensureBaseUser();
     await ensureHistorialArchivoSchema();
+    await purgeExpiredPapeleraGlobal();
+    await ensureRagSchema();
+    await inicializarEmpresasRagUsuariosExistentes();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`[Servidor] Cobro-Firme Backend activo y escuchando en http://localhost:${PORT} y http://127.0.0.1:${PORT}`);
     });
+
+    // Sincronización periódica cada hora de carpetas de Google Drive vinculadas
+    iniciarCronSincronizacionDrive();
+
+    // Tarea diaria de mantenimiento (03:00 America/Costa_Rica): retención de bitácora y purga de papelera > 30 días
+    dailyMaintenanceTask = cron.schedule(
+      '0 3 * * *',
+      async () => {
+        try {
+          await aplicarRetencionBitacora();
+          await purgeExpiredPapeleraGlobal();
+        } catch (err) {
+          console.error('[Mantenimiento Diario] Error ejecutando tarea programada:', err?.message || err);
+        }
+      },
+      { timezone: 'America/Costa_Rica' }
+    );
 
     // Worker OCR persistente: se precarga en segundo plano
     initOcrWorker().catch(() => {
@@ -45,9 +79,14 @@ process.on('uncaughtException', (err) => {
   console.error('[Servidor] Excepción no capturada:', err);
 });
 
-// Liberar el worker OCR al detener el proceso
+// Liberar cron jobs y worker OCR al detener el proceso
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {
+    detenerCronSincronizacionDrive();
+    if (dailyMaintenanceTask) {
+      dailyMaintenanceTask.stop();
+      dailyMaintenanceTask = null;
+    }
     await terminateOcrWorker();
     process.exit(0);
   });

@@ -1,5 +1,4 @@
 import { pool, query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 
 const SQL_CODIGO_EXPR = "COALESCE(NULLIF(BTRIM(u.codigo_vinculacion), ''), ('CF-' || UPPER(SUBSTRING(u.id::text FROM 1 FOR 8))))";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,7 +37,15 @@ function getTodayCostaRicaISO() {
  */
 export async function getPersonas(req, res) {
   try {
-    const propietarioId = req.user?.id || req.query.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const searchTerm = String(req.query.q || '').trim();
     const cleanUserTerm = searchTerm.replace(/^@+/, '').toLowerCase();
     const upperTerm = searchTerm.toUpperCase();
@@ -198,7 +205,15 @@ async function buscarUsuarioPorNombreUsuario(cleanUsername) {
  */
 export async function agregarPersona(req, res) {
   try {
-    const propietarioId = req.user?.id || req.body?.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const {
       contacto_usuario_id,
       username,
@@ -358,7 +373,15 @@ export async function agregarPersona(req, res) {
  */
 export async function eliminarPersona(req, res) {
   try {
-    const propietarioId = req.user?.id || req.query.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        ok: false,
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const { contactoId } = req.params;
 
     if (!contactoId || !UUID_REGEX.test(String(contactoId))) {
@@ -400,7 +423,14 @@ export async function eliminarPersona(req, res) {
  */
 export async function getResumenDiaParaCompartir(req, res) {
   try {
-    const propietarioId = req.user?.id || req.query.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const fecha = req.query.fecha || getTodayCostaRicaISO();
 
     const sqlCobros = `
@@ -462,9 +492,16 @@ export async function getResumenDiaParaCompartir(req, res) {
  * Comparte todos (o los seleccionados) cobros de una fecha con una persona vinculada.
  */
 export async function compartirCobrosDia(req, res) {
+  const propietarioId = req.user?.id;
+  if (!propietarioId) {
+    return res.status(401).json({
+      success: false,
+      error: 'No autenticado',
+      userMessage: 'Debes iniciar sesión para continuar.'
+    });
+  }
   const client = await pool.connect();
   try {
-    const propietarioId = req.user?.id || req.body.cobrador_id || (await getDefaultCobradorId());
     const { destinatario_id, fecha_cobro, agenda_ids } = req.body || {};
 
     if (!destinatario_id) {
@@ -479,6 +516,12 @@ export async function compartirCobrosDia(req, res) {
         userMessage: 'Debes indicar la fecha de cobro a compartir.'
       });
     }
+    if (!UUID_REGEX.test(String(destinatario_id))) {
+      return res.status(400).json({
+        success: false,
+        userMessage: 'La persona seleccionada no es válida.'
+      });
+    }
     if (destinatario_id === propietarioId) {
       return res.status(400).json({
         success: false,
@@ -488,19 +531,33 @@ export async function compartirCobrosDia(req, res) {
 
     await client.query('BEGIN');
 
-    // 1. Verificar existencia del destinatario y obtener nombre del propietario
-    const destRes = await client.query(
-      `SELECT id, nombre_completo, usuario FROM usuarios WHERE id = $1::uuid;`,
-      [destinatario_id]
+    // 1. Validación ReBAC estricta: exige vínculo previo activo en contactos_cobradores y destinatario COBRADOR ACTIVA
+    const relRes = await client.query(
+      `SELECT cc.id, u.id AS destinatario_id, u.nombre_completo, u.usuario
+       FROM contactos_cobradores cc
+       INNER JOIN usuarios u ON u.id = cc.contacto_usuario_id
+       WHERE cc.propietario_id = $1::uuid
+         AND cc.contacto_usuario_id = $2::uuid
+         AND u.rol = 'COBRADOR'::public.rol_usuario
+         AND u.estado_cuenta = 'ACTIVA'::public.estado_cuenta
+       LIMIT 1;`,
+      [propietarioId, destinatario_id]
     );
-    if (destRes.rows.length === 0) {
+
+    if (relRes.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({
+      return res.status(403).json({
+        ok: false,
         success: false,
-        userMessage: 'La persona seleccionada no existe en la lista de usuarios.'
+        error: 'Relacion no autorizada',
+        userMessage: 'Solo puedes compartir cobros con personas vinculadas en tu lista de contactos.'
       });
     }
-    const destinatario = destRes.rows[0];
+    const destinatario = {
+      id: relRes.rows[0].destinatario_id,
+      nombre_completo: relRes.rows[0].nombre_completo,
+      usuario: relRes.rows[0].usuario
+    };
 
     const propRes = await client.query(
       `SELECT id, nombre_completo, usuario FROM usuarios WHERE id = $1::uuid;`,
@@ -613,7 +670,14 @@ export async function compartirCobrosDia(req, res) {
  */
 export async function dejarDeCompartirDia(req, res) {
   try {
-    const propietarioId = req.user?.id || req.body?.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const fecha = req.body?.fecha_cobro || req.query?.fecha_cobro;
     const destinatarioId = req.body?.destinatario_id || req.query?.destinatario_id || null;
 
@@ -678,7 +742,14 @@ export async function dejarDeCompartirDia(req, res) {
  */
 export async function revertirCobroCompartido(req, res) {
   try {
-    const propietarioId = req.user?.id || req.body?.cobrador_id || (await getDefaultCobradorId());
+    const propietarioId = req.user?.id;
+    if (!propietarioId) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const { agendaId } = req.params;
 
     if (!agendaId || !UUID_REGEX.test(agendaId)) {

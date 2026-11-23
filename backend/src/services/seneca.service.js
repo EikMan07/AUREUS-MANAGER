@@ -1,5 +1,4 @@
 import { query } from '../config/db.js';
-import { getDefaultCobradorId } from './seedService.js';
 import { getAiConfig } from '../config/env.js';
 import { buildSenecaSystemPrompt } from '../prompts/seneca.prompt.js';
 import { consultarGroq } from './groq.service.js';
@@ -92,7 +91,12 @@ function formatDiasCobro(prestamos) {
  * teléfonos, atrasos, Lista Negra y Papelera.
  */
 export async function obtenerRadiografiaCompleta(cobradorId) {
-  const resolvedCobradorId = cobradorId || (await getDefaultCobradorId());
+  if (!cobradorId) {
+    const err = new Error('Se requiere un usuario autenticado para consultar la radiografía.');
+    err.statusCode = 401;
+    throw err;
+  }
+  const resolvedCobradorId = cobradorId;
   const fechaHoyCR = getTodayCostaRicaISO();
   const fechaMananaCR = addDaysISO(fechaHoyCR, 1);
   const fechaLimite7Dias = addDaysISO(fechaHoyCR, 7);

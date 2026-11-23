@@ -4,9 +4,11 @@ import {
   getResumenTendencia
 } from '../controllers/resumenController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { requiereCobrador } from '../middlewares/roleMiddleware.js';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(requiereCobrador);
 
 // GET /api/resumen - Métricas generales y distribución circular de clientes
 router.get('/', getResumenMetricas);

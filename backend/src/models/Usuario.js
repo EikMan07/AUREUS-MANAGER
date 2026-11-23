@@ -7,9 +7,11 @@ export default (sequelize, DataTypes) => {
       Usuario.hasMany(models.Cliente, { foreignKey: 'cobrador_id', as: 'clientes', onDelete: 'RESTRICT' });
       Usuario.hasMany(models.Prestamo, { foreignKey: 'cobrador_id', as: 'prestamos', onDelete: 'RESTRICT' });
       Usuario.hasMany(models.BitacoraActividad, { foreignKey: 'usuario_id', as: 'bitacora', onDelete: 'RESTRICT' });
+      Usuario.hasMany(models.CuentaOauth, { foreignKey: 'usuario_id', as: 'cuentas_oauth', onDelete: 'CASCADE' });
     }
 
     validarPassword(password) {
+      if (!this.password_hash) return false;
       return bcryptjs.compare(password, this.password_hash);
     }
 
@@ -28,7 +30,7 @@ export default (sequelize, DataTypes) => {
       correo: { type: DataTypes.STRING(254), allowNull: false, unique: true },
       correo_verificado: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       correo_verificado_en: { type: DataTypes.DATE, allowNull: true },
-      password_hash: { type: DataTypes.TEXT, allowNull: false },
+      password_hash: { type: DataTypes.TEXT, allowNull: true },
       rol: { type: DataTypes.ENUM('ADMINISTRADOR', 'COBRADOR'), allowNull: false, defaultValue: 'COBRADOR' },
       estado_cuenta: {
         type: DataTypes.ENUM('PENDIENTE_VERIFICACION', 'ACTIVA', 'SUSPENDIDA'),
@@ -44,6 +46,7 @@ export default (sequelize, DataTypes) => {
       webauthn_user_handle: { type: DataTypes.TEXT, allowNull: true },
       intentos_fallidos: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       bloqueado_hasta: { type: DataTypes.DATE, allowNull: true },
+      token_version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     },
     {
       sequelize,
@@ -65,7 +68,7 @@ export default (sequelize, DataTypes) => {
           }
         },
         beforeUpdate: async (user) => {
-          if (user.changed('password_hash') && !user.password_hash.startsWith('$2')) {
+          if (user.changed('password_hash') && user.password_hash && !user.password_hash.startsWith('$2')) {
             user.password_hash = await bcryptjs.hash(user.password_hash, 10);
           }
         },

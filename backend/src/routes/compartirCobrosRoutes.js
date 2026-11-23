@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../middlewares/authMiddleware.js';
+import { requiereCobrador } from '../middlewares/roleMiddleware.js';
 import {
   getPersonas,
   agregarPersona,
@@ -12,8 +13,8 @@ import {
 
 const router = Router();
 
-// Aplica el middleware permisivo para identificar al usuario autenticado o inyectar el cobrador base
 router.use(authMiddleware);
+router.use(requiereCobrador);
 
 router.get('/personas', getPersonas);
 router.post('/personas', agregarPersona);

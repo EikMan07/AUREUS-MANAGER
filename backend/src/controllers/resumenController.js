@@ -1,5 +1,4 @@
 import { pool, query, debugPayload } from '../config/db.js';
-import { getDefaultCobradorId } from '../services/seedService.js';
 
 const SPANISH_MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -72,7 +71,13 @@ function getMondayOfISOWeek(isoDateStr) {
  */
 export async function getResumenMetricas(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const todayISO = getTodayCostaRicaISO();
 
     // 1. Cobrado Hoy
@@ -366,7 +371,13 @@ export async function getResumenMetricas(req, res) {
  */
 export async function getResumenTendencia(req, res) {
   try {
-    const cobradorId = req.query.cobrador_id || req.user?.id || await getDefaultCobradorId();
+    const cobradorId = req.user?.id;
+    if (!cobradorId) {
+      return res.status(401).json({
+        error: 'No autenticado',
+        userMessage: 'Debes iniciar sesión para continuar.'
+      });
+    }
     const todayISO = getTodayCostaRicaISO();
     const tipo = (req.query.tipo || 'DIA').toUpperCase();
     let cantidad = parseInt(req.query.cantidad, 10);

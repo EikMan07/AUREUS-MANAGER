@@ -252,6 +252,24 @@ export function DashboardPage() {
     }
   }, []);
 
+  // Sincronización inmediata al convertir un prospecto del CRM en cliente real
+  const handleRefreshClientsFromCrm = useCallback(
+    async (nuevoCliente = null) => {
+      if (nuevoCliente && nuevoCliente.id) {
+        setClients((prev) => {
+          const listaActual = Array.isArray(prev) ? prev : [];
+          const yaExiste = listaActual.some((c) => c.id === nuevoCliente.id);
+          if (yaExiste) {
+            return listaActual.map((c) => (c.id === nuevoCliente.id ? { ...c, ...nuevoCliente } : c));
+          }
+          return [nuevoCliente, ...listaActual];
+        });
+      }
+      await loadClients();
+    },
+    [loadClients]
+  );
+
   // Función para recargar cobros reales desde PostgreSQL para la fecha actual
   const loadCobros = useCallback(async (fechaISO) => {
     try {
@@ -953,6 +971,7 @@ export function DashboardPage() {
               onUpdateClient={handleUpdateClient}
               onBlacklistClient={handleBlacklistClient}
               onDeleteClient={handleDeleteClient}
+              onRefreshClients={handleRefreshClientsFromCrm}
               onShowAlert={showAlert}
             />
           ) : activeModule === 'prestamos' ? (
@@ -1054,9 +1073,10 @@ export function DashboardPage() {
                     className="btn-share-cobros"
                     title="Compartir cobros del día"
                     aria-label="Compartir cobros del día"
+                    style={{ color: '#101C2C', fontWeight: 800 }}
                   >
-                    <Share2 color="#FFFFFF" size={16} strokeWidth={2.2} style={{ flexShrink: 0 }} />
-                    <span>Compartir</span>
+                    <Share2 color="#101C2C" size={16} strokeWidth={2.3} style={{ flexShrink: 0 }} />
+                    <span style={{ color: '#101C2C', fontWeight: 800 }}>Compartir</span>
                   </button>
                 </div>
               </div>
